@@ -239,7 +239,18 @@ def run_doctor(
     from ..cli_backends import get as get_cli, list_clients
     from ..cli_backends.cli_smoke_test import prompt_smoke_test, version_check
     for client_name in list_clients():
-        cli = get_cli(client_name, "doctor-probe", config=cfg)
+        # "doctor-probe" isn't a real model on any provider, so a prompt
+        # sent with that model name always 404s at model resolution before
+        # ever reaching an auth check -- every backend forwards it verbatim
+        # as e.g. `--model doctor-probe` (claude_code.py, cursor.py,
+        # opencode.py, copilot.py). Use each backend's own first configured
+        # default_models entry instead, so the smoke test below actually
+        # exercises a real invocation and can tell "not authenticated"
+        # apart from "model doesn't exist". Falls back to the old sentinel
+        # only if a backend has no default_models configured at all.
+        backend_cfg = (cfg.get("cli_backends") or {}).get(client_name) or {}
+        probe_model = next(iter(backend_cfg.get("default_models") or []), "doctor-probe")
+        cli = get_cli(client_name, probe_model, config=cfg)
         if not cli.is_available:
             checks.append(_check(f"cli_{client_name}", False, cli.unavailable_reason))
             continue
