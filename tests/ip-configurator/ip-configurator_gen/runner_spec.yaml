@@ -8,14 +8,14 @@ suite_id: ip-configurator-blind-benchmark
 
 invocation:
   coding_agent:
-    # - name: opencode
-    #   model: azure/gpt-5.4-mini
+    - name: opencode
+      model: azure/gpt-5.4-mini
     # The MCP server caps concurrent sessions at 7; the harness throttles
     # session-backed groups even when --parallel is higher.
     # - name: opencode
     #   model: azure/gpt-5.4
-    - name: claude_code
-      model: sonnet
+    # - name: claude_code
+    #   model: sonnet
     # # This copilot account only accepts the `auto` selector; named models
     # # (gpt-5.4, gpt-5, claude-sonnet-*) all return "model not available".
     # - name: copilot
@@ -26,8 +26,8 @@ invocation:
     # # confirmed via `agent --list-models`. Cursor reads the staged
     # # workspace `.claude/skills/` tree and the workspace-local
     # # `.cursor/mcp.json` the backend writes for the Vivado MCP server.
-    # - name: cursor
-    #   model: auto
+    - name: cursor
+      model: auto
 
   # Skill-stage allowlist: ship only the skill(s) under test into the
   # workspace `.claude/skills/` tree so triggering is measured fairly.
