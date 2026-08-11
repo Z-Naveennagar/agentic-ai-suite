@@ -164,6 +164,37 @@ def test_case_level_progress_log_still_reports_all_combos(tmp_path, monkeypatch,
     }))
 
     import logging
+    from skills_testing.core.logging_config import configure_logging
+
+    # Pin down the capture path so this test does not depend on where it lands
+    # in the run order.
+    #
+    # configure_logging() sets propagate=False on the `skills_testing` logger
+    # (deliberately -- it installs its own stderr handler and does not want
+    # duplicate lines) and, being guarded by a module-level flag, only ever
+    # runs once per process. pytest decides where to put its capture handler
+    # when the test *starts*: on the root logger, plus on any logger that is
+    # already non-propagating. One that becomes non-propagating later is
+    # missed -- pytest's catching_logs() says so outright ("will miss loggers
+    # that *become* non-propagating after the __enter__").
+    #
+    # main() calls configure_logging() below, so the flip's timing decided the
+    # result: first test in the process -> flip lands mid-test, pytest never
+    # attached to this logger, caplog.records empty. Later test -> pytest had
+    # attached, records captured. Green in a full run, red alone.
+    #
+    # So: force the setup up front (making main()'s call a no-op), keep
+    # propagation OFF, and attach caplog's own handler straight to the logger.
+    # addHandler() ignores a handler it already holds, so this is exactly one
+    # capture path whether or not pytest already attached the same object --
+    # and with propagation off, the root handler cannot double-count it.
+    # Re-enabling propagation instead does double-count, which is how the
+    # first attempt at this fix broke the whole-file run.
+    configure_logging()
+    pkg_logger = logging.getLogger("skills_testing")
+    pkg_logger.propagate = False
+    pkg_logger.addHandler(caplog.handler)
+
     with caplog.at_level(logging.INFO, logger="skills_testing.core.integration_runner"):
         rc = integration_runner.main([
             "--config", str(cfg_path),
