@@ -15,11 +15,14 @@ on:
       - "tests/**"
 
 permissions:
-  # write, not read: the last step commits the skill-signoffs/ snapshot
-  # this run produces back onto the branch (see skill_eval/CLAUDE.md's
-  # "Reporting" section -- a signoff snapshot is meant to be committed and
-  # reviewed, not disposable CI output).
-  contents: write
+  # read-only: skill-signoffs/ reports are uploaded as a workflow artifact
+  # (see the "Upload skill-signoffs report" step below), not committed --
+  # same choice [ZB] IP Configurator already made, since a report can
+  # contain full agent transcripts run against test_cases.yaml, itself an
+  # answer key. Committing that back onto main would make it as widely
+  # readable as the repo itself is, whereas an artifact stays scoped to
+  # this run.
+  contents: read
 
 jobs:
   skill-test-run:
@@ -215,37 +218,28 @@ jobs:
             echo
             echo "Skill(s): \`${{ steps.detect.outputs.skills }}\`, reps=3, parallel=10"
             echo
-            echo "Full pass/fail counts are in this step's log; the per-skill report is in \`skill-signoffs/\`."
+            echo "Full pass/fail counts are in this step's log; the per-skill report is in the **skill-signoffs-report** artifact (see Artifacts section of this run)."
             echo
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # skill-signoffs/<skill_name>_summary/ is meant to be committed and
-      # reviewed (skill_eval/CLAUDE.md "Reporting"), not disposable CI
-      # scratch -- so push it straight back onto the branch instead of
-      # just uploading it as a workflow artifact.
-      - name: Commit skill-signoffs report
-        if: steps.detect.outputs.skills != ''
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add skill-signoffs/
-          if git diff --cached --quiet; then
-            echo "No skill-signoffs changes to commit"
-          else
-            git commit -m "skill-signoffs: ${{ steps.detect.outputs.skills }} (CI skill test run)"
-            # The branch may have moved since this job's checkout (another
-            # push, or a re-run of an older job) -- rebase our one commit
-            # onto the current tip instead of pushing from a stale base,
-            # which non-fast-forwards. skill-signoffs/ is generated content
-            # this job alone produced, so the rebase itself should never
-            # conflict; a real conflict means someone else touched the same
-            # skill's report concurrently, which needs a human, not an
-            # auto-merge.
-            git fetch origin main
-            if ! git rebase origin/main; then
-              git rebase --abort
-              echo "::error::Could not rebase skill-signoffs commit onto origin/main -- push it manually"
-              exit 1
-            fi
-            git push origin HEAD:main
-          fi
+      # skill-signoffs/<skill_name>_summary/ is gitignored (skill-signoffs/*
+      # in .gitignore, only .gitkeep and _example/ are tracked) and stays
+      # that way deliberately: same reasoning [ZB] IP Configurator already
+      # settled on for the identical content -- a report can carry full
+      # agent transcripts run against test_cases.yaml, itself an answer key,
+      # so it's uploaded as a run-scoped artifact instead of committed
+      # somewhere as widely readable as the repo. always() so a failed run's
+      # partial report/logs still upload -- that's the run you most want
+      # evidence from. Bundled with _runtime/logs + results.db for the same
+      # reason ip-configurator.yml bundles them: the rendered report alone
+      # doesn't explain a failing case, the raw transcript/DB behind it does.
+      - name: Upload skill-signoffs report + session logs + results DB
+        if: ${{ always() && steps.detect.outputs.skills != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: skill-signoffs-report
+          path: |
+            skill-signoffs/
+            skill_eval/_runtime/logs/
+            skill_eval/_runtime/results.db
+          if-no-files-found: warn
