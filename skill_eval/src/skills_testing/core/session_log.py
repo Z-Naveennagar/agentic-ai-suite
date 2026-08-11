@@ -56,7 +56,7 @@ class SessionLogConfig:
 
     enabled: bool = True
     dir: str = "_runtime/logs"
-    max_output_chars: int = 200_000
+    max_output_chars: int = 1_000_000
     artifact_size_cap_bytes: int = 262_144
     copy_artifacts: bool = True
 
@@ -66,7 +66,7 @@ class SessionLogConfig:
         return cls(
             enabled=bool(block.get("enabled", True)),
             dir=str(block.get("dir", "_runtime/logs")),
-            max_output_chars=int(block.get("max_output_chars", 200_000)),
+            max_output_chars=int(block.get("max_output_chars", 1_000_000)),
             artifact_size_cap_bytes=int(block.get("artifact_size_cap_bytes", 262_144)),
             copy_artifacts=bool(block.get("copy_artifacts", True)),
         )

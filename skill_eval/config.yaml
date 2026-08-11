@@ -9,7 +9,7 @@ skill_testing:
   workspace_root: "~/.cache/amd-skills-test/workspaces"
   parallel_default: 2
   memory_budget_pct: 80
-  vivado_mcp_session_cap: 7
+  vivado_mcp_session_cap: 25
   pre_invoke_memory_headroom_gb: 10
   vivado_session_timeout_s: 1800
   cleanup_orphaned_sessions: true
@@ -32,7 +32,7 @@ skill_testing:
   session_log:
     enabled: true
     dir: "_runtime/logs"
-    max_output_chars: 200000
+    max_output_chars: 1000000
     artifact_size_cap_bytes: 262144
     copy_artifacts: true
 
