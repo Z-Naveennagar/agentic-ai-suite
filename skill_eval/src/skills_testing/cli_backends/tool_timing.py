@@ -26,6 +26,7 @@ line-offset bookkeeping ``trace`` throws away.
 from __future__ import annotations
 
 import json
+import re
 from typing import Any, Optional
 
 from ..graders import trace as _trace
@@ -121,14 +122,94 @@ def _fill_open_durations(events: list[dict], total_wall_s: Optional[float]) -> N
 
 
 # ------------------------------------------------------ opencode (approx)
+#
+# OpenCode marks a call's *outcome* with a leading glyph on a second line:
+#
+#   ⚙ <server>_<tool> <args>        -- call issued (the only line on success)
+#   ✗ <server>_<tool> <args> failed -- call FAILED
+#   • <description> Explore Agent   -- subagent (Task) started
+#   ✓ <description> Explore Agent   -- subagent finished
+#   ✗ <description> failed Explore Agent
+#
+# Two things make the ``✗`` line load-bearing rather than cosmetic. It is
+# sometimes the *only* line emitted for a call (the ``⚙`` start line never
+# appears separately when the failure is immediate) -- so ignoring ``✗``, as
+# this parser used to, dropped those failed calls from the timeline entirely
+# and undercounted the tool chain. And when both lines do appear they describe
+# ONE call, so a ``✗`` that matches an earlier ``⚙`` must mark that event
+# rather than append a duplicate.
+#
+# Success is inferred from the *absence* of a ``✗``: opencode prints one for
+# every failed tool, so a call that reaches end-of-transcript unmarked
+# succeeded. The inference is only as complete as the captured text -- a
+# transcript truncated mid-run (see core/session_log.py:_truncate) can hide a
+# late ``✗`` and leave that call reading as OK.
+#
+# Deliberately scoped to this module (the reporting/observability path) and
+# NOT to graders/trace.py's ``extract_tool_calls``, which the trigger /
+# action_sequence graders parse for grading. Teaching the grading path to see
+# these extra calls would silently change what those graders match on; the
+# dashboard's tool counts are free to be more complete than the grader's.
+
+# ``• <desc> [failed] <Name> Agent`` -- a subagent/Task line. Matched before
+# _OPENCODE_ARROW because the description's first word would otherwise parse
+# as a tool name ("inspect", "extract", ...).
+_OPENCODE_TASK = re.compile(
+    r"^([•✓✗])\s+(.*?)(?:\s+failed)?\s+(\w+\s+Agent)\s*$"
+)
+# ``✗ <tool> <args> [failed]`` -- a failed tool call.
+_OPENCODE_TOOL_FAIL = re.compile(r"^✗\s+([A-Za-z][\w\-]*)\b")
+# Minimum arg-prefix overlap before a ``✗`` is judged to describe the same
+# call as an earlier ``⚙``. Long JSON arg blobs share a generic head
+# (``{"session_id":"..."``), so a few characters would collapse unrelated
+# calls onto one event; the full blob is not comparable because the two lines
+# can render it at different lengths.
+_ARG_MATCH_CHARS = 40
+
+
+def _same_opencode_call(ev: dict, name: str, args: str) -> bool:
+    if ev.get("name") != name:
+        return False
+    a, b = ev.get("args") or "", args or ""
+    if not a and not b:
+        return True
+    n = min(len(a), len(b), _ARG_MATCH_CHARS)
+    return n > 0 and a[:n] == b[:n]
 
 
 def _from_opencode(stamps: Stamped) -> list[dict]:
     out: list[dict] = []
+
+    def _mark_failed(name: str, args: str, off: float) -> None:
+        """Flag the most recent still-unmarked matching call as failed, or
+        record a new failed call when this ``✗`` had no ``⚙`` of its own."""
+        for ev in reversed(out):
+            if "is_error" not in ev and _same_opencode_call(ev, name, args):
+                ev["is_error"] = True
+                return
+        out.append({"name": name, "args": args, "t_start": off,
+                    "duration_s": None, "is_error": True})
+
     for off, raw in stamps:
         line = _trace._ANSI.sub("", raw).strip()
         if not line:
             continue
+
+        t = _OPENCODE_TASK.match(line)
+        if t:
+            glyph, desc = t.group(1), t.group(2).strip()
+            if glyph == "•":
+                out.append({"name": "Task", "args": desc, "t_start": off,
+                            "duration_s": None})
+            elif glyph == "✓":
+                for ev in reversed(out):
+                    if "is_error" not in ev and _same_opencode_call(ev, "Task", desc):
+                        ev["is_error"] = False
+                        break
+            else:
+                _mark_failed("Task", desc, off)
+            continue
+
         m = _trace._OPENCODE_ARROW.match(line)
         if m:
             glyph, name = m.group(1), m.group(2)
@@ -138,10 +219,23 @@ def _from_opencode(stamps: Stamped) -> list[dict]:
             out.append({"name": name, "args": rest,
                         "t_start": off, "duration_s": None})
             continue
+
+        f = _OPENCODE_TOOL_FAIL.match(line)
+        if f:
+            name = f.group(1)
+            rest = re.sub(r"\s+failed$", "", line[f.end():].strip())
+            _mark_failed(_trace._opencode_mcp_name(name)
+                         if "_" in name else name, rest, off)
+            continue
+
         sh = _trace._OPENCODE_SHELL.match(line)
         if sh:
             out.append({"name": "Bash", "args": sh.group(1).strip(),
                         "t_start": off, "duration_s": None})
+
+    # Anything still unmarked ran to end-of-transcript without a ``✗``.
+    for ev in out:
+        ev.setdefault("is_error", False)
     return out
 
 
@@ -247,11 +341,18 @@ def _from_stream_json(stamps: Stamped) -> list[dict]:
 # ------------------------------------------------------ cursor stream (exact)
 
 
+def _cursor_tool_body(tc: dict) -> dict:
+    kind = next((k for k in tc if k.endswith("ToolCall")), None)
+    if kind is None:
+        return {}
+    return tc.get(kind) if isinstance(tc.get(kind), dict) else {}
+
+
 def _cursor_name_args(tc: dict) -> tuple[str, str]:
     kind = next((k for k in tc if k.endswith("ToolCall")), None)
     if kind is None:
         return "", ""
-    body = tc.get(kind) if isinstance(tc.get(kind), dict) else {}
+    body = _cursor_tool_body(tc)
     args = body.get("args") if isinstance(body.get("args"), dict) else {}
     if kind == "mcpToolCall":
         server = args.get("serverIdentifier") or args.get("providerIdentifier")
@@ -263,6 +364,26 @@ def _cursor_name_args(tc: dict) -> tuple[str, str]:
     name = _trace._CURSOR_TOOL_KIND.get(
         kind, (kind[:-len("ToolCall")] or kind).capitalize())
     return name, _short_args(args)
+
+
+def _apply_cursor_result(ev: dict, tc: dict) -> None:
+    """Record pass/fail + result size from a completed call's ``result``
+    field: ``{"success": {"content": ...}}`` or ``{"error": {...}}``. Mirrors
+    ``_from_stream_json``'s ``is_error``/``result_chars`` so the dashboard's
+    OK/ERROR chip (``_timeline_stats_cell``) works the same way for Cursor
+    transcripts as it already does for Claude Code's."""
+    body = _cursor_tool_body(tc)
+    res = body.get("result")
+    if not isinstance(res, dict):
+        return
+    is_error = "error" in res
+    ev["is_error"] = is_error
+    payload = res.get("error") if is_error else (res.get("success") or {}).get("content")
+    if payload is not None:
+        ev["result_chars"] = (
+            len(payload) if isinstance(payload, str)
+            else len(json.dumps(payload, default=str))
+        )
 
 
 def _from_cursor(stamps: Stamped) -> list[dict]:
@@ -291,10 +412,12 @@ def _from_cursor(stamps: Stamped) -> list[dict]:
                 by_id[cid] = ev
             if sub == "completed":
                 ev["duration_s"] = 0.0
+                _apply_cursor_result(ev, tc)
         elif sub == "completed":
             if name and ev["name"] in ("", "tool"):
                 ev["name"] = name
             if args and not ev["args"]:
                 ev["args"] = args
             ev["duration_s"] = max(0.0, off - ev["t_start"])
+            _apply_cursor_result(ev, tc)
     return order

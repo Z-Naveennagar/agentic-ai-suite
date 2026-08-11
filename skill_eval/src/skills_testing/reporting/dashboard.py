@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import html as _html
 import json
+import math
 import re
 import sqlite3
 import statistics
@@ -102,6 +103,14 @@ def _fmt_secs(s: float | None) -> str:
     if s >= 60:
         return f"{int(s // 60)}m {int(s % 60):02d}s"
     return f"{s:.1f} s"
+
+
+def _fmt_avg(v: float | None) -> str:
+    """Count that may be a mean over replications: drop the decimal when it
+    is a whole number so an unreplicated case reads ``16``, not ``16.0``."""
+    if v is None:
+        return "—"
+    return f"{v:.0f}" if abs(v - round(v)) < 0.05 else f"{v:.1f}"
 
 
 def _model_label(model: str | None) -> str:
@@ -397,7 +406,9 @@ def render_skill_tab(conn: sqlite3.Connection) -> str:
         cons.append(
             f'<div data-cmp-chart-run="{_esc(run_id)}"{style}>'
             f'{_render_consistency_heatmap(conn, run_id=run_id)}'
-            f'{_render_model_comparison_chart(rows)}</div>'
+            f'{_render_model_comparison_chart(rows)}'
+            f'{_render_duration_by_model_chart(rows)}'
+            f'{_render_tool_calls_by_model_chart(conn, rows)}</div>'
         )
     parts.extend(cons)
 
@@ -410,6 +421,7 @@ def render_skill_tab(conn: sqlite3.Connection) -> str:
     # the new table replaces it completely).
 
     parts.append(_render_skill_switcher_js())
+    parts.append(_VIZ_TOOLTIP_JS)
     return "\n".join(parts)
 
 
@@ -450,7 +462,16 @@ def _render_local_css() -> str:
     """Tree-view chrome only. Everything else reuses the global dark theme."""
     return f"""
 <style>
-  .skill-tree-wrap {{ height: 70vh; min-height: 260px; max-height: none;
+  /* Height follows the content, capped at 70vh (then scrolls) -- NOT a fixed
+     `height: 70vh`, which reserved 70% of the viewport whether the tree held
+     one collapsed row or a hundred expanded ones, leaving a big empty box on
+     every report whose tree starts collapsed. Growing rows push the box down
+     to the cap; past it the box scrolls. No min-height either, for the same
+     reason: it floored an otherwise-short tree at 260px of mostly blank space.
+     `resize` still works -- the drag sets an inline height, and the mousedown
+     handler in _render_skill_switcher_js lifts the cap so a drag can also
+     exceed 70vh rather than silently stopping there. */
+  .skill-tree-wrap {{ max-height: 70vh;
                        resize: vertical; overflow: auto;
                        border: 1px solid {_BORDER}; border-radius: 8px; }}
   .tree-resize-hint {{ color:{_MUTED}; font-size:11px; margin:-3px 0 7px;
@@ -651,6 +672,51 @@ def _render_local_css() -> str:
   .tl-args > summary::marker {{ content: ""; }}
   .tl-args[open] .tl-clamp {{ display: block; -webkit-line-clamp: unset;
                                overflow: visible; }}
+
+  /* Duration/tool-call charts (per-case line + grouped bar, by client/model).
+     The SVG scales to the container width uniformly (preserveAspectRatio
+     "meet", set on the element) -- never a non-uniform stretch, which would
+     shear the text and squash the round point markers. */
+  .viz-card {{ background: {_SURFACE}; border: 1px solid {_BORDER};
+                border-radius: 8px; padding: 14px 16px 10px; margin: 8px 0 6px; }}
+  .viz-svg {{ display: block; width: 100%; height: auto; overflow: visible; }}
+  .viz-sub {{ color: {_MUTED}; font-size: 12px; line-height: 1.55;
+               margin: 0 0 10px; max-width: 80ch; }}
+  .viz-sub code {{ color: {_TEXT}; font-size: 11px; }}
+  .viz-legend {{ display: flex; flex-wrap: wrap; gap: 14px; margin-top: 8px;
+                  font-size: 12px; color: {_MUTED}; }}
+  .viz-legend .dot {{ display: inline-block; width: 9px; height: 9px;
+                        border-radius: 50%; margin-right: 5px; }}
+  .viz-axis {{ fill: {_MUTED}; font-size: 11px; font-family: inherit;
+                font-variant-numeric: tabular-nums; }}
+  .viz-axis-title {{ fill: {_MUTED}; font-size: 11px; font-family: inherit;
+                      font-weight: 600; letter-spacing: .03em;
+                      text-transform: uppercase; }}
+  .viz-val {{ fill: {_TEXT}; font-size: 10px; font-family: inherit;
+               font-variant-numeric: tabular-nums; }}
+  .viz-grid {{ stroke: {_BORDER}; stroke-width: 1; }}
+  .viz-empty {{ color: {_MUTED}; font-size: 12px; }}
+  /* Line-chart hover band: a vertical guide that appears only on hover, so
+     the reader gets a crosshair without a JS handler per band. */
+  .viz-guide {{ stroke: {_MUTED}; stroke-width: 1; stroke-dasharray: 3 3;
+                 opacity: 0; }}
+  .viz-band-g:hover .viz-guide {{ opacity: .85; }}
+  .viz-band-g, .viz-svg [data-tip] {{ cursor: crosshair; }}
+
+  /* Floating chart tooltip (one per page, positioned by _VIZ_TOOLTIP_JS). */
+  .viz-tip {{ position: fixed; z-index: 60; display: none; pointer-events: none;
+               background: {_BG}; border: 1px solid {_BORDER};
+               border-radius: 6px; padding: 8px 10px; font-size: 12px;
+               color: {_TEXT}; box-shadow: 0 6px 20px rgba(0,0,0,.55);
+               max-width: 340px; }}
+  .viz-tip .t {{ font-weight: 600; margin-bottom: 5px; color: {_TEXT};
+                  word-break: break-all; }}
+  .viz-tip .r {{ display: flex; align-items: center; gap: 7px;
+                  line-height: 1.75; white-space: nowrap; }}
+  .viz-tip .k {{ width: 9px; height: 9px; border-radius: 50%; flex: none; }}
+  .viz-tip .l {{ color: {_MUTED}; }}
+  .viz-tip .v {{ margin-left: auto; font-variant-numeric: tabular-nums;
+                  padding-left: 12px; }}
 </style>
 """
 
@@ -715,6 +781,19 @@ def _render_skill_switcher_js() -> str:
   hideAllButFirst('data-skill-run');
   hideAllButFirst('data-consistency-run');
   hideAllButFirst('data-cmp-chart-run');
+
+  // The tree box sizes itself to its content with a 70vh cap (see
+  // .skill-tree-wrap). That cap would also stop a manual resize-drag dead at
+  // 70vh, so lift it the moment the user grabs the native resize handle in
+  // the bottom-right corner -- the drag then sets an inline height freely.
+  document.addEventListener('mousedown', function (e) {
+    var wrap = e.target.closest && e.target.closest('.skill-tree-wrap');
+    if (!wrap) return;
+    var r = wrap.getBoundingClientRect();
+    if (e.clientX > r.right - 18 && e.clientY > r.bottom - 18) {
+      wrap.style.maxHeight = 'none';
+    }
+  });
 
   function applyConsistencyFilter(bar) {
     var tableId = bar.getAttribute('data-filter-for');
@@ -1093,6 +1172,8 @@ def render_skill_run_report(conn: sqlite3.Connection, skill_name: str, run_id: s
     body.append(_render_consistency_tree(conn, rows, run_id))
     body.append(_render_consistency_heatmap(conn, skill_name, run_id))
     body.append(_render_model_comparison_chart(rows))
+    body.append(_render_duration_by_model_chart(rows))
+    body.append(_render_tool_calls_by_model_chart(conn, rows))
     body.append(_render_lifecycle_cards(conn, skill_name=skill_name, run_id=run_id))
     # Without this, the tree/rep-tab click handlers never attach and every
     # row's expand caret is dead -- the markup renders but nothing toggles
@@ -1100,6 +1181,7 @@ def render_skill_run_report(conn: sqlite3.Connection, skill_name: str, run_id: s
     # multi-run selector or tab bar this page doesn't have, so it's safe
     # to include verbatim.
     body.append(_render_skill_switcher_js())
+    body.append(_VIZ_TOOLTIP_JS)
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -2012,6 +2094,7 @@ def _render_tool_timeline(timeline: list[dict]) -> str:
             if args else ""
         )
         stats_html = _timeline_stats_cell(r)
+        result_html = _timeline_result_cell(r)
 
         # `kind`/`skill` are tagged at capture time; fall back to name-sniffing
         # so timelines captured before that tagging still show the trigger.
@@ -2033,6 +2116,18 @@ def _render_tool_timeline(timeline: list[dict]) -> str:
                 f'font-size:10px; font-weight:600; letter-spacing:.5px;">SKILL</span> '
                 f'<code style="color:{_ACCENT};">{_esc(skill_name)}</code></td>'
             )
+        elif r.get("is_error"):
+            # A failed call is the thing a reader scans this table for, so tint
+            # the whole row rather than relying on the result pill alone.
+            row_style = (
+                f' style="background:rgba(248,81,73,0.07);'
+                f' border-left:3px solid {_RED};"'
+            )
+            tool_cell = (
+                f'<td class="tool" style="padding:2px 8px;">'
+                f'<span style="color:{_RED};">{_tool_icon(name)}</span> '
+                f'<code>{_esc(name)}</code></td>'
+            )
         else:
             row_style = ''
             tool_cell = (
@@ -2050,6 +2145,7 @@ def _render_tool_timeline(timeline: list[dict]) -> str:
             f'<td style="padding:2px 8px;">{bar}</td>'
             f'<td style="text-align:right; font-variant-numeric:tabular-nums; '
             f'white-space:nowrap; padding:2px 8px;">{_esc(dur_txt)}</td>'
+            f'<td style="padding:2px 8px; white-space:nowrap;">{result_html}</td>'
             f'<td style="padding:2px 8px; line-height:1.7;">{stats_html}</td>'
             f'<td style="padding:2px 8px;">{args_html}</td>'
             f'</tr>'
@@ -2065,10 +2161,30 @@ def _render_tool_timeline(timeline: list[dict]) -> str:
     total_note = (
         f' &middot; {_fmt_secs(total_dur)} in tools' if total_dur else ''
     )
-    # Legend for the token/stat glyphs used in the "tokens / result" column.
+    # Pass/fail rollup in the header, so the reader learns whether anything
+    # failed without scanning every row's result cell.
+    n_fail = sum(1 for r in timeline if r.get("is_error"))
+    n_graded = sum(1 for r in timeline if "is_error" in r)
+    if not n_graded:
+        verdict_note = (
+            f' &middot; <span style="color:{_MUTED};">pass/fail not '
+            f'reported</span>'
+        )
+    elif n_fail:
+        verdict_note = (
+            f' &middot; <span style="color:{_RED};">{n_fail} failed</span>'
+        )
+    else:
+        verdict_note = (
+            f' &middot; <span style="color:{_GREEN};">all passed</span>'
+        )
+    # Legend for the token/stat glyphs used in the "tokens" column.
     legend = (
         f'<div style="color:{_MUTED}; font-size:10px; margin:0 0 4px; '
-        f'line-height:1.6;">tokens/call &mdash; '
+        f'line-height:1.6;">'
+        f'result &mdash; PASS/FAIL is the tool call&rsquo;s own outcome, not '
+        f'the test&rsquo;s verdict &middot; '
+        f'tokens/call &mdash; '
         f'&#8593; input &middot; &#8595; output &middot; '
         f'&#8853; cache-write (new input) &middot; '
         f'&#9211; cache-read (from cache) &middot; '
@@ -2079,13 +2195,15 @@ def _render_tool_timeline(timeline: list[dict]) -> str:
     return (
         f'<div style="font-weight:600; color:{_TEXT}; font-size:11px; '
         f'text-transform:uppercase; letter-spacing:.04em; margin:2px 0 2px;">'
-        f'Tool timeline ({len(timeline)} calls{skill_note}{out_note}{total_note})</div>'
+        f'Tool timeline ({len(timeline)} calls{skill_note}{out_note}'
+        f'{total_note}{verdict_note})</div>'
         + legend +
         f'<table class="tl">'
         f'<colgroup>'
         f'<col style="width:30px;"><col style="width:58px;">'
-        f'<col style="width:22%;"><col style="width:14%;">'
-        f'<col style="width:48px;"><col style="width:24%;">'
+        f'<col style="width:20%;"><col style="width:12%;">'
+        f'<col style="width:48px;"><col style="width:52px;">'
+        f'<col style="width:21%;">'
         f'<col>'
         f'</colgroup>'
         f'<thead><tr style="color:{_MUTED}; font-size:10px; '
@@ -2095,13 +2213,47 @@ def _render_tool_timeline(timeline: list[dict]) -> str:
         f'<th style="text-align:left; padding:2px 8px;">tool</th>'
         f'<th style="text-align:left; padding:2px 8px;">duration</th>'
         f'<th style="text-align:right; padding:2px 8px;"></th>'
-        f'<th style="text-align:left; padding:2px 8px;">tokens / result</th>'
+        f'<th style="text-align:left; padding:2px 8px;">result</th>'
+        f'<th style="text-align:left; padding:2px 8px;">tokens</th>'
         f'<th style="text-align:left; padding:2px 8px;">args</th>'
         f'</tr></thead><tbody>' + "".join(rows) + '</tbody></table>'
     )
 
 
 _CHARS_PER_TOKEN = 4  # base's len/4 heuristic, reused for per-call estimates
+
+
+def _timeline_result_cell(r: dict) -> str:
+    """The tool call's own PASS/FAIL verdict, as its own timeline column.
+
+    This used to be one pill among the token chips in the "tokens / result"
+    cell, where it read as just another stat and was easy to miss entirely --
+    the reason it gets a dedicated column now.
+
+    Three states, deliberately distinct: PASS (the call returned normally),
+    FAIL (it returned an error), and "n/a" when the backend's transcript
+    carries no per-call outcome at all. Collapsing the third into PASS would
+    report a clean bill of health the transcript never actually gave; see
+    ``cli_backends/tool_timing.py``, whose per-dialect recognizers are the
+    only writers of ``is_error``.
+    """
+    if r.get("is_error"):
+        return (
+            f'<span style="display:inline-block; padding:0 7px; '
+            f'background:rgba(248,81,73,.14); border:1px solid {_RED}; '
+            f'color:{_RED}; border-radius:8px; font-size:10px; '
+            f'font-weight:700; letter-spacing:.04em;">FAIL</span>'
+        )
+    if "is_error" in r:
+        return (
+            f'<span style="display:inline-block; padding:0 7px; '
+            f'border:1px solid {_GREEN}; color:{_GREEN}; border-radius:8px; '
+            f'font-size:10px; font-weight:600; letter-spacing:.04em;">PASS</span>'
+        )
+    return (
+        f'<span title="this backend&#39;s transcript does not report '
+        f'per-call pass/fail" style="color:{_MUTED}; font-size:10px;">n/a</span>'
+    )
 
 
 def _skill_label(r: dict) -> str:
@@ -2131,26 +2283,6 @@ def _timeline_stats_cell(r: dict) -> str:
     italic so an estimate is never mistaken for a measured value.
     """
     chips: list[str] = []
-    # Status chip. Previously only failures were chipped, which left a
-    # successful call and a call with *no status data* rendering
-    # identically (both blank) -- so a reader could not tell "this tool
-    # succeeded" from "this backend doesn't report tool outcomes". Emit an
-    # explicit OK for a measured success and stay blank only when the
-    # recognizer never set `is_error` at all (opencode/cursor today; see
-    # tool_timing.py:_from_stream_json, the only writer of that key).
-    if r.get("is_error"):
-        chips.append(
-            f'<span style="display:inline-block; padding:0 6px; '
-            f'border:1px solid {_RED}; color:{_RED}; border-radius:8px; '
-            f'font-size:10px; font-weight:600;">ERROR</span>'
-        )
-    elif "is_error" in r:
-        chips.append(
-            f'<span style="display:inline-block; padding:0 6px; '
-            f'border:1px solid {_GREEN}; color:{_GREEN}; border-radius:8px; '
-            f'font-size:10px; font-weight:600;">OK</span>'
-        )
-
     t_in, t_out = r.get("tokens_in"), r.get("tokens_out")
     estimated = False
     if t_in is None and t_out is None:
@@ -3083,6 +3215,532 @@ def _render_model_comparison_chart(rows: list[sqlite3.Row]) -> str:
         + '</div>'
     )
     return "\n".join(out)
+
+
+# ---- per-case duration / tool-call charts, by client+model --------------
+#
+# Both charts below share one series identity: a "client / model" label,
+# colored consistently by _assign_series_colors so a given model wears the
+# same color in the duration line chart and the tool-call bar chart (and
+# across separate report reloads / other skills' reports). Colors come from
+# the dataviz skill's validated dark-mode categorical steps, in fixed order,
+# with status green (_GREEN) skipped so a model series is never mistaken for
+# a PASS signal elsewhere on the page.
+#
+# Geometry conventions shared by both:
+#   * One fixed viewBox scaled with `width:100%` + `preserveAspectRatio`
+#     (uniform "meet", never "none"). A non-uniform stretch would distort
+#     glyphs and markers -- text sheared horizontally, round dots gone oval --
+#     which is what an earlier revision of these charts did.
+#   * Hover lives on invisible full-height hit targets carrying `data-tip`,
+#     read by _VIZ_TOOLTIP_JS. SVG's native <title> tooltip was tried first
+#     and rejected: it needs a ~1s hover dwell, cannot be styled, and does
+#     not render multi-series HTML, so a chart using it reads as having no
+#     hover at all.
+
+_SERIES_COLORS = [
+    "#3987e5",  # blue
+    "#d95926",  # orange
+    "#199e70",  # aqua
+    "#c98500",  # yellow
+    "#d55181",  # magenta
+    "#9085e9",  # violet
+    "#e66767",  # red
+]
+
+# Chart frame, in viewBox units. Left pad carries the rotated axis title plus
+# tick labels; bottom pad carries case labels plus the axis title.
+_VIZ_W, _VIZ_H = 1000, 320
+_VIZ_PAD_L, _VIZ_PAD_R, _VIZ_PAD_T, _VIZ_PAD_B = 68, 22, 18, 62
+_VIZ_PLOT_W = _VIZ_W - _VIZ_PAD_L - _VIZ_PAD_R
+_VIZ_PLOT_H = _VIZ_H - _VIZ_PAD_T - _VIZ_PAD_B
+_VIZ_Y_TICKS = 4
+
+
+def _series_label(r: sqlite3.Row) -> str:
+    return f"{r['client'] or chr(8212)} / {_model_label(r['model'])}"
+
+
+def _assign_series_colors(labels: list) -> dict:
+    """Stable label -> color map, alphabetical so a given client/model always
+    lands on the same color across charts and reports. Cycles the palette
+    past 7 concurrent series (a single skill run has rarely tested that
+    many) rather than erroring."""
+    ordered = sorted(set(labels))
+    return {lbl: _SERIES_COLORS[i % len(_SERIES_COLORS)] for i, lbl in enumerate(ordered)}
+
+
+def _fmt_secs_axis(s: float) -> str:
+    """Compact axis-tick duration label (``0``, ``500``, ``1.5k``) -- the unit
+    lives in the axis title, so repeating "s" on every gridline is noise, and
+    ``_fmt_secs``'s ``1m 03s`` form is too wide to stack on a tick."""
+    if s >= 1000:
+        v = s / 1000
+        return f"{v:.0f}k" if v == int(v) else f"{v:.1f}k"
+    return f"{int(round(s))}"
+
+
+def _nice_max(v: float) -> float:
+    """Round *v* up to a friendly axis maximum (1/2/2.5/5/10 x 10^n)."""
+    if v <= 0:
+        return 1.0
+    exp = math.floor(math.log10(v))
+    base = 10 ** exp
+    for m in (1, 2, 2.5, 5, 10):
+        if v <= m * base:
+            return m * base
+    return 10 * base
+
+
+def _case_sort_key(case_id) -> tuple:
+    """Natural sort for case ids (``…_9`` before ``…_29``) instead of the
+    lexical order that would put ``_29`` before ``_9``."""
+    s = str(case_id or "")
+    m = re.search(r"(\d+)\s*$", s)
+    if m:
+        return (s[: m.start()], int(m.group(1)))
+    return (s, -1)
+
+
+def _case_axis_labels(cases: list) -> tuple[list, str]:
+    """Return (short_labels, dropped_prefix) for the x axis.
+
+    Every case in one suite shares a long prefix (``ip-configurator-test-kit_01``,
+    ``…_02``), so the distinguishing part is the tail. Strip the common prefix
+    for the tick labels and hand it back so the caption can name it once --
+    a bare ``1 2 3`` sequence index, which this replaced, told the reader
+    nothing about *which* case a spike belonged to.
+    """
+    strs = [str(c or "") for c in cases]
+    if len(strs) < 2:
+        return strs, ""
+    prefix = strs[0]
+    for s in strs[1:]:
+        while prefix and not s.startswith(prefix):
+            prefix = prefix[:-1]
+    # Only strip at a separator, so a prefix cut mid-token can't yield
+    # labels like "1" from "…kit_01" vs "…kit_02".
+    cut = max(prefix.rfind("_"), prefix.rfind("-"), prefix.rfind("."))
+    if cut <= 0:
+        return strs, ""
+    prefix = prefix[: cut + 1]
+    return [s[len(prefix):] or s for s in strs], prefix
+
+
+def _viz_legend(colors: dict, *, extra: list | None = None) -> str:
+    items = [
+        f'<span><span class="dot" style="background:{color};"></span>{_esc(lbl)}</span>'
+        for lbl, color in colors.items()
+    ]
+    items.extend(extra or [])
+    return f'<div class="viz-legend">{"".join(items)}</div>'
+
+
+def _viz_axes(
+    y_max: float, y_fmt, *, y_title: str, x_title: str,
+) -> list:
+    """Gridlines, y ticks, and both axis titles -- the frame both charts share."""
+    out = []
+    for k in range(_VIZ_Y_TICKS):
+        v = y_max * k / (_VIZ_Y_TICKS - 1)
+        y = _VIZ_PAD_T + _VIZ_PLOT_H - (v / y_max * _VIZ_PLOT_H if y_max else 0.0)
+        out.append(
+            f'<line x1="{_VIZ_PAD_L}" y1="{y:.1f}" x2="{_VIZ_W - _VIZ_PAD_R}" '
+            f'y2="{y:.1f}" class="viz-grid"/>'
+        )
+        out.append(
+            f'<text x="{_VIZ_PAD_L - 10}" y="{y:.1f}" text-anchor="end" '
+            f'dominant-baseline="middle" class="viz-axis">{_esc(y_fmt(v))}</text>'
+        )
+    cy = _VIZ_PAD_T + _VIZ_PLOT_H / 2
+    out.append(
+        f'<text x="18" y="{cy:.1f}" text-anchor="middle" class="viz-axis-title" '
+        f'transform="rotate(-90 18 {cy:.1f})">{_esc(y_title)}</text>'
+    )
+    out.append(
+        f'<text x="{_VIZ_PAD_L + _VIZ_PLOT_W / 2:.1f}" y="{_VIZ_H - 8}" '
+        f'text-anchor="middle" class="viz-axis-title">{_esc(x_title)}</text>'
+    )
+    return out
+
+
+def _viz_tip(title: str, lines: list) -> str:
+    """Build a tooltip's HTML, ready to be escaped into a ``data-tip``
+    attribute. *lines* are ``(color_or_None, label, value)``."""
+    rows = []
+    for color, label, value in lines:
+        dot = (
+            f'<span class="k" style="background:{color};"></span>'
+            if color else '<span class="k" style="background:transparent;"></span>'
+        )
+        rows.append(
+            f'<div class="r">{dot}<span class="l">{_esc(label)}</span>'
+            f'<span class="v">{_esc(value)}</span></div>'
+        )
+    return f'<div class="t">{_esc(title)}</div>{"".join(rows)}'
+
+
+# Shared hover layer. One page-level tooltip div, driven by delegated events
+# on anything carrying `data-tip`, so it covers every chart (and any future
+# one) without per-chart wiring.
+_VIZ_TOOLTIP_JS = """
+<script>
+(function () {
+  var tip = null;
+  function ensure() {
+    if (!tip) {
+      tip = document.createElement('div');
+      tip.className = 'viz-tip';
+      document.body.appendChild(tip);
+    }
+    return tip;
+  }
+  function place(e) {
+    if (!tip) return;
+    var pad = 16, r = tip.getBoundingClientRect();
+    var x = e.clientX + pad, y = e.clientY + pad;
+    if (x + r.width > window.innerWidth) x = e.clientX - r.width - pad;
+    if (y + r.height > window.innerHeight) y = e.clientY - r.height - pad;
+    tip.style.left = Math.max(4, x) + 'px';
+    tip.style.top = Math.max(4, y) + 'px';
+  }
+  function hit(e) {
+    var t = e.target;
+    return t && t.closest ? t.closest('[data-tip]') : null;
+  }
+  document.addEventListener('mouseover', function (e) {
+    var el = hit(e);
+    if (!el) return;
+    var t = ensure();
+    t.innerHTML = el.getAttribute('data-tip');
+    t.style.display = 'block';
+    place(e);
+  });
+  document.addEventListener('mousemove', function (e) {
+    if (hit(e)) place(e);
+    else if (tip) tip.style.display = 'none';
+  });
+  document.addEventListener('mouseout', function (e) {
+    if (hit(e) && tip) tip.style.display = 'none';
+  });
+})();
+</script>
+"""
+
+
+def _render_duration_by_model_chart(rows: list[sqlite3.Row]) -> str:
+    """Line chart of wall-clock duration per test case, one line per
+    client/model -- the per-case counterpart to _render_model_comparison_chart's
+    run-wide average, so a reader can see which specific cases run long or
+    spike for a given model instead of only the overall mean.
+
+    Averaged across replications where a case/model ran more than once.
+    SKIPPED rows (never invoked the agent) and rows with no recorded
+    wall_clock_s are excluded from that average rather than counted as 0s.
+    """
+    by_case: dict = defaultdict(lambda: defaultdict(list))
+    for r in rows:
+        if r["status"] == "SKIPPED" or not r["wall_clock_s"]:
+            continue
+        by_case[r["case_id"]][_series_label(r)].append(float(r["wall_clock_s"]))
+    if not by_case:
+        return ''
+
+    cases = sorted(by_case, key=_case_sort_key)
+    x_labels, dropped = _case_axis_labels(cases)
+    labels = sorted({lbl for series in by_case.values() for lbl in series})
+    colors = _assign_series_colors(labels)
+    n = len(cases)
+
+    series_points = {lbl: [] for lbl in labels}
+    reps = {lbl: [] for lbl in labels}
+    for case in cases:
+        for lbl in labels:
+            vals = by_case[case].get(lbl)
+            series_points[lbl].append((sum(vals) / len(vals)) if vals else None)
+            reps[lbl].append(len(vals) if vals else 0)
+
+    all_vals = [v for pts in series_points.values() for v in pts if v is not None]
+    y_max = _nice_max(max(all_vals) * 1.12) if all_vals else 1.0
+
+    def x_of(i: int) -> float:
+        return _VIZ_PAD_L + (
+            i / (n - 1) * _VIZ_PLOT_W if n > 1 else _VIZ_PLOT_W / 2)
+
+    def y_of(v: float) -> float:
+        return _VIZ_PAD_T + _VIZ_PLOT_H - (
+            v / y_max * _VIZ_PLOT_H if y_max else 0.0)
+
+    svg = [
+        f'<svg viewBox="0 0 {_VIZ_W} {_VIZ_H}" width="100%" '
+        f'preserveAspectRatio="xMidYMid meet" role="img" '
+        f'aria-label="Wall-clock duration per test case, by client and model" '
+        f'class="viz-svg">'
+    ]
+    svg += _viz_axes(y_max, _fmt_secs_axis,
+                     y_title="wall clock (seconds)", x_title="test case")
+
+    # X tick labels; thinned when dense so they never overlap.
+    step = max(1, math.ceil(n / 16))
+    for i, lab in enumerate(x_labels):
+        if i % step:
+            continue
+        svg.append(
+            f'<text x="{x_of(i):.1f}" y="{_VIZ_PAD_T + _VIZ_PLOT_H + 18:.1f}" '
+            f'text-anchor="middle" class="viz-axis">{_esc(lab)}</text>'
+        )
+
+    for lbl in labels:
+        color = colors[lbl]
+        pts = series_points[lbl]
+        # Contiguous runs only -- a case with no data for this series breaks
+        # the line rather than interpolating across the gap.
+        run: list[str] = []
+        for i, v in enumerate(pts):
+            if v is None:
+                if len(run) > 1:
+                    svg.append(
+                        f'<polyline points="{" ".join(run)}" fill="none" '
+                        f'stroke="{color}" stroke-width="2"/>'
+                    )
+                run = []
+                continue
+            run.append(f"{x_of(i):.1f},{y_of(v):.1f}")
+        if len(run) > 1:
+            svg.append(
+                f'<polyline points="{" ".join(run)}" fill="none" '
+                f'stroke="{color}" stroke-width="2"/>'
+            )
+        for i, v in enumerate(pts):
+            if v is None:
+                continue
+            svg.append(
+                f'<circle cx="{x_of(i):.1f}" cy="{y_of(v):.1f}" r="3" '
+                f'fill="{color}"/>'
+            )
+
+    # Hover bands: one per case, full plot height, each showing every series'
+    # value at that case plus a vertical guide (CSS-only, no JS per band).
+    half = (_VIZ_PLOT_W / (2 * (n - 1))) if n > 1 else _VIZ_PLOT_W / 2
+    for i, case in enumerate(cases):
+        cx = x_of(i)
+        bx = max(_VIZ_PAD_L, cx - half)
+        bw = min(_VIZ_W - _VIZ_PAD_R, cx + half) - bx
+        tip_lines = []
+        for lbl in labels:
+            v = series_points[lbl][i]
+            nrep = reps[lbl][i]
+            if v is None:
+                tip_lines.append((colors[lbl], lbl, "no data"))
+            else:
+                suffix = f" (avg of {nrep} reps)" if nrep > 1 else ""
+                tip_lines.append((colors[lbl], lbl, _fmt_secs(v) + suffix))
+        tip = _viz_tip(str(case), tip_lines)
+        svg.append(
+            f'<g class="viz-band-g" data-tip="{_esc(tip)}">'
+            f'<line class="viz-guide" x1="{cx:.1f}" y1="{_VIZ_PAD_T}" '
+            f'x2="{cx:.1f}" y2="{_VIZ_PAD_T + _VIZ_PLOT_H}"/>'
+            f'<rect x="{bx:.1f}" y="{_VIZ_PAD_T}" width="{bw:.1f}" '
+            f'height="{_VIZ_PLOT_H}" fill="transparent"/>'
+            f'</g>'
+        )
+    svg.append('</svg>')
+
+    n_series_note = (
+        f'{len(labels)} client/model series' if len(labels) > 1
+        else f'{labels[0]}' if labels else ''
+    )
+    caption = (
+        f'Each point is one test case&rsquo;s wall-clock time, averaged over '
+        f'its replications. Higher is slower. Hover any case for exact times '
+        f'across {"all series" if len(labels) > 1 else "the run"}.'
+        + (f' Case labels drop the shared prefix '
+           f'<code>{_esc(dropped)}</code>.' if dropped else '')
+    )
+    return (
+        f'<h3>How long each test case took '
+        f'<span style="color:{_MUTED}; font-weight:400; font-size:0.8em;">'
+        f'&middot; {_esc(n_series_note)}</span></h3>'
+        f'<div class="viz-card">'
+        f'<div class="viz-sub">{caption}</div>'
+        + "".join(svg) +
+        f'{_viz_legend(colors)}</div>'
+    )
+
+
+def _tool_call_stats(conn: sqlite3.Connection, r: sqlite3.Row) -> tuple:
+    """(n_calls, n_failed, has_pass_fail_signal) for one test replication.
+
+    ``has_pass_fail_signal`` distinguishes "0 failures, verified" from "this
+    backend/transcript never reports per-call outcomes" -- mirrors
+    ``_timeline_stats_cell``'s ``is_error`` handling, the same field.
+    """
+    log_data = _load_session_log(conn, r)
+    output = (log_data or {}).get("output") or {}
+    timeline = output.get("tool_timeline") or []
+    if timeline:
+        n_fail = sum(1 for t in timeline if t.get("is_error"))
+        has_signal = any("is_error" in t for t in timeline)
+        return len(timeline), n_fail, has_signal
+    calls = _tool_calls_detailed(
+        output.get("stdout") or "", output.get("stderr") or "", client=r["client"])
+    return len(calls), 0, False
+
+
+def _render_tool_calls_by_model_chart(
+    conn: sqlite3.Connection, rows: list[sqlite3.Row],
+) -> str:
+    """Grouped bar chart of tool-call volume per test case, one bar per
+    client/model (same color mapping as the duration chart above), with the
+    failed portion of each bar stacked on top in red -- so tool-call
+    pass/fail is visible at a glance instead of only inside each rep's
+    collapsed timeline (see ``_render_call_summary_section`` for that
+    per-rep detail).
+    """
+    by_case: dict = defaultdict(lambda: defaultdict(list))
+    for r in rows:
+        if r["status"] == "SKIPPED":
+            continue
+        n, n_fail, has_signal = _tool_call_stats(conn, r)
+        if n == 0 and not has_signal:
+            continue
+        by_case[r["case_id"]][_series_label(r)].append((n, n_fail, has_signal))
+    if not by_case:
+        return ''
+
+    cases = sorted(by_case, key=_case_sort_key)
+    x_labels, dropped = _case_axis_labels(cases)
+    labels = sorted({lbl for series in by_case.values() for lbl in series})
+    colors = _assign_series_colors(labels)
+    n_series = len(labels)
+    n_cases = len(cases)
+
+    agg: dict = defaultdict(dict)
+    max_total = 0.0
+    any_fail_signal = False
+    total_calls = total_failed = 0.0
+    for case in cases:
+        for lbl in labels:
+            recs = by_case[case].get(lbl)
+            if not recs:
+                continue
+            avg_n = sum(x[0] for x in recs) / len(recs)
+            avg_fail = sum(x[1] for x in recs) / len(recs)
+            has_signal = any(x[2] for x in recs)
+            any_fail_signal = any_fail_signal or has_signal
+            agg[case][lbl] = {"n": avg_n, "fail": avg_fail,
+                              "has_signal": has_signal, "reps": len(recs)}
+            max_total = max(max_total, avg_n)
+            total_calls += avg_n
+            total_failed += avg_fail
+    y_max = _nice_max(max_total * 1.15) if max_total else 1.0
+
+    group_w = _VIZ_PLOT_W / n_cases
+    # Bars fill ~78% of their group, leaving a visible gutter between cases.
+    bars_w = group_w * 0.78
+    bar_w = max(3.0, (bars_w - (n_series - 1) * 3) / n_series)
+    show_values = n_cases * n_series <= 30
+
+    def y_of(v: float) -> float:
+        return _VIZ_PAD_T + _VIZ_PLOT_H - (
+            v / y_max * _VIZ_PLOT_H if y_max else 0.0)
+
+    svg = [
+        f'<svg viewBox="0 0 {_VIZ_W} {_VIZ_H}" width="100%" '
+        f'preserveAspectRatio="xMidYMid meet" role="img" '
+        f'aria-label="Tool calls per test case, by client and model, with '
+        f'failed calls highlighted" class="viz-svg">'
+    ]
+    svg += _viz_axes(y_max, lambda v: f"{int(round(v))}",
+                     y_title="tool calls", x_title="test case")
+
+    base_y = _VIZ_PAD_T + _VIZ_PLOT_H
+    for ci, case in enumerate(cases):
+        gx = _VIZ_PAD_L + ci * group_w
+        bars_x0 = gx + (group_w - bars_w) / 2
+        for si, lbl in enumerate(labels):
+            info = agg[case].get(lbl)
+            if not info:
+                continue
+            x = bars_x0 + si * (bar_w + 3)
+            color = colors[lbl]
+            n_ok = max(0.0, info["n"] - info["fail"])
+            y_ok = y_of(n_ok)
+            svg.append(
+                f'<rect x="{x:.1f}" y="{y_ok:.1f}" width="{bar_w:.1f}" '
+                f'height="{max(0.0, base_y - y_ok):.1f}" fill="{color}"/>'
+            )
+            if info["fail"] > 0:
+                y_top = y_of(info["n"])
+                svg.append(
+                    f'<rect x="{x:.1f}" y="{y_top:.1f}" width="{bar_w:.1f}" '
+                    f'height="{max(1.0, y_ok - y_top):.1f}" fill="{_RED}"/>'
+                )
+            if show_values:
+                svg.append(
+                    f'<text x="{x + bar_w / 2:.1f}" y="{y_of(info["n"]) - 5:.1f}" '
+                    f'text-anchor="middle" class="viz-val">'
+                    f'{_fmt_avg(info["n"])}</text>'
+                )
+            # Hover target spans the full plot height so a short bar is still
+            # easy to hit.
+            rep_note = (
+                f' (avg of {info["reps"]} reps)' if info["reps"] > 1 else '')
+            tip_lines = [(color, "tool calls", _fmt_avg(info["n"]) + rep_note)]
+            if info["has_signal"]:
+                tip_lines.append((_GREEN, "succeeded", _fmt_avg(n_ok)))
+                tip_lines.append((_RED, "failed", _fmt_avg(info["fail"])))
+            else:
+                tip_lines.append((None, "pass/fail",
+                                  "not reported by this backend"))
+            tip = _viz_tip(f"{case} — {lbl}", tip_lines)
+            svg.append(
+                f'<rect x="{x:.1f}" y="{_VIZ_PAD_T}" width="{bar_w:.1f}" '
+                f'height="{_VIZ_PLOT_H}" fill="transparent" '
+                f'data-tip="{_esc(tip)}"/>'
+            )
+        svg.append(
+            f'<text x="{gx + group_w / 2:.1f}" y="{base_y + 18:.1f}" '
+            f'text-anchor="middle" class="viz-axis">{_esc(x_labels[ci])}</text>'
+        )
+    svg.append('</svg>')
+
+    extra_legend = []
+    if any_fail_signal:
+        extra_legend.append(
+            f'<span><span class="dot" style="background:{_RED};"></span>'
+            f'failed call (stacked on top)</span>'
+        )
+    if any_fail_signal:
+        pct = (total_failed / total_calls * 100) if total_calls else 0.0
+        headline = (
+            f'{_fmt_avg(total_failed)} of {_fmt_avg(total_calls)} tool calls '
+            f'failed ({pct:.1f}%) across this run.'
+            if total_failed else
+            f'All {_fmt_avg(total_calls)} tool calls in this run succeeded.'
+        )
+    else:
+        headline = (
+            f'{_fmt_avg(total_calls)} tool calls recorded. This backend&rsquo;s '
+            f'transcript does not report per-call pass/fail, so no failures '
+            f'are shown here even if some occurred.'
+        )
+    caption = (
+        f'{headline} Bar height is the number of tool calls the agent made on '
+        f'that case; the red portion on top is the calls that returned an '
+        f'error. Hover a bar for the exact split.'
+        + (f' Case labels drop the shared prefix '
+           f'<code>{_esc(dropped)}</code>.' if dropped else '')
+    )
+    return (
+        f'<h3>Tool calls per test case '
+        f'<span style="color:{_MUTED}; font-weight:400; font-size:0.8em;">'
+        f'&middot; success vs. failure</span></h3>'
+        f'<div class="viz-card">'
+        f'<div class="viz-sub">{caption}</div>'
+        + "".join(svg) +
+        f'{_viz_legend(colors, extra=extra_legend)}</div>'
+    )
 
 
 def _render_consistency_run_panel(
