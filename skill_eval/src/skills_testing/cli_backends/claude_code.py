@@ -113,6 +113,40 @@ class ClaudeCodeSkillCLI(SkillCLIBackend):
         cmd.append(prompt)
         return cmd
 
+    def invoke(self, *, prompt: str, workspace_dir: Path,
+               timeout_seconds: int, env: Optional[dict] = None) -> dict:
+        result = super().invoke(
+            prompt=prompt, workspace_dir=workspace_dir,
+            timeout_seconds=timeout_seconds, env=env,
+        )
+        cost_usd = self._extract_native_cost_usd(result.get("stdout") or "")
+        if cost_usd is not None:
+            result["cost_usd"] = cost_usd
+            result["cost_method"] = "native_cli_reported"
+        return result
+
+    @staticmethod
+    def _extract_native_cost_usd(stdout: str) -> Optional[float]:
+        """Claude Code prices its own usage: the terminal stream-json
+        ``type:"result"`` line carries ``total_cost_usd``, already summed
+        across every model used in the turn (including any Haiku
+        sub-agent calls) -- no need to reprice it from ``pricing.yaml``
+        when it's right there.
+        """
+        for line in stdout.splitlines():
+            line = line.strip()
+            if not line.startswith("{") or '"total_cost_usd"' not in line:
+                continue
+            try:
+                obj = json.loads(line)
+            except (json.JSONDecodeError, ValueError):
+                continue
+            if isinstance(obj, dict) and obj.get("type") == "result":
+                cost = obj.get("total_cost_usd")
+                if isinstance(cost, (int, float)):
+                    return float(cost)
+        return None
+
     def parse_token_usage(self, stdout: str, stderr: str) -> Optional[TokenUsage]:
         """Walk the Claude Code stream-json envelope and aggregate live
         plus cache token counts. Anthropic's wire schema is::

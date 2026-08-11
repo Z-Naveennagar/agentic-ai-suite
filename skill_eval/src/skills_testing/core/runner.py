@@ -695,6 +695,16 @@ class SkillRunner:
                    hallucination_detected)
 
         # 6. write skill_test_results then per-grader rows
+        # A backend that self-reports real cost (Claude Code's
+        # total_cost_usd, opencode's session.cost) sets "cost_usd" on the
+        # invocation dict; omit the key entirely when absent (Cursor,
+        # Copilot) so db_writer's own pricing.yaml-based estimate still
+        # runs -- writing an explicit None would count as "already set"
+        # and suppress that fallback.
+        native_cost = {}
+        if invocation.get("cost_usd") is not None:
+            native_cost["cost_usd"] = invocation["cost_usd"]
+            native_cost["cost_method"] = invocation.get("cost_method")
         sid = db_writer.write_skill_test_result(conn, run_id, {
             "skill_name": case.skill_name,
             "skill_version": case.skill_version,
@@ -709,6 +719,7 @@ class SkillRunner:
             "total_tokens": invocation.get("total_tokens"),
             "cache_read_tokens": invocation.get("cache_read_tokens", 0),
             "cache_write_tokens": invocation.get("cache_write_tokens", 0),
+            **native_cost,
             "t2_score": t2,
             "aggregate_score": t2,
             "status": status,

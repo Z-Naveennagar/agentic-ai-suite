@@ -13,8 +13,8 @@ invocation:
   coding_agent:
     - name: opencode
       model: azure/gpt-5.4
-    # - name: claude_code
-    #   model: sonnet
+    - name: claude_code
+      model: sonnet
     # Cursor CLI (`agent`). `auto` lets Cursor's server pick an available
     # model — avoids "model not available". Pin a named id (e.g.
     # claude-sonnet-5-high) once the account's access is confirmed via

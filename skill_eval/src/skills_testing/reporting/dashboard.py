@@ -826,6 +826,22 @@ def _render_skill_switcher_js() -> str:
         CSS.escape(key) + '"]')).some(function (r) { return r.dataset.filterVisible === '1'; });
       skill.style.display = matches ? 'table-row' : 'none';
     });
+    // The model-comparison table and the duration/tool-call charts below the
+    // tree are scoped per run (not per skill/case), so only the client and
+    // model dropdowns apply to them -- text/consistency/outcome are
+    // per-case-arm classifications with no meaning against a run-wide
+    // per-model aggregate or line/bar series.
+    var runPrefix = 'cons-filter:';
+    var runId = tableId.indexOf(runPrefix) === 0 ? tableId.slice(runPrefix.length) : null;
+    var chartWrap = runId && document.querySelector(
+      '[data-cmp-chart-run="' + CSS.escape(runId) + '"]');
+    if (chartWrap) {
+      chartWrap.querySelectorAll('[data-filter-client]').forEach(function (el) {
+        var show = (!client || el.getAttribute('data-filter-client') === client) &&
+          (!model || el.getAttribute('data-filter-model') === model);
+        el.style.display = show ? '' : 'none';
+      });
+    }
     var count = bar.querySelector('.cons-filter-count');
     if (count) count.textContent = visible + ' case group' + (visible === 1 ? '' : 's');
   }
@@ -1170,10 +1186,17 @@ def render_skill_run_report(conn: sqlite3.Connection, skill_name: str, run_id: s
 
     body = [_render_local_css(), _render_headline(rows, run_id, ts)]
     body.append(_render_consistency_tree(conn, rows, run_id))
+    # Wrapped in the same data-cmp-chart-run marker render_skill_tab uses so
+    # the consistency filter bar's client/model dropdowns (wired in
+    # _render_skill_switcher_js's applyConsistencyFilter) can find and filter
+    # these charts here too -- without it the filter bar looks up a
+    # data-cmp-chart-run div that doesn't exist and silently filters nothing.
+    body.append(f'<div data-cmp-chart-run="{_esc(run_id)}">')
     body.append(_render_consistency_heatmap(conn, skill_name, run_id))
     body.append(_render_model_comparison_chart(rows))
     body.append(_render_duration_by_model_chart(rows))
     body.append(_render_tool_calls_by_model_chart(conn, rows))
+    body.append('</div>')
     body.append(_render_lifecycle_cards(conn, skill_name=skill_name, run_id=run_id))
     # Without this, the tree/rep-tab click handlers never attach and every
     # row's expand caret is dead -- the markup renders but nothing toggles
@@ -3107,6 +3130,7 @@ def _render_model_comparison_chart(rows: list[sqlite3.Row]) -> str:
         ) if n_att else 0.0
         items.append({
             "label": f"{client} / {_model_label(model)}",
+            "client": client, "model": model,
             "pass_rate": pass_rate, "avg_cost": avg_cost,
             "n_att": n_att, "n_pass": n_pass, "n_skip": n_skip,
         })
@@ -3144,7 +3168,8 @@ def _render_model_comparison_chart(rows: list[sqlite3.Row]) -> str:
         # read as a total failure at zero cost; it is really "no verdict".
         if i["n_att"] == 0:
             out.append(
-                f'<tr>'
+                f'<tr data-filter-client="{_esc(i["client"].lower())}" '
+                f'data-filter-model="{_esc(i["model"].lower())}">'
                 f'<td class="cmp-name">{_esc(i["label"])}</td>'
                 f'<td colspan="2" style="color:{_MUTED};">'
                 f'not run &mdash; all {i["n_skip"]} run(s) skipped</td>'
@@ -3168,7 +3193,8 @@ def _render_model_comparison_chart(rows: list[sqlite3.Row]) -> str:
             cost_pct = max(cost_pct, 1.5)
         cost_txt = _fmt_cost(i["avg_cost"]) if i["avg_cost"] > 0 else "$0"
         out.append(
-            f'<tr>'
+            f'<tr data-filter-client="{_esc(i["client"].lower())}" '
+            f'data-filter-model="{_esc(i["model"].lower())}">'
             f'<td class="cmp-name">{_esc(i["label"])}{skip_note}</td>'
             f'<td><div class="cmp-bar">'
             f'<div class="cmp-track"><div class="cmp-fill" '
@@ -3327,9 +3353,21 @@ def _case_axis_labels(cases: list) -> tuple[list, str]:
     return [s[len(prefix):] or s for s in strs], prefix
 
 
-def _viz_legend(colors: dict, *, extra: list | None = None) -> str:
+def _viz_legend(
+    colors: dict, *, extra: list | None = None, meta: dict | None = None,
+) -> str:
+    """``meta`` optionally maps a series label to its ``(client, model)``
+    lowercased pair so the legend swatch carries the same ``data-filter-*``
+    attributes as its chart series, keeping the two in sync when the
+    consistency filter bar's client/model dropdowns hide a series."""
     items = [
-        f'<span><span class="dot" style="background:{color};"></span>{_esc(lbl)}</span>'
+        (
+            f'<span data-filter-client="{_esc(meta[lbl][0])}" '
+            f'data-filter-model="{_esc(meta[lbl][1])}">'
+            f'<span class="dot" style="background:{color};"></span>{_esc(lbl)}</span>'
+            if meta and lbl in meta else
+            f'<span><span class="dot" style="background:{color};"></span>{_esc(lbl)}</span>'
+        )
         for lbl, color in colors.items()
     ]
     items.extend(extra or [])
@@ -3439,10 +3477,14 @@ def _render_duration_by_model_chart(rows: list[sqlite3.Row]) -> str:
     wall_clock_s are excluded from that average rather than counted as 0s.
     """
     by_case: dict = defaultdict(lambda: defaultdict(list))
+    label_meta: dict = {}
     for r in rows:
         if r["status"] == "SKIPPED" or not r["wall_clock_s"]:
             continue
-        by_case[r["case_id"]][_series_label(r)].append(float(r["wall_clock_s"]))
+        lbl = _series_label(r)
+        by_case[r["case_id"]][lbl].append(float(r["wall_clock_s"]))
+        label_meta[lbl] = (str(r["client"] or "—").lower(),
+                           str(r["model"] or "—").lower())
     if not by_case:
         return ''
 
@@ -3493,6 +3535,11 @@ def _render_duration_by_model_chart(rows: list[sqlite3.Row]) -> str:
     for lbl in labels:
         color = colors[lbl]
         pts = series_points[lbl]
+        client_lo, model_lo = label_meta[lbl]
+        svg.append(
+            f'<g data-filter-client="{_esc(client_lo)}" '
+            f'data-filter-model="{_esc(model_lo)}">'
+        )
         # Contiguous runs only -- a case with no data for this series breaks
         # the line rather than interpolating across the gap.
         run: list[str] = []
@@ -3518,6 +3565,7 @@ def _render_duration_by_model_chart(rows: list[sqlite3.Row]) -> str:
                 f'<circle cx="{x_of(i):.1f}" cy="{y_of(v):.1f}" r="3" '
                 f'fill="{color}"/>'
             )
+        svg.append('</g>')
 
     # Hover bands: one per case, full plot height, each showing every series'
     # value at that case plus a vertical guide (CSS-only, no JS per band).
@@ -3564,7 +3612,7 @@ def _render_duration_by_model_chart(rows: list[sqlite3.Row]) -> str:
         f'<div class="viz-card">'
         f'<div class="viz-sub">{caption}</div>'
         + "".join(svg) +
-        f'{_viz_legend(colors)}</div>'
+        f'{_viz_legend(colors, meta=label_meta)}</div>'
     )
 
 
@@ -3598,13 +3646,17 @@ def _render_tool_calls_by_model_chart(
     per-rep detail).
     """
     by_case: dict = defaultdict(lambda: defaultdict(list))
+    label_meta: dict = {}
     for r in rows:
         if r["status"] == "SKIPPED":
             continue
         n, n_fail, has_signal = _tool_call_stats(conn, r)
         if n == 0 and not has_signal:
             continue
-        by_case[r["case_id"]][_series_label(r)].append((n, n_fail, has_signal))
+        lbl = _series_label(r)
+        by_case[r["case_id"]][lbl].append((n, n_fail, has_signal))
+        label_meta[lbl] = (str(r["client"] or "—").lower(),
+                           str(r["model"] or "—").lower())
     if not by_case:
         return ''
 
@@ -3664,8 +3716,13 @@ def _render_tool_calls_by_model_chart(
                 continue
             x = bars_x0 + si * (bar_w + 3)
             color = colors[lbl]
+            client_lo, model_lo = label_meta[lbl]
             n_ok = max(0.0, info["n"] - info["fail"])
             y_ok = y_of(n_ok)
+            svg.append(
+                f'<g data-filter-client="{_esc(client_lo)}" '
+                f'data-filter-model="{_esc(model_lo)}">'
+            )
             svg.append(
                 f'<rect x="{x:.1f}" y="{y_ok:.1f}" width="{bar_w:.1f}" '
                 f'height="{max(0.0, base_y - y_ok):.1f}" fill="{color}"/>'
@@ -3699,6 +3756,7 @@ def _render_tool_calls_by_model_chart(
                 f'height="{_VIZ_PLOT_H}" fill="transparent" '
                 f'data-tip="{_esc(tip)}"/>'
             )
+            svg.append('</g>')
         svg.append(
             f'<text x="{gx + group_w / 2:.1f}" y="{base_y + 18:.1f}" '
             f'text-anchor="middle" class="viz-axis">{_esc(x_labels[ci])}</text>'
@@ -3739,7 +3797,7 @@ def _render_tool_calls_by_model_chart(
         f'<div class="viz-card">'
         f'<div class="viz-sub">{caption}</div>'
         + "".join(svg) +
-        f'{_viz_legend(colors, extra=extra_legend)}</div>'
+        f'{_viz_legend(colors, extra=extra_legend, meta=label_meta)}</div>'
     )
 
 
@@ -3999,7 +4057,9 @@ def _render_consistency_heatmap(
     sorted_cells = sorted(cells)
     for client, model in sorted_cells:
         out.append(
-            f'<th style="padding:8px; text-align:center;">{_esc(client)}<br>'
+            f'<th data-filter-client="{_esc(str(client or "—").lower())}" '
+            f'data-filter-model="{_esc(str(model or "—").lower())}" '
+            f'style="padding:8px; text-align:center;">{_esc(client)}<br>'
             f'<span style="color:{_MUTED}; font-weight:400">'
             f'{_esc(_model_label(model))}</span></th>'
         )
@@ -4009,18 +4069,23 @@ def _render_consistency_heatmap(
             f'<tr><td style="padding:8px; font-weight:600">{_esc(skill)}</td>'
         )
         for client, model in sorted_cells:
+            cell_attrs = (
+                f'data-filter-client="{_esc(str(client or "—").lower())}" '
+                f'data-filter-model="{_esc(str(model or "—").lower())}" '
+            )
             st = stats.get((skill, client, model))
             if st is None:
                 out.append(
-                    f'<td style="padding:8px; text-align:center; '
+                    f'<td {cell_attrs}style="padding:8px; text-align:center; '
                     f'color:{_MUTED};">&mdash;</td>'
                 )
                 continue
             bg = _consistency_color(st["cls"])
             sigma = f'{st["stdev"]:.2f}' if st["stdev"] is not None else "—"
             out.append(
-                f'<td style="padding:8px; text-align:center; background:{bg}; '
-                f'font-variant-numeric:tabular-nums;">{st["pr"]:.0%}'
+                f'<td {cell_attrs}style="padding:8px; text-align:center; '
+                f'background:{bg}; font-variant-numeric:tabular-nums;">'
+                f'{st["pr"]:.0%}'
                 f'<div style="font-size:11px; color:{_MUTED}; margin-top:2px;">'
                 f'&sigma; {sigma} &middot; N={st["n"]}</div></td>'
             )

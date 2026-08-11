@@ -16,12 +16,14 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import sqlite3
 import threading
 import urllib.request
 from pathlib import Path
 from typing import Optional
 
 from .base import SkillCLIBackend
+from .interface import TokenUsage
 
 
 _DEFAULT_VIVADO_MCP_URL = "http://127.0.0.1:18090/mcp"
@@ -94,10 +96,66 @@ class OpencodeSkillCLI(SkillCLIBackend):
             merged["OPENCODE_DB"] = str(db_dir / "opencode.db")
         if "OPENCODE_CONFIG" not in merged:
             merged["OPENCODE_CONFIG"] = str(Path(workspace_dir) / "opencode.json")
-        return super().invoke(
+        result = super().invoke(
             prompt=prompt, workspace_dir=workspace_dir,
             timeout_seconds=timeout_seconds, env=merged,
         )
+        session = self._read_session_row(merged["OPENCODE_DB"])
+        if session is not None:
+            usage, cost_usd = session
+            result["prompt_tokens"] = usage.input
+            result["output_tokens"] = usage.output
+            result["total_tokens"] = usage.total
+            result["cache_read_tokens"] = usage.cache_read
+            result["cache_write_tokens"] = usage.cache_write
+            if cost_usd is not None:
+                result["cost_usd"] = cost_usd
+                result["cost_method"] = "native_cli_reported"
+        return result
+
+    @staticmethod
+    def _read_session_row(db_path: str) -> Optional[tuple[TokenUsage, Optional[float]]]:
+        """Real per-session token counts AND cost, straight from opencode's
+        own store.
+
+        opencode computes and persists real usage and its own cost estimate
+        per session in the ``session`` table -- no ``--json`` flag exists on
+        ``opencode run``/``stats`` to get this from stdout, so we read the
+        sqlite file directly instead of re-parsing text. ``OPENCODE_DB`` is
+        pinned to a workspace-local file (see ``invoke`` above), and
+        shared-fixture groups reuse one workspace across several cases, so a
+        file can carry more than one session -- take the most recently
+        updated row, which is always the one this ``invoke()`` call just
+        created.
+
+        Reasoning tokens (present for reasoning models) are folded into
+        ``output`` since they're billed at the output rate everywhere in
+        ``pricing.yaml``; opencode has no separate reasoning-token price.
+        Never fatal: a DB we can't read costs real usage, not the run.
+        """
+        try:
+            uri = f"file:{db_path}?mode=ro"
+            con = sqlite3.connect(uri, uri=True, timeout=5)
+            try:
+                row = con.execute(
+                    "SELECT tokens_input, tokens_output, tokens_reasoning, "
+                    "tokens_cache_read, tokens_cache_write, cost FROM session "
+                    "ORDER BY time_updated DESC LIMIT 1"
+                ).fetchone()
+            finally:
+                con.close()
+        except sqlite3.Error:
+            return None
+        if not row:
+            return None
+        tin, tout, treason, tcread, tcwrite, cost = row
+        usage = TokenUsage(
+            input=int(tin or 0),
+            output=int(tout or 0) + int(treason or 0),
+            cache_read=int(tcread or 0),
+            cache_write=int(tcwrite or 0),
+        )
+        return usage, (float(cost) if cost is not None else None)
 
     def _write_opencode_config(self, workspace_dir: Path) -> None:
         cfg_path = workspace_dir / "opencode.json"
