@@ -229,17 +229,17 @@ jobs:
       # agent transcripts run against test_cases.yaml, itself an answer key,
       # so it's uploaded as a run-scoped artifact instead of committed
       # somewhere as widely readable as the repo. always() so a failed run's
-      # partial report/logs still upload -- that's the run you most want
-      # evidence from. Bundled with _runtime/logs + results.db for the same
-      # reason ip-configurator.yml bundles them: the rendered report alone
-      # doesn't explain a failing case, the raw transcript/DB behind it does.
-      - name: Upload skill-signoffs report + session logs + results DB
+      # partial report still uploads -- that's the run you most want
+      # evidence from. _example/ and .gitkeep are excluded since they're
+      # tracked template/placeholder content, present on every checkout
+      # regardless of what this run actually produced.
+      - name: Upload skill-signoffs report
         if: ${{ always() && steps.detect.outputs.skills != '' }}
         uses: actions/upload-artifact@v7
         with:
           name: skill-signoffs-report
           path: |
             skill-signoffs/
-            skill_eval/_runtime/logs/
-            skill_eval/_runtime/results.db
+            !skill-signoffs/_example/
+            !skill-signoffs/.gitkeep
           if-no-files-found: warn
