@@ -56,6 +56,7 @@ skill_testing:
     - hls-burst-inference
     - hls-dataflow
     - ip-configurator
+    - hls-flattenable
 
   # Denied skills never run, even when explicitly requested.
   denylist:
