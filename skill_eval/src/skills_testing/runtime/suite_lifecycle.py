@@ -50,13 +50,13 @@ class GroupRegistry:
         with self._lock:
             return self._groups.get(key)
 
-    def assign_shard(self, base_key: tuple, case_id: str, shard_idx: int) -> None:
+    def assign_shard(self, base_key: tuple, case_id: str, rep: int, shard_idx: int) -> None:
         with self._lock:
-            self._shard_of[(*base_key, case_id)] = shard_idx
+            self._shard_of[(*base_key, case_id, rep)] = shard_idx
 
-    def shard_for(self, base_key: tuple, case_id: str) -> int:
+    def shard_for(self, base_key: tuple, case_id: str, rep: int) -> int:
         with self._lock:
-            return self._shard_of.get((*base_key, case_id), 0)
+            return self._shard_of.get((*base_key, case_id, rep), 0)
 
     def sizes(self) -> dict[GroupKey, int]:
         with self._lock:
@@ -79,7 +79,14 @@ def build_group_registry(
     cases: list[Any], *, repetitions: int = 1, parallel: int = 1,
     session_cap: int | None = None,
 ) -> GroupRegistry:
-    """Create one group per suite/client/model and optional shard."""
+    """Create one group per suite/client/model and optional shard.
+
+    Shards are assigned per (case, repetition) unit, not per case -- so
+    repeated runs of the *same* case spread across distinct shards (and
+    therefore distinct Vivado sessions) too, up to ``effective_cap``,
+    instead of every repetition of a case being forced through the one
+    session its case_id landed on.
+    """
     effective_cap = max(1, min(parallel, session_cap) if session_cap else parallel)
     per_combo: dict[tuple, list] = {}
     for case in cases:
@@ -94,10 +101,14 @@ def build_group_registry(
         return registry
     base_share, remainder = divmod(effective_cap, len(per_combo))
     for combo_idx, base_key in enumerate(sorted(per_combo)):
-        combo_cases = per_combo[base_key]
-        shards = max(1, min(base_share + (combo_idx < remainder), len(combo_cases)))
-        for index, case in enumerate(combo_cases):
+        combo_units = [
+            (case, rep)
+            for case in per_combo[base_key]
+            for rep in range(repetitions)
+        ]
+        shards = max(1, min(base_share + (combo_idx < remainder), len(combo_units)))
+        for index, (case, rep) in enumerate(combo_units):
             shard = index % shards
-            registry.assign_shard(base_key, case.case_id, shard)
-            registry.declare((*base_key, shard), repetitions)
+            registry.assign_shard(base_key, case.case_id, rep, shard)
+            registry.declare((*base_key, shard))
     return registry

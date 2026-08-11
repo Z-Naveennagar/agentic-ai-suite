@@ -25,6 +25,7 @@ import argparse
 import logging
 import sys
 import time
+from collections import deque
 from pathlib import Path
 
 import yaml
@@ -37,7 +38,7 @@ from skills_testing.core.case_loader import discover_cases, filter_cases
 from skills_testing.core.logging_config import configure_logging
 from skills_testing.core.paths import PROJECT_ROOT, REPORTS_DIR, default_workspace_root, resolve_project_path
 from skills_testing.runtime.cleanup_manager import default_cleanup_manager
-from skills_testing.runtime.suite_lifecycle import build_group_registry
+from skills_testing.runtime.suite_lifecycle import build_group_registry, suite_key_for
 from skills_testing.core.lifecycle import (
     PolicyConfig,
     aggregate_consistency_metrics,
@@ -235,7 +236,13 @@ def main(argv: list[str] | None = None) -> int:
 
     def _open_thread_conn():
         import sqlite3
-        return sqlite3.connect(db_path, check_same_thread=False)
+        conn = sqlite3.connect(db_path, check_same_thread=False)
+        # Higher real write concurrency (per-rep sharding can now have many
+        # more threads finishing a case and writing their result at once
+        # than before) means more contention for results.db's single
+        # writer lock. Wait instead of raising "database is locked".
+        conn.execute("PRAGMA busy_timeout=30000")
+        return conn
 
     # Skills come from the testing repo's local `.claude/skills/` tree
     # (not the user's home), so checked-in skill bodies are the single
@@ -373,7 +380,18 @@ def main(argv: list[str] | None = None) -> int:
         mem = float((case.requirements or {}).get("min_memory_gb", 1.0))
         return Task(name=task_name, run=_run, estimated_memory_gb=mem)
 
-    sched_tasks: list[Task] = []
+    # Tasks are bucketed by the Vivado session they'd actually use (same
+    # (suite, client, model, shard) key as group_registry), then merged
+    # round-robin across buckets rather than appended case-major. Case-major
+    # order packed every repetition of the same few cases into the first
+    # `parallel` slots -- e.g. --parallel 18 --reps 3 with 2 clients filled
+    # all 18 slots with just 3 cases' 6 combos each, but 3 reps of the same
+    # case/client share one Vivado session and serialize on its lock, so
+    # only 6 of those 18 threads were ever doing real work while the other
+    # 12 sat blocked on the same 6 locks. Round-robining across buckets
+    # instead means the first `parallel` tasks land on `parallel` distinct
+    # sessions whenever that many exist.
+    session_buckets: dict[tuple, list[Task]] = {}
     for case in cases:
         clients = case.invocation.get("clients", [])
         combos = [
@@ -387,8 +405,28 @@ def main(argv: list[str] | None = None) -> int:
             logger.debug("case %s/%s: no combos (all skipped by --resume)",
                         case.skill_name, case.case_id)
             continue
+        shares_session = bool(
+            case.setup_action or case.reset_action or case.teardown_action)
         for entry, rep in combos:
-            sched_tasks.append(_make_combo_task(case, entry, rep))
+            client, model = entry["name"], entry["model"]
+            if shares_session:
+                shard = group_registry.shard_for(
+                    (suite_key_for(case), client, model), case.case_id, rep)
+                bucket_key = (suite_key_for(case), client, model, shard)
+            else:
+                # No shared Vivado session for this case -- nothing to
+                # spread out for, so give it a bucket of its own.
+                bucket_key = (case.case_id, client, model, rep)
+            session_buckets.setdefault(bucket_key, []).append(
+                _make_combo_task(case, entry, rep))
+
+    sched_tasks: list[Task] = []
+    queues = deque(deque(tasks) for tasks in session_buckets.values() if tasks)
+    while queues:
+        q = queues.popleft()
+        sched_tasks.append(q.popleft())
+        if q:
+            queues.append(q)
 
     sched = Scheduler(parallel=parallel,
                       memory_budget_gb=max(host_caps["free_memory_gb"], 2.0))

@@ -259,7 +259,7 @@ class SkillRunner:
         original, fully-isolated-per-case path unchanged.
         """
         with_skill = True  # retained only in persisted/log formats for compatibility
-        group = self._group_for(case, client, model)
+        group = self._group_for(case, client, model, replication_index)
         if group is None:
             return self._run_one_body(
                 case, client, model, run_id=run_id, conn=conn,
@@ -292,14 +292,15 @@ class SkillRunner:
                     )
 
     def _group_for(
-        self, case: CaseSpec, client: str, model: str,
+        self, case: CaseSpec, client: str, model: str, replication_index: int,
     ) -> GroupState | None:
         if self.group_registry is None:
             return None
         if not (case.setup_action or case.reset_action or case.teardown_action):
             return None
         base_key = (suite_key_for(case), client, model)
-        shard_idx = self.group_registry.shard_for(base_key, case.case_id)
+        shard_idx = self.group_registry.shard_for(
+            base_key, case.case_id, replication_index)
         return self.group_registry.get((*base_key, shard_idx))
 
     def _run_one_body(
