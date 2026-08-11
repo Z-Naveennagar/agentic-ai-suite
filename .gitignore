@@ -16,4 +16,4 @@ skill-signoffs/*
 !skill-signoffs/.gitkeep
 !skill-signoffs/_example/
 !skill-signoffs/_example/**
-.claude/worktrees/
+.claude/

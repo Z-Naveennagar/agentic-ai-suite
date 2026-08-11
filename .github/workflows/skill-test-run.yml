@@ -1,0 +1,251 @@
+name: "[ZB] Skill Test Run"
+
+# Path-filtered: only fires when a skill's content (staging/) or its test
+# suite (tests/) actually changed, not on every push to main (that's
+# runner-diagnostics.yml's job). The "Determine which skill(s) changed"
+# step below then scopes the actual run to just those skill(s) -- pushing
+# to one skill's staging/ dir or suite should never re-run the whole
+# allowlist.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "staging/**"
+      - "tests/**"
+
+permissions:
+  # write, not read: the last step commits the skill-signoffs/ snapshot
+  # this run produces back onto the branch (see skill_eval/CLAUDE.md's
+  # "Reporting" section -- a signoff snapshot is meant to be committed and
+  # reviewed, not disposable CI output).
+  contents: write
+
+jobs:
+  skill-test-run:
+    runs-on: [agentic-ai-suite-runner]
+    timeout-minutes: 90
+    env:
+      VIVADO_PATH: /mnt/opt/xilinx/Vivado/bin/vivado
+      VITIS_PATH: /mnt/opt/xilinx/Vitis/bin/v++
+      PYTHONPATH: ${{ github.workspace }}/skill_eval/src
+      # This runner's own license servers (same value as
+      # runner-diagnostics.yml -- confirmed reachable on port 2100).
+      XILINXD_LICENSE_FILE: "2100@license-server-flexlm-1.vivado.svc.cluster.local:2100@license-server-flexlm-2.vivado.svc.cluster.local:2100@license-server-flexlm-3.vivado.svc.cluster.local"
+      # Needed only if a changed skill's suite actually invokes an
+      # azure-backed client/grader (e.g. ip-configurator's llm_judge
+      # grader, config.yaml's skill_testing.llm_judge.model: azure/gpt-5.4).
+      # Both fall back to empty when unset rather than failing the whole
+      # job -- a suite that doesn't need Azure still runs fine; one that
+      # does will fail with a clear "no credentials" error instead of a
+      # silent skip. AZURE_API_KEY should live in Settings > Secrets and
+      # variables > Actions > Secrets, never the Variables tab (plaintext,
+      # unmasked in logs).
+      AZURE_RESOURCE_NAME: ${{ secrets.AZURE_RESOURCE_NAME || vars.AZURE_RESOURCE_NAME }}
+      AZURE_API_KEY: ${{ secrets.AZURE_API_KEY || vars.AZURE_API_KEY }}
+      # BYOK passthrough for the copilot backend specifically --
+      # config.yaml's cli_backends.copilot.keep_byok: true preserves these
+      # during invoke() instead of stripping them. Only matters if a
+      # changed skill's suite actually invokes copilot.
+      COPILOT_PROVIDER_BASE_URL: ${{ (secrets.AZURE_RESOURCE_NAME || vars.AZURE_RESOURCE_NAME) && format('https://{0}.openai.azure.com', secrets.AZURE_RESOURCE_NAME || vars.AZURE_RESOURCE_NAME) || '' }}
+      COPILOT_PROVIDER_TYPE: azure
+      COPILOT_PROVIDER_API_KEY: ${{ secrets.AZURE_API_KEY || vars.AZURE_API_KEY }}
+      COPILOT_PROVIDER_WIRE_API: responses
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          # Full history, not just the last commit -- the "which skill
+          # changed" step below diffs github.event.before..after, and a
+          # shallow clone may not have `before` locally.
+          fetch-depth: 0
+
+      - name: Job summary header
+        run: echo "# [ZB] Skill Test Run" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Add Vivado to PATH
+        run: echo "$(dirname "$VIVADO_PATH")" >> "$GITHUB_PATH"
+
+      - name: Add Vitis to PATH
+        run: |
+          if [ -x "$VITIS_PATH" ]; then
+            echo "$(dirname "$VITIS_PATH")" >> "$GITHUB_PATH"
+          fi
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+
+      - name: Install skill_eval harness package
+        working-directory: skill_eval
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      # Figures out exactly which skill(s) this push touched, so the run
+      # below is scoped to `--skills <that skill>` instead of everything.
+      # A staging/<skill_name>/... change names its skill directly; a
+      # tests/... change is resolved through skill_repo's own suite ->
+      # skill matching (directory name, or the suite's own
+      # runner_spec.yaml:skill_name field when those differ -- see
+      # skill_eval/CLAUDE.md "Skill source of truth"), reusing the exact
+      # same logic `skills-test install` uses rather than reimplementing
+      # it. A skill that isn't in skill_testing.allowlist or that's on the
+      # denylist still gets named here -- `skills-test run` itself resolves
+      # to zero cases for those (case_loader.py's allow/deny filtering), so
+      # nothing extra is needed here to keep them from actually running.
+      - name: Determine which skill(s) changed
+        id: detect
+        working-directory: skill_eval
+        run: |
+          EMPTY_TREE=4b825dc642cb6eb9a060e54bf8d69288fbee4904
+          BEFORE="${{ github.event.before }}"
+          AFTER="${{ github.event.after }}"
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BEFORE" 2>/dev/null; then
+            BEFORE="$EMPTY_TREE"
+          fi
+          git diff --name-only "$BEFORE" "$AFTER" -- ../staging ../tests > /tmp/changed_paths.txt
+          echo "changed paths:"
+          cat /tmp/changed_paths.txt
+
+          SKILLS=$(python3 - <<'PY'
+          from pathlib import Path
+          from skills_testing.core.skill_repo import _load_suite_skill_name
+
+          repo_root = Path("..").resolve()
+          staging_root = repo_root / "staging"
+          tests_root = repo_root / "tests"
+
+          changed = [l.strip() for l in open("/tmp/changed_paths.txt") if l.strip()]
+          skills = set()
+
+          for p in changed:
+              parts = Path(p).parts
+              if len(parts) < 2:
+                  continue
+              if parts[0] == "staging" and (staging_root / parts[1]).is_dir():
+                  skills.add(parts[1])
+              elif parts[0] == "tests":
+                  # Walk up from the changed file looking for the nearest
+                  # runner_spec.yaml and trust its own declared skill_name
+                  # over the directory name -- a suite dir doesn't always
+                  # match its skill 1:1 (e.g. hls-burst-inference_33 ->
+                  # skill hls-burst-inference, see skill_eval/CLAUDE.md's
+                  # "Skill source of truth"), and some allowlisted skills
+                  # (the hls-* ones today) have a tests/ suite with no
+                  # staging/ counterpart at all, so this can't go through
+                  # skill_repo.discover_components (which only reports
+                  # skills that already have a staging dir).
+                  cur = (repo_root / p).parent
+                  declared = None
+                  while True:
+                      spec = cur / "runner_spec.yaml"
+                      if spec.is_file():
+                          declared = _load_suite_skill_name(cur)
+                          break
+                      if cur == tests_root or cur == cur.parent:
+                          break
+                      cur = cur.parent
+                  skills.add(declared or parts[1])
+
+          print(" ".join(sorted(skills)))
+          PY
+          )
+          echo "Detected skill(s): $SKILLS"
+          echo "skills=$SKILLS" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### Changed skill(s)"
+            echo
+            if [ -n "$SKILLS" ]; then
+              echo "Running: \`$SKILLS\`"
+            else
+              echo "No skill resolved from the changed paths -- nothing to run."
+            fi
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Informational only -- this host runs a persistent vivado-mcp-server
+      # (started by the code-server Vivado extension, always on) rather
+      # than one this workflow starts itself. Never force-restart it here:
+      # doing so would drop whatever live Vivado session the IDE or another
+      # job already has open on it. A changed skill whose suite needs a
+      # live session (ip-configurator) will surface a clear MCP-connection
+      # error in its own run step if this ever comes back unhealthy;
+      # nothing here should mask or "fix" that by restarting the shared
+      # server out from under someone else.
+      - name: Check Vivado MCP server health
+        if: steps.detect.outputs.skills != ''
+        continue-on-error: true
+        run: |
+          if curl -sS -f -o /dev/null --max-time 5 http://127.0.0.1:18090/health; then
+            echo "vivado-mcp-server healthy on 127.0.0.1:18090"
+          else
+            echo "::warning::vivado-mcp-server not responding on 127.0.0.1:18090 -- any changed skill needing a live Vivado session will fail its own run step"
+          fi
+
+      # A dependency-only skill with no suite of its own reports as [DEP ]
+      # and doesn't affect the exit code -- expected, not an error.
+      # continue-on-error stays as a safety net for a genuine [FAIL]
+      # elsewhere (bad YAML, an unresolved dependency) so the run step
+      # below still gets a chance to run for whatever *did* install
+      # cleanly, same reasoning as runner-diagnostics.yml's identical step.
+      - name: Install skill test suites
+        if: steps.detect.outputs.skills != ''
+        working-directory: skill_eval
+        continue-on-error: true
+        run: skills-test install
+
+      # --reps 3 matches consistency_lifecycle.min_reps (config.yaml), so
+      # this run produces an assessable lifecycle snapshot instead of
+      # UNASSESSED. --parallel 10 bounds real concurrent agent invocations
+      # (combo-granularity, see integration_runner.py), not case count.
+      # Keep it under the Vivado MCP server's 7-session cap plus headroom
+      # for cases that need no session; session-backed groups are throttled
+      # by the harness regardless (see runner_spec.yaml's note).
+      - name: Run skill tests
+        if: steps.detect.outputs.skills != ''
+        working-directory: skill_eval
+        run: |
+          skills-test run --skills ${{ steps.detect.outputs.skills }} --reps 3 --parallel 10
+
+          {
+            echo "### Run result"
+            echo
+            echo "Skill(s): \`${{ steps.detect.outputs.skills }}\`, reps=3, parallel=10"
+            echo
+            echo "Full pass/fail counts are in this step's log; the per-skill report is in \`skill-signoffs/\`."
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # skill-signoffs/<skill_name>_summary/ is meant to be committed and
+      # reviewed (skill_eval/CLAUDE.md "Reporting"), not disposable CI
+      # scratch -- so push it straight back onto the branch instead of
+      # just uploading it as a workflow artifact.
+      - name: Commit skill-signoffs report
+        if: steps.detect.outputs.skills != ''
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add skill-signoffs/
+          if git diff --cached --quiet; then
+            echo "No skill-signoffs changes to commit"
+          else
+            git commit -m "skill-signoffs: ${{ steps.detect.outputs.skills }} (CI skill test run)"
+            # The branch may have moved since this job's checkout (another
+            # push, or a re-run of an older job) -- rebase our one commit
+            # onto the current tip instead of pushing from a stale base,
+            # which non-fast-forwards. skill-signoffs/ is generated content
+            # this job alone produced, so the rebase itself should never
+            # conflict; a real conflict means someone else touched the same
+            # skill's report concurrently, which needs a human, not an
+            # auto-merge.
+            git fetch origin main
+            if ! git rebase origin/main; then
+              git rebase --abort
+              echo "::error::Could not rebase skill-signoffs commit onto origin/main -- push it manually"
+              exit 1
+            fi
+            git push origin HEAD:main
+          fi
