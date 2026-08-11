@@ -1,0 +1,63 @@
+# Copyright (C) 2026, Advanced Micro Devices, Inc. All rights reserved.
+# SPDX-License-Identifier: MIT
+key,family,device,problem_type,reason_to_close,techniques,route_wns_before,route_wns_after,max_cong,n_tcl,data_dir
+TSR-973748,versal,XCVC1902,Customer Expectation Mismatch,Explanation provided,congestion|clock_skew_route,,,,0,http://jira.xilinx.com/public/bugcases/TSR/973000-973999/973748/
+TSR-973971,versal,,QOR,Workaround Provided,ExtraNetDelay,,,,0,https://jira.xilinx.com/public/bugcases/TSR/973000-973999/973971/
+TSR-974038,versal,xcvc1902,Customer Expectation Mismatch,Explanation provided,high_fanout|congestion|clock_skew_route,,,,0,https://jira.xilinx.com/public/bugcases/TSR/974000-974999/974038/
+TSR-974127,versal,xcvc1902,QOR,Workaround Provided,congestion,,,,0,https://jira.xilinx.com/public/bugcases/TSR/974000-974999/974127/
+TSR-974206,versal,,QOR,Workaround Provided,phys_opt|ExtraNetDelay|replication|congestion|block_inference,,,,0,https://jira.xilinx.com/public/bugcases/TSR/974000-974999/974206/
+TSR-974297,unknown,,Debug/Test Assistance,No Customer Response,ExtraNetDelay|noc_qos,,,,0,https://jira.xilinx.com/public/bugcases/TSR/974000-974999/974297/
+TSR-974454,versal,,QOR,Explanation provided,USER_CROSSING_SLR|phys_opt|congestion|clock_skew_route,,,,0,https://jira.xilinx.com/public/bugcases/TSR/974000-974999/974454/
+TSR-974480,versal,xcvp1802,Customer Expectation Mismatch,Workaround Provided,pblock_floorplan|phys_opt|opt_directive|place_directive|route_directive|ExtraNetDelay|congestion|clock_skew_route|qor_suggestions,,,,15,https://jira.xilinx.com/public/bugcases/TSR/974000-974999/974480/
+TSR-974829,versal,xcvc1902,Customer Expectation Mismatch,Workaround Provided,congestion|block_inference|clock_skew_route,,,,0,https://jira.xilinx.com/public/bugcases/TSR/974000-974999/974829/
+TSR-975069,versal,xcvp1552,QOR,Workaround Provided,phys_opt|ExtraNetDelay|congestion|clock_skew_route,,,,2,https://jira.xilinx.com/public/bugcases/TSR/975000-975999/975069/
+TSR-975381,versal,,QOR,Workaround Provided,USER_CLUSTER|pblock_floorplan|phys_opt|opt_directive|place_directive|route_directive|ExtraNetDelay|replication|high_fanout|congestion|block_inference|incremental|qor_suggestions|dont_touch,-0.28,0.0,,24,https://jira.xilinx.com/public/bugcases/TSR/975000-975999/975381/
+TSR-975530,versal,xcvc1902,QOR,No Customer Response,ExtraNetDelay,,,,0,https://jira.xilinx.com/public/bugcases/TSR/975000-975999/975530/
+TSR-975553,versal,xcvp1502,QOR,Workaround Provided,clock_uncertainty_OC|phys_opt|opt_directive|place_directive|route_directive|ExtraNetDelay,,,,8,https://jira.xilinx.com/public/bugcases/TSR/975000-975999/975553/
+TSR-975801,versal,xcvh1782,QOR,No Customer Response,USER_CROSSING_SLR|SLR_assignment|pblock_floorplan|phys_opt|replication|high_fanout|congestion|block_inference,,,,5,https://jira.xilinx.com/public/bugcases/TSR/975000-975999/975801/
+TSR-975804,versal,xcvh1542,QOR,Workaround Provided,SLR_assignment|phys_opt|congestion|block_inference|clock_skew_route|noc_qos|false_path_groups|dont_touch,-0.084,-0.084,,8,https://jira.xilinx.com/public/bugcases/TSR/975000-975999/975804/
+TSR-975840,versal,XCVP1502,QOR,Workaround Provided,SLR_assignment|pblock_floorplan|clock_uncertainty_OC|phys_opt|ExtraNetDelay|congestion|block_inference|false_path_groups|dont_touch,,,,14,https://jira.xilinx.com/public/bugcases/TSR/975000-975999/975840/
+TSR-975841,versal,,Debug/Test Assistance,Workaround Provided,pblock_floorplan|congestion|block_inference,,,,0,https://jira.xilinx.com/public/bugcases/TSR/975000-975999/975841/
+TSR-975847,versal,,Information Accessibility,Explanation provided,congestion|clock_skew_route,,,,0,https://jira.xilinx.com/public/bugcases/TSR/975000-975999/975847/
+TSR-975908,versal,,QOR,Patch provided,SLR_assignment|pblock_floorplan|congestion|block_inference|clock_skew_route|noc_qos,,,,0,https://jira.xilinx.com/public/bugcases/TSR/975000-975999/975908/
+TSR-976094,versal,xcvp1802,QOR,Workaround Provided,USER_CLUSTER|SLR_assignment|pblock_floorplan|clock_uncertainty_OC|phys_opt|opt_directive|place_directive|route_directive|ExtraNetDelay|replication|high_fanout|congestion|block_inference|clock_skew_route|noc_qos|dont_touch,-0.046,0.0,,23,https://jira.xilinx.com/public/bugcases/TSR/976000-976999/976094/
+TSR-976102,versal,,QOR,Explanation provided,congestion|block_inference,,,,0,https://jira.xilinx.com/public/bugcases/TSR/976000-976999/976102/
+TSR-976151,versal,,QOR,No Customer Response,SLR_assignment|ExtraNetDelay|replication,,,,0,https://jira.xilinx.com/public/bugcases/TSR/976000-976999/976151/
+TSR-976265,versal,xcvh1782,QOR,Explanation provided,,,,,0,https://jira.xilinx.com/public/bugcases/TSR/976000-976999/976265/
+TSR-976314,versal,xcvp1502,QOR,Workaround Provided,high_fanout|congestion|block_inference,,,,0,https://jira.xilinx.com/public/bugcases/TSR/976000-976999/976314/
+TSR-976316,versal,xcvp1502,QOR,Workaround Provided,congestion,,,,0,https://jira.xilinx.com/public/bugcases/TSR/976000-976999/976316/
+TSR-976334,versal,xcvp1552,QOR,Explanation provided,USER_CLUSTER|SLR_assignment|pblock_floorplan|phys_opt|high_fanout|congestion|block_inference|clock_skew_route|noc_qos|incremental,,,,6,https://jira.xilinx.com/public/bugcases/TSR/976000-976999/976334/
+TSR-976335,versal,xcvh1522,QOR,Explanation provided,ExtraNetDelay|replication|high_fanout|block_inference,,,,1,https://jira.xilinx.com/public/bugcases/TSR/976000-976999/976335/
+TSR-976608,versal,,QOR,Explanation provided,congestion,,,,0,https://jira.xilinx.com/public/bugcases/TSR/976000-976999/976608/
+TSR-976698,versal,,QOR,Workaround Provided,USER_CLUSTER|USER_CROSSING_SLR|SLR_assignment|pblock_floorplan|phys_opt|ExtraNetDelay|replication|congestion|block_inference|clock_skew_route,,,,15,https://jira.xilinx.com/public/bugcases/TSR/976000-976999/976698/
+TSR-976710,versal,XCVM1402,QOR,Workaround Provided,block_inference|noc_qos,,,,0,https://jira.xilinx.com/public/bugcases/TSR/976000-976999/976710/
+TSR-976714,versal,xcvp1902,Other,Explanation provided,congestion|clock_skew_route|noc_qos,,,,1,https://jira.xilinx.com/public/bugcases/TSR/976000-976999/976714/
+TSR-976763,versal,xcvp1502,QOR,Workaround Provided,phys_opt|opt_directive|place_directive|route_directive|ExtraNetDelay|congestion|block_inference|clock_skew_route,,,,5,https://jira.xilinx.com/public/bugcases/TSR/976000-976999/976763/
+TSR-976770,versal,,QOR,Explanation provided,USER_CLUSTER|SLR_assignment|pblock_floorplan|phys_opt|ExtraNetDelay|replication|high_fanout|congestion|block_inference|clock_skew_route|noc_qos|false_path_groups,,,,4,https://jira.xilinx.com/public/bugcases/TSR/976000-976999/976770/
+TSR-976779,versal,xcvh1522,QOR,Workaround Provided,phys_opt|opt_directive|place_directive|route_directive|ExtraNetDelay|replication|congestion|block_inference|clock_skew_route|qor_suggestions,-0.076,-0.001,,10,https://jira.xilinx.com/public/bugcases/TSR/976000-976999/976779/
+TSR-976837,versal,,QOR,Explanation provided,congestion,,,,0,https://jira.xilinx.com/public/bugcases/TSR/976000-976999/976837/
+TSR-976907,versal,,QOR,Workaround Provided,ExtraNetDelay|replication|congestion|block_inference,,,,0,https://jira.xilinx.com/public/bugcases/TSR/976000-976999/976907/
+TSR-976909,versal,,Debug/Test Assistance,Explanation provided,SLR_assignment|phys_opt|ExtraNetDelay|congestion|block_inference|qor_suggestions,,,,2,https://jira.xilinx.com/public/bugcases/TSR/976000-976999/976909/
+TSR-976968,versal,,QOR,Explanation provided,,,,,1,https://jira.xilinx.com/public/bugcases/TSR/976000-976999/976968/
+TSR-977059,versal,,Other,Explanation provided,,,,,0,https://jira.xilinx.com/public/bugcases/TSR/977000-977999/977059/
+TSR-977073,versal,,Customer Expectation Mismatch,Workaround Provided,congestion|clock_skew_route,,,,0,https://jira.xilinx.com/public/bugcases/TSR/977000-977999/977073/
+TSR-977086,versal,,Debug/Test Assistance,Explanation provided,USER_CROSSING_SLR|SLR_assignment|pblock_floorplan|phys_opt|ExtraNetDelay|congestion|block_inference|clock_skew_route|incremental|qor_suggestions,0.0,0.0,,7,https://jira.xilinx.com/public/bugcases/TSR/977000-977999/977086/
+TSR-977150,versal,,Debug/Test Assistance,Workaround Provided,phys_opt|ExtraNetDelay|replication|high_fanout|congestion|block_inference,,,,2,https://jira.xilinx.com/public/bugcases/TSR/977000-977999/977150/
+TSR-977185,versal,,Information Accessibility,Explanation provided,phys_opt|clock_skew_route,,,,0,https://jira.xilinx.com/public/bugcases/TSR/977000-977999/977185/
+TSR-977408,unknown,,QOR,Workaround Provided,SLR_assignment|pblock_floorplan|phys_opt|ExtraNetDelay|congestion|block_inference|noc_qos|qor_suggestions,,,,6,https://jira.xilinx.com/public/bugcases/TSR/977000-977999/977408/
+TSR-977410,versal,XCVP1202,QOR,Workaround Provided,ExtraNetDelay|replication|block_inference,,,,0,https://jira.xilinx.com/public/bugcases/TSR/977000-977999/977410/
+TSR-977518,versal,,QOR,Explanation provided,ExtraNetDelay|congestion|incremental,,,,0,https://jira.xilinx.com/public/bugcases/TSR/977000-977999/977518/
+TSR-977532,versal,,QOR,Explanation provided,pblock_floorplan|phys_opt|replication|high_fanout|noc_qos,,,,0,https://jira.xilinx.com/public/bugcases/TSR/977000-977999/977532/
+TSR-977556,versal,,Debug/Test Assistance,Explanation provided,SLR_assignment|pblock_floorplan|phys_opt|ExtraNetDelay|congestion|noc_qos,,,,0,https://jira.xilinx.com/public/bugcases/TSR/977000-977999/977556/
+TSR-977746,versal,xcvp1802,QOR,Explanation provided,pblock_floorplan|phys_opt|ExtraNetDelay|replication|congestion|block_inference|clock_skew_route,,,,0,https://jira.xilinx.com/public/bugcases/TSR/977000-977999/977746/
+TSR-977749,versal,xcv80,QOR,Workaround Provided,SLR_assignment|pblock_floorplan|phys_opt|opt_directive|ExtraNetDelay|replication|high_fanout|congestion|block_inference|noc_qos|qor_suggestions|dont_touch,,,,8,https://jira.xilinx.com/public/bugcases/TSR/977000-977999/977749/
+TSR-977802,versal,xcve2302,QOR,Explanation provided,SLR_assignment|pblock_floorplan|phys_opt|opt_directive|place_directive|route_directive|ExtraNetDelay|replication|congestion|block_inference|clock_skew_route|noc_qos|false_path_groups,,,,25,https://jira.xilinx.com/public/bugcases/TSR/977000-977999/977802/
+TSR-978030,versal,xcvp1402,QOR,Explanation provided,phys_opt|ExtraNetDelay|congestion|block_inference,,,,2,https://jira.xilinx.com/public/bugcases/TSR/978000-978999/978030/
+TSR-978087,versal,,QOR,Explanation provided,USER_CLUSTER|USER_CROSSING_SLR|SLR_assignment|pblock_floorplan|LOC_constraint|clock_uncertainty_OC|phys_opt|opt_directive|place_directive|route_directive|ExtraNetDelay|replication|high_fanout|congestion|block_inference|clock_skew_route|noc_qos|dont_touch,,,,45,https://jira.xilinx.com/public/bugcases/TSR/978000-978999/978087/
+TSR-978097,versal,,QOR,Workaround Provided,SLR_assignment|pblock_floorplan|phys_opt|ExtraNetDelay|replication|high_fanout|congestion|block_inference,,,,0,https://jira.xilinx.com/public/bugcases/TSR/978000-978999/978097/
+TSR-978099,versal,xcvp1802,QOR,Workaround Provided,SLR_assignment|phys_opt|opt_directive|place_directive|route_directive|ExtraNetDelay|congestion|clock_skew_route,,,,5,https://jira.xilinx.com/public/bugcases/TSR/978000-978999/978099/
+TSR-978103,versal,,QOR,Workaround Provided,SLR_assignment|phys_opt|opt_directive|ExtraNetDelay|congestion|block_inference,,,,1,https://jira.xilinx.com/public/bugcases/TSR/978000-978999/978103/
+TSR-978105,versal,XCVP1702,QOR,Workaround Provided,SLR_assignment|phys_opt|ExtraNetDelay|replication|congestion|block_inference|clock_skew_route|dont_touch,,,,2,https://jira.xilinx.com/public/bugcases/TSR/978000-978999/978105/
+TSR-978156,versal,xcvp1802,Customer Expectation Mismatch,Workaround Provided,phys_opt|replication|congestion,,,,0,https://jira.xilinx.com/public/bugcases/TSR/978000-978999/978156/
+TSR-978187,versal,,QOR,Workaround Provided,pblock_floorplan|phys_opt|ExtraNetDelay|replication|congestion|clock_skew_route|dont_touch,,,,2,https://jira.xilinx.com/public/bugcases/TSR/978000-978999/978187/
+TSR-978309,versal,,QOR,Workaround Provided,USER_CLUSTER|USER_CROSSING_SLR|SLR_assignment|pblock_floorplan|LOC_constraint|clock_uncertainty_OC|phys_opt|opt_directive|place_directive|route_directive|ExtraNetDelay|replication|high_fanout|congestion|block_inference|clock_skew_route|noc_qos|dont_touch,-0.483,-0.099,6,47,https://jira.xilinx.com/public/bugcases/TSR/978000-978999/978309/

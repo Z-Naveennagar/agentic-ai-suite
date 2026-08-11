@@ -1,0 +1,35 @@
+
+output_schema:
+  skill_triggered:
+    grader: trigger
+    always: true
+    mandatory: true
+    grader_args: '{skills}'   # whole-value passthrough of expected.skills; threshold defaults to 0.5
+  no_tool_errors:
+    grader: content_contains
+    always: true
+    mandatory: false
+    weight: 0
+    grader_args:
+      source: stderr
+      substring: 'ERROR:'
+      must_not_contain: true
+  output_contract:
+    grader: output_contract_match
+    always: false
+    mandatory: true
+    grader_args:
+      expected: '{expected_output}'
+      source: final_response
+      semantic_threshold: 60
+      semantic_fields:
+        explanation: >
+          Judge whether the agent's explanation identifies substantially the
+          same cause / rule / violation as the golden reference answer (the
+          specific precondition or limitation check it cites). Different
+          wording is fine. Fail (low score) if the explanation cites an
+          unrelated or incorrect cause, invents a different reason, or claims
+          the conclusion required actually running the tool.
+scoring:
+  aggregation: weighted_sum
+  pass_threshold: 70.0

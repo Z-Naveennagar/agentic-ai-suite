@@ -1,0 +1,40 @@
+{
+    "description": "HLS coding style skills test",
+    "queries": [
+        {
+            "id": "hls_skill_test_hls_dataflowcanonical_001",
+            "category": "hls-dataflow",
+            "query": "/hls-dataflow  Does the code follow the recommended coding style for canonical dataflow pragma? TOP_FUNCTION = dut",
+            "input_file": "hls-dataflowcanonical-001.cpp",
+            "expected_answer": "NOT canonical. violates Rule 4.1"
+        },
+        {
+            "id": "hls_skill_test_hls_dataflowcanonical_002",
+            "category": "hls-dataflow",
+            "query": "/hls-dataflow  Does the code follow the recommended coding style for canonical dataflow pragma? TOP_FUNCTION = dut",
+            "input_file": "hls-dataflowcanonical-002.cpp",
+            "expected_answer": "NOT canonical. violates Rule 6.3"
+        },
+        {
+            "id": "hls_skill_test_hls_dataflowcanonical_003",
+            "category": "hls-dataflow",
+            "query": "/hls-dataflow  Does the code follow the recommended coding style for canonical dataflow pragma? TOP_FUNCTION = dut",
+            "input_file": "hls-dataflowcanonical-003.cpp",
+            "expected_answer": "CANONICAL"
+        },
+        {
+            "id": "hls_skill_test_hls_dataflowcanonical_004",
+            "category": "hls-dataflow",
+            "query": "/hls-dataflow  Does the code follow the recommended coding style for canonical dataflow pragma? TOP_FUNCTION = dut",
+            "input_file": "hls-dataflowcanonical-004.cpp",
+            "expected_answer": "CANONICAL"
+        },
+        {
+            "id": "hls_skill_test_hls_dataflowcanonical_005",
+            "category": "hls-dataflow",
+            "query": "/hls-dataflow  Does the code follow the recommended coding style for canonical dataflow pragma? TOP_FUNCTION = dut",
+            "input_file": "hls-dataflowcanonical-005.cpp",
+            "expected_answer": "CANONICAL"
+        }
+    ]
+}

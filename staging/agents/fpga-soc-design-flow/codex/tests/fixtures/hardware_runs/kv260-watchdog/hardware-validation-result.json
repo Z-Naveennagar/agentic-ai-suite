@@ -1,0 +1,375 @@
+{
+  "schema_version": 1,
+  "request_id": "kv260-watchdog-ipcfg-v01-20260730",
+  "spec_revision": 1,
+  "architecture_revision": 1,
+  "source_revision": 2,
+  "verification_revision": 2,
+  "implementation_revision": 2,
+  "hardware_test_revision": 1,
+  "revision": 1,
+  "status": "PASS",
+  "target_profile_id": "kv260-office-ar1335-i2s2",
+  "authorization": {
+    "programming": true,
+    "probe_drive": true,
+    "granted_by": "user (conversation authorization)",
+    "granted_at": "2026-07-30T00:00:00-06:00"
+  },
+  "connections": [
+    {
+      "adapter": "vivado_hw_manager",
+      "endpoint": "localhost:3121/xilinx_tcf/Xilinx/TEST_CABLE",
+      "status": "PASS",
+      "evidence": [
+        "hardware-evidence/hardware-validation.log"
+      ]
+    },
+    {
+      "adapter": "ssh_linux",
+      "endpoint": "192.0.2.10:22",
+      "status": "SKIP",
+      "evidence": [
+        "SSH endpoint was unreachable during read-only discovery; the selected JTAG/Vivado backend required no Linux action.",
+        "hardware-evidence/hardware-validation.log"
+      ]
+    }
+  ],
+  "identity": {
+    "part": "xck26-sfvc784-2LV-c",
+    "board_part": "xilinx.com:kv260_som:part0:1.4",
+    "target_name": "localhost:3121/xilinx_tcf/Xilinx/TEST_CABLE/xck26_0",
+    "device_dna": null
+  },
+  "programming": {
+    "backend": "vivado_hw_manager",
+    "image": "design/vivado/kv260_watchdog.bit",
+    "image_sha256": "db593dd0c53edcef0d57899c947ec49d11834608b2996c5cdf73032d7c81b027",
+    "probes_file": "design/vivado/debug_nets.ltx",
+    "probes_sha256": "3884f9a44929942fe4a0cdf5f10daad65fe8fe267a88c86ad854adbfb51cab62",
+    "status": "PASS"
+  },
+  "debug_cores": [
+    {
+      "kind": "vio",
+      "name": "kv260_watchdog_system_i/vio_hw_test_0",
+      "clock_domain": "clk",
+      "probes": [
+        {
+          "name": "kv260_watchdog_system_i/kv260_watchdog_hw_test_shell_0_hw_test_busy",
+          "width": 1,
+          "type": "vio_input"
+        },
+        {
+          "name": "kv260_watchdog_system_i/kv260_watchdog_hw_test_shell_0_hw_test_done",
+          "width": 1,
+          "type": "vio_input"
+        },
+        {
+          "name": "kv260_watchdog_system_i/kv260_watchdog_hw_test_shell_0_hw_test_pass",
+          "width": 1,
+          "type": "vio_input"
+        },
+        {
+          "name": "kv260_watchdog_system_i/kv260_watchdog_hw_test_shell_0_hw_test_error_code",
+          "width": 16,
+          "type": "vio_input"
+        },
+        {
+          "name": "kv260_watchdog_system_i/vio_hw_test_0_probe_out0",
+          "width": 1,
+          "type": "vio_output"
+        },
+        {
+          "name": "kv260_watchdog_system_i/vio_hw_test_0_probe_out1",
+          "width": 1,
+          "type": "vio_output"
+        },
+        {
+          "name": "kv260_watchdog_system_i/vio_hw_test_0_probe_out2",
+          "width": 1,
+          "type": "vio_output"
+        }
+      ]
+    },
+    {
+      "kind": "ila",
+      "name": "kv260_watchdog_system_i/ila_hw_test_0",
+      "clock_domain": "clk",
+      "probes": [
+        {
+          "name": "kv260_watchdog_system_i/kv260_watchdog_hw_test_shell_0_hw_test_start_accepted",
+          "width": 1,
+          "type": "ila"
+        },
+        {
+          "name": "kv260_watchdog_system_i/kv260_watchdog_hw_test_shell_0_hw_test_activity",
+          "width": 1,
+          "type": "ila"
+        },
+        {
+          "name": "kv260_watchdog_system_i/kv260_watchdog_hw_test_shell_0_hw_test_done_1",
+          "width": 1,
+          "type": "ila"
+        },
+        {
+          "name": "kv260_watchdog_system_i/kv260_watchdog_hw_test_shell_0_hw_test_pass_1",
+          "width": 1,
+          "type": "ila"
+        },
+        {
+          "name": "kv260_watchdog_system_i/kv260_watchdog_hw_test_shell_0_hw_test_error_code_1",
+          "width": 16,
+          "type": "ila"
+        }
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "id": "HW-CRIT-TARGET",
+      "status": "PASS",
+      "started_at": "2026-07-30T14:06:07-06:00",
+      "completed_at": "2026-07-30T14:38:45-06:00",
+      "measurements": {
+        "target.part_matches": true,
+        "hardware_part": "xck26",
+        "implemented_part": "xck26-sfvc784-2LV-c"
+      },
+      "evidence": [
+        "hardware-evidence/hardware-validation.log",
+        "implementation-result.json"
+      ]
+    },
+    {
+      "id": "HW-CRIT-DEBUG",
+      "status": "PASS",
+      "started_at": "2026-07-30T14:38:40-06:00",
+      "completed_at": "2026-07-30T14:38:52-06:00",
+      "measurements": {
+        "debug.required_cores_present": true,
+        "vio_core_count": 1,
+        "ila_core_count": 1,
+        "ila_depth": 1024
+      },
+      "evidence": [
+        "debug-map.json",
+        "hardware-evidence/vio_snapshot.json",
+        "hardware-evidence/ila_report_data.json"
+      ]
+    },
+    {
+      "id": "HW-CRIT-IMMEDIATE",
+      "status": "PASS",
+      "started_at": "2026-07-30T14:39:07-06:00",
+      "completed_at": "2026-07-30T14:39:07-06:00",
+      "measurements": {
+        "ila.immediate_capture_samples": 1024
+      },
+      "evidence": [
+        "hardware-evidence/ila-immediate.csv",
+        "hardware-evidence/ila-immediate.vcd"
+      ]
+    },
+    {
+      "id": "HW-CRIT-DONE",
+      "status": "PASS",
+      "started_at": "2026-07-30T14:40:12-06:00",
+      "completed_at": "2026-07-30T14:40:12-06:00",
+      "measurements": {
+        "vio.hw_test_done": 1,
+        "vio.hw_test_busy": 0
+      },
+      "evidence": [
+        "hardware-evidence/hardware-validation.log",
+        "hardware-evidence/ila-functional.csv"
+      ]
+    },
+    {
+      "id": "HW-CRIT-PASS",
+      "status": "PASS",
+      "started_at": "2026-07-30T14:40:12-06:00",
+      "completed_at": "2026-07-30T14:40:12-06:00",
+      "measurements": {
+        "vio.hw_test_pass": 1
+      },
+      "evidence": [
+        "hardware-evidence/hardware-validation.log",
+        "hardware-evidence/ila-functional.csv"
+      ]
+    },
+    {
+      "id": "HW-CRIT-ERROR",
+      "status": "PASS",
+      "started_at": "2026-07-30T14:40:12-06:00",
+      "completed_at": "2026-07-30T14:40:12-06:00",
+      "measurements": {
+        "vio.hw_test_error_code": 0
+      },
+      "evidence": [
+        "hardware-evidence/hardware-validation.log",
+        "hardware-evidence/ila-functional.csv"
+      ]
+    },
+    {
+      "id": "HW-CRIT-CAPTURE",
+      "status": "PASS",
+      "started_at": "2026-07-30T14:40:03-06:00",
+      "completed_at": "2026-07-30T14:40:12-06:00",
+      "measurements": {
+        "ila.functional_capture": true,
+        "ila.functional_capture_samples": 1024,
+        "ila.trigger_sample": 128,
+        "ila.done_pass_sample": 137
+      },
+      "evidence": [
+        "hardware-evidence/ila-functional.csv",
+        "hardware-evidence/ila-functional.vcd",
+        "hardware-evidence/ila_report_data.json"
+      ]
+    }
+  ],
+  "captures": [
+    {
+      "core": "kv260_watchdog_system_i/ila_hw_test_0",
+      "path": "hardware-evidence/ila-immediate.csv",
+      "format": "csv",
+      "trigger": "Immediate connectivity trigger at configured position 128",
+      "sample_count": 1024,
+      "sha256": "e0fdab047be8ca11c3937356517cb352d5b09fc7e16c5326e8172e0e78855899"
+    },
+    {
+      "core": "kv260_watchdog_system_i/ila_hw_test_0",
+      "path": "hardware-evidence/ila-immediate.vcd",
+      "format": "vcd",
+      "trigger": "Immediate connectivity trigger at configured position 128",
+      "sample_count": 1024,
+      "sha256": "f8114201ce887bd316ba766d61c45c7ff09788266474c3c99d192a1ca1e8a9d4"
+    },
+    {
+      "core": "kv260_watchdog_system_i/ila_hw_test_0",
+      "path": "hardware-evidence/ila-functional.csv",
+      "format": "csv",
+      "trigger": "hw_test_start accepted rising edge, eq1'bR, at sample 128",
+      "sample_count": 1024,
+      "sha256": "a12832af977c460349e29fee73ca2ea12d497357a135dde577d5624ef8ebefa6"
+    },
+    {
+      "core": "kv260_watchdog_system_i/ila_hw_test_0",
+      "path": "hardware-evidence/ila-functional.vcd",
+      "format": "vcd",
+      "trigger": "hw_test_start accepted rising edge, eq1'bR, at sample 128",
+      "sample_count": 1024,
+      "sha256": "4d0157e97821f63d9275290f1a321be1b9e7f1bb092190a2c89a1fbcdb045e86"
+    }
+  ],
+  "artifacts": [
+    {
+      "kind": "json",
+      "path": "hardware-test.json",
+      "exists": true,
+      "sha256": "0ad597b45182288be9be04b7a8b22acd373d39bf6c8297d07aa9bcd369f571ac"
+    },
+    {
+      "kind": "json",
+      "path": "implementation-result.json",
+      "exists": true,
+      "sha256": "0ab309de1ec980bf856218bdc27e5b9582935f43a1c0d9bfb466d286957742f7"
+    },
+    {
+      "kind": "json",
+      "path": "debug-map.json",
+      "exists": true,
+      "sha256": "316d59b12fbc272af6d97a1a7f019b3c0ef17c63a53573457411e9c1e1aaad40"
+    },
+    {
+      "kind": "json",
+      "path": "hardware-evidence/vio_snapshot.json",
+      "exists": true,
+      "sha256": "dd74aadae191355942a38d4642879b07169aadd3a5a0a654deee647805e3378d"
+    },
+    {
+      "kind": "json",
+      "path": "hardware-evidence/ila_report_data.json",
+      "exists": true,
+      "sha256": "f70c2d52718eb0ac40c92093d081c5086b1d8d1562a36432de2bd88a1177aba7"
+    },
+    {
+      "kind": "log",
+      "path": "hardware-evidence/hardware-validation.log",
+      "exists": true,
+      "sha256": "12f764bebe57a9dc12b916f801b9eab97ca80acfb47c31473224b7b5de7d570f"
+    },
+    {
+      "kind": "other",
+      "path": "hardware-evidence/REPORT.md",
+      "exists": true,
+      "sha256": "56240716f8e078b24ebe16669b928ec8fefa6054c97f6e5f9428f78f2b35bbf1"
+    },
+    {
+      "kind": "csv",
+      "path": "hardware-evidence/ila-immediate.csv",
+      "exists": true,
+      "sha256": "e0fdab047be8ca11c3937356517cb352d5b09fc7e16c5326e8172e0e78855899"
+    },
+    {
+      "kind": "vcd",
+      "path": "hardware-evidence/ila-immediate.vcd",
+      "exists": true,
+      "sha256": "f8114201ce887bd316ba766d61c45c7ff09788266474c3c99d192a1ca1e8a9d4"
+    },
+    {
+      "kind": "csv",
+      "path": "hardware-evidence/ila-functional.csv",
+      "exists": true,
+      "sha256": "a12832af977c460349e29fee73ca2ea12d497357a135dde577d5624ef8ebefa6"
+    },
+    {
+      "kind": "vcd",
+      "path": "hardware-evidence/ila-functional.vcd",
+      "exists": true,
+      "sha256": "4d0157e97821f63d9275290f1a321be1b9e7f1bb092190a2c89a1fbcdb045e86"
+    }
+  ],
+  "findings": [
+    {
+      "severity": "info",
+      "class": "hardware_test_pass",
+      "message": "The deterministic watchdog self-test completed with busy/done/pass/error=0/1/1/0x0000 and the functional ILA trace corroborated start, activity, completion, and pass.",
+      "evidence": [
+        "hardware-evidence/ila-functional.csv",
+        "hardware-evidence/hardware-validation.log"
+      ]
+    },
+    {
+      "severity": "warning",
+      "class": "limited_identity_telemetry",
+      "message": "Hardware Manager exposed the JTAG device as xck26_0 with PART=xck26 but did not expose DEVICE_DNA; the full part and board part are corroborated by the released implementation contract and selected target profile.",
+      "evidence": [
+        "hardware-evidence/hardware-validation.log",
+        "implementation-result.json"
+      ]
+    },
+    {
+      "severity": "info",
+      "class": "ila_read_only_configuration",
+      "message": "CONTROL.TRIGGER_MODE and CONTROL.CAPTURE_MODE were read-only on this hardware core; their live values were already BASIC_ONLY and ALWAYS, and all writable trigger settings were applied successfully.",
+      "evidence": [
+        "hardware-evidence/ila_report_data.json",
+        "hardware-evidence/hardware-validation.log"
+      ]
+    }
+  ],
+  "cleanup": {
+    "status": "PASS",
+    "actions": [
+      "reset_hw_vio_outputs on hw_vio_1",
+      "refresh_hw_vio -update_output_values on hw_vio_1",
+      "confirmed hw_test_reset/hw_test_start/hw_test_enable=1/0/0",
+      "confirmed final hw_test_busy/hw_test_done/hw_test_pass/hw_test_error_code=0/0/0/0x0000",
+      "no test software was started",
+      "no power cycle was performed"
+    ]
+  },
+  "feedback": null
+}

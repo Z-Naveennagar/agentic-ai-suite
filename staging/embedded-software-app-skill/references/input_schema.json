@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://amd.example/vitis-embedded-app-generator/input.schema.json",
+  "title": "Vitis Embedded App Generator Input",
+  "type": "object",
+  "required": ["inputs"],
+  "additionalProperties": false,
+  "properties": {
+    "inputs": {
+      "type": "object",
+      "required": ["xsa_path", "srs_path", "execution_mode"],
+      "additionalProperties": false,
+      "properties": {
+        "xsa_path": {
+          "type": "string",
+          "minLength": 5,
+          "pattern": "(?i)^.*\\\\.xsa$",
+          "description": "Path to Vivado hardware export XSA"
+        },
+        "srs_path": {
+          "type": "string",
+          "minLength": 4,
+          "pattern": "(?i)^.*\\\\.md$",
+          "description": "Path to markdown software requirements specification"
+        },
+        "execution_mode": {
+          "type": "string",
+          "enum": ["plan-only", "apply"]
+        },
+        "vitis_reference_doc": {
+          "type": "string",
+          "description": "Optional path to README/PDF with current Vitis API/CLI syntax"
+        },
+        "preferred_os": {
+          "type": "string",
+          "enum": ["baremetal", "freertos", "linux"]
+        },
+        "preferred_cpu": {
+          "type": "object",
+          "required": ["family"],
+          "additionalProperties": false,
+          "properties": {
+            "family": {
+              "type": "string",
+              "enum": ["apu", "rpu", "microblaze"]
+            },
+            "core_index": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "preferred_domain_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "workspace_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "max_retries": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10,
+          "default": 5
+        },
+        "build_profile": {
+          "type": "string",
+          "enum": ["debug", "release"],
+          "default": "debug"
+        },
+        "optimization": {
+          "type": "string",
+          "enum": ["O0", "O1", "O2", "O3", "Os"],
+          "default": "O2"
+        }
+      }
+    }
+  }
+}

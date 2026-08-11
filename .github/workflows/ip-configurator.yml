@@ -1,0 +1,644 @@
+name: "[ZB] IP Configurator"
+
+# Combines [ZB] Runner Diagnostics' host-prep steps with [ZB] opencode
+# setup's opencode+Azure config, then actually exercises the
+# ip-configurator suite end-to-end (setup -> 1 prompt -> grade -> teardown)
+# on opencode/azure/gpt-5.4-mini -- a smoke test of the full pipeline
+# before scaling to the suite's full case/rep count.
+
+# DISABLED on push (2026-08-11): the full 32-case run costs ~$380 and 3h,
+# and the last one (31423927458) hit the 180min timeout at 247/288 attempts
+# with 34 opencode cases ERRORing on "suite reset failed ... Vivado process
+# has terminated". That is a session-capacity problem, not a skill problem
+# -- see [ZB] Vivado session validator, which measures how many concurrent
+# Vivado sessions this runner actually sustains. No point paying for
+# another full run until that number is known and vivado_mcp_session_cap
+# is set from it.
+#
+# workflow_dispatch is retained so it can still be run deliberately.
+# Re-enable the push trigger by uncommenting the block below.
+on:
+  workflow_dispatch:
+  # push:
+  #   branches:
+  #     - zettabolt/test-infra-github-actions
+
+permissions:
+  contents: read
+
+jobs:
+  ip-configurator:
+    # See runner-diagnostics.yml for what ZB_ONLY_WORKFLOW does; unset means
+    # this workflow runs as before.
+    if: ${{ vars.ZB_ONLY_WORKFLOW == '' || vars.ZB_ONLY_WORKFLOW == 'ip-configurator' }}
+    runs-on: [xsjhalo06]
+    # Full suite: 32 cases x 3 reps x 3 client/model legs = 288 attempts.
+    # Measured from the 9-attempt run (setup ~150s, invoke ~100s, reset ~6s)
+    # and sharded across 7 concurrent Vivado sessions, that estimates
+    # ~76min -- over the previous 60min cap, which would have killed the
+    # job mid-suite and thrown away every completed attempt. 180min leaves
+    # headroom for the suite's own 1800s per-attempt timeout firing on a
+    # hung provider stream (retries: 2) without the whole job dying.
+    timeout-minutes: 180
+    env:
+      VIVADO_PATH: /proj/xbuilds/2026.1_released/installs/lin64/2026.1/Vivado/bin/vivado
+      VITIS_PATH: /proj/xbuilds/2026.1_released/installs/lin64/2026.1/Vitis/bin/v++
+      PYTHONPATH: ${{ github.workspace }}/skill_eval/src
+      # Vivado license servers (from vivado-ai-extensions/.github/actions/setup-vivado-arc).
+      XILINXD_LICENSE_FILE: "2001@xsjlicsvr1:2001@xhdlicsvr1:2001@xcolicsvr1"
+      # AZURE_API_KEY is expected as a repo Secret and AZURE_RESOURCE_NAME
+      # as a repo Variable -- see [ZB] opencode setup, which documents the
+      # same requirement. Both need to be added to this repo's Settings
+      # before the smoke test step below can actually authenticate.
+      AZURE_API_KEY: ${{ secrets.AZURE_API_KEY }}
+      AZURE_RESOURCE_NAME: ${{ vars.AZURE_RESOURCE_NAME }}
+
+      # --- Claude Code -> AMD LLM gateway ------------------------------
+      # The claude_code legs need the same gateway wiring [ZB] Claude smoke
+      # test verified end-to-end; without it cli_backends/claude_code.py
+      # spawns a `claude` that has no credential and would try an
+      # interactive login. See that workflow's header for why the
+      # subscription-key *header* is the credential and ANTHROPIC_API_KEY is
+      # a deliberate "dummy" placeholder (and why ANTHROPIC_AUTH_TOKEN must
+      # stay unset -- it outranks the placeholder and sends an
+      # Authorization: Bearer header this gateway rejects).
+      ANTHROPIC_BASE_URL: ${{ vars.LLM_GATEWAY_BASE_URL }}
+      ANTHROPIC_CUSTOM_HEADERS: |
+        Ocp-Apim-Subscription-Key: ${{ secrets.LLM_GATEWAY_SUBSCRIPTION_KEY }}
+        user: github-actions
+        anthropic-version: 2023-10-16
+      ANTHROPIC_API_KEY: dummy
+      # claude_code.py's _MODEL_ALIAS passes "opus"/"sonnet" through to
+      # `claude --model`, so these are what those aliases resolve to. The
+      # smoke test confirmed this gateway serves Anthropic's public ids
+      # verbatim, so the fallbacks are correct as-is.
+      ANTHROPIC_DEFAULT_OPUS_MODEL: ${{ vars.ANTHROPIC_DEFAULT_OPUS_MODEL || 'claude-opus-4-8' }}
+      ANTHROPIC_DEFAULT_SONNET_MODEL: ${{ vars.ANTHROPIC_DEFAULT_SONNET_MODEL || 'claude-sonnet-4-6' }}
+      ANTHROPIC_DEFAULT_HAIKU_MODEL: ${{ vars.ANTHROPIC_DEFAULT_HAIKU_MODEL || 'claude-haiku-4-5' }}
+      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Job summary header
+        run: echo "# [ZB] IP Configurator" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Add Vivado to PATH
+        run: echo "$(dirname "$VIVADO_PATH")" >> "$GITHUB_PATH"
+
+      - name: Add Vitis to PATH
+        run: |
+          if [ -x "$VITIS_PATH" ]; then
+            echo "$(dirname "$VITIS_PATH")" >> "$GITHUB_PATH"
+            echo "added to PATH: $(dirname "$VITIS_PATH")"
+          else
+            echo "VITIS_PATH not executable, not adding to PATH: $VITIS_PATH"
+          fi
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+
+      # Base package only (no [dev]) -- this job doesn't run the pytest suite.
+      - name: Install skill_eval harness package
+        working-directory: skill_eval
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      # Same installer skill_eval/README.md documents for a dev box, and
+      # the same steps [ZB] opencode setup already exercises on its own.
+      # $HOME/.opencode/bin is the installer's own default -- add it to
+      # PATH so every later step just calls `opencode`.
+      - name: Install opencode
+        run: |
+          curl -fsSL https://opencode.ai/install | bash
+          echo "$HOME/.opencode/bin" >> "$GITHUB_PATH"
+
+      # The two claude_code legs need the `claude` binary on PATH --
+      # cli_backends/claude_code.py's _find_claude_binary() looks for it via
+      # shutil.which() and falls back to NullSkillCLI (recording every case
+      # SKIPPED, not FAILED) when it's absent, which would look like a green
+      # run that silently tested only opencode. Same workspace-local install
+      # as [ZB] Claude smoke test.
+      - name: Install Claude Code CLI (workspace-local)
+        run: |
+          INSTALL_HOME="${{ runner.temp }}/claude-code-home"
+          mkdir -p "$INSTALL_HOME"
+          HOME="$INSTALL_HOME" bash -c 'curl -fsSL https://claude.ai/install.sh | bash'
+          echo "$INSTALL_HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Claude Code version
+        run: |
+          if command -v claude >/dev/null 2>&1; then
+            echo "$(command -v claude)"
+            claude --version 2>&1 | head -n1
+          else
+            echo "::error::claude not found on PATH after install -- the claude_code legs would be recorded SKIPPED rather than run"
+            exit 1
+          fi
+
+      - name: opencode version
+        run: |
+          export PATH="$HOME/.opencode/bin:$PATH"
+          if command -v opencode >/dev/null 2>&1; then
+            OC_PATH=$(command -v opencode)
+            OC_VER=$(opencode --version 2>&1 | head -n1) || OC_VER="(opencode --version failed)"
+          else
+            OC_PATH="-"
+            OC_VER="opencode not found on PATH after install"
+          fi
+          echo "$OC_PATH"
+          echo "$OC_VER"
+
+          {
+            echo "### opencode"
+            echo
+            echo "| Path | Version |"
+            echo "|---|---|"
+            echo "| \`$OC_PATH\` | $OC_VER |"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Mirrors [ZB] opencode setup's own step: an "azure" provider block
+      # with apiKey/resourceName pulled from the environment at
+      # *opencode-run* time via the {env:...} indirection (never inlined),
+      # plus the deployed model list. Written fresh every run so this
+      # workflow is the source of truth for CI's config, not a runner-local
+      # file that could drift.
+      - name: Generate opencode config (Azure OpenAI)
+        run: |
+          mkdir -p "$HOME/.config/opencode"
+          cat > "$HOME/.config/opencode/opencode.json" <<'JSON'
+          {
+            "$schema": "https://opencode.ai/config.json",
+
+            "provider": {
+              "azure": {
+                "options": {
+                  "apiKey": "{env:AZURE_API_KEY}",
+                  "resourceName": "{env:AZURE_RESOURCE_NAME}",
+                  "baseURL": "https://${AZURE_RESOURCE_NAME}.openai.azure.com/openai",
+                  "timeout": 600000
+                },
+                "models": {
+                  "gpt-5.4-nano": {
+                    "name": "Azure GPT-5.4 Nano",
+                    "modalities": { "input": ["text"], "output": ["text"] }
+                  },
+                  "gpt-5.4-mini": {
+                    "name": "Azure GPT-5.4 Mini",
+                    "modalities": { "input": ["text"], "output": ["text"] }
+                  },
+                  "gpt-5.4": {
+                    "name": "Azure GPT-5.4",
+                    "modalities": { "input": ["text"], "output": ["text"] }
+                  },
+                  "gpt-5.4-pro": {
+                    "name": "Azure GPT-5.4 Pro",
+                    "modalities": { "input": ["text"], "output": ["text"] }
+                  }
+                }
+              }
+            },
+
+            "model": "azure/gpt-5.4",
+            "small_model": "azure/gpt-5.4-nano"
+          }
+          JSON
+          # baseURL above is a literal ${AZURE_RESOURCE_NAME} placeholder --
+          # substitute it now since opencode's {env:...} indirection only
+          # covers whole-field values, not interpolation inside a string.
+          envsubst '${AZURE_RESOURCE_NAME}' < "$HOME/.config/opencode/opencode.json" > /tmp/opencode.json \
+            && mv /tmp/opencode.json "$HOME/.config/opencode/opencode.json"
+
+          echo "wrote $HOME/.config/opencode/opencode.json"
+          cat "$HOME/.config/opencode/opencode.json"
+
+      - name: Verify credentials are present (no secret values printed)
+        run: |
+          {
+            echo "### Azure OpenAI credentials"
+            echo
+            echo "| Variable | Present |"
+            echo "|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          for var in AZURE_API_KEY AZURE_RESOURCE_NAME; do
+            if [ -n "${!var:-}" ]; then
+              echo "$var is set"
+              echo "| \`$var\` | yes |" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "$var is NOT set -- add it under repo Settings > Secrets and variables > Actions"
+              echo "| \`$var\` | :x: no |" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+          echo >> "$GITHUB_STEP_SUMMARY"
+
+      # Reuse the vivado-mcp-server binary that vivado-ai-extensions'
+      # build-vsix.yml already builds and uploads nightly, instead of
+      # checking out that repo and building it from source ourselves --
+      # same steps as [ZB] Runner Diagnostics. ip-configurator's suite
+      # needs a live Vivado MCP session (setup:/reset:/teardown: in its
+      # runner_spec.yaml). Default GITHUB_TOKEN can't see other repos in
+      # the org, even private ones under the same org, so mint an
+      # installation token from the org-wide GitHub App (app id in the
+      # org-level APP_ID variable, installed with repository_selection=all).
+      - name: Generate GitHub App token (cross-repo access)
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: AMD-aecg-cue-ai
+          repositories: vivado-ai-extensions
+
+      - name: Find latest successful build-vsix.yml run
+        id: find-run
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          RUN_ID=$(gh api "repos/AMD-aecg-cue-ai/vivado-ai-extensions/actions/workflows/build-vsix.yml/runs?branch=main&status=success&per_page=1" \
+            --jq '.workflow_runs[0].id')
+          if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+            echo "::error::No successful build-vsix.yml run found on main"
+            exit 1
+          fi
+          echo "Found run: $RUN_ID"
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Download vivado-mcp-server artifact
+        uses: actions/download-artifact@v8
+        with:
+          repository: AMD-aecg-cue-ai/vivado-ai-extensions
+          run-id: ${{ steps.find-run.outputs.run_id }}
+          github-token: ${{ steps.app-token.outputs.token }}
+          pattern: vivado-ai-extension-*
+          path: vivado-mcp-artifact
+
+      - name: Locate and prepare vivado-mcp-server binary
+        run: |
+          BIN=$(find vivado-mcp-artifact -name 'vivado-mcp-server-linux-amd64-*' -type f | head -1)
+          if [ -z "$BIN" ]; then
+            echo "::error::vivado-mcp-server binary not found in downloaded artifact"
+            exit 1
+          fi
+          chmod +x "$BIN"
+          echo "VIVADO_MCP_BIN=$PWD/$BIN" >> "$GITHUB_ENV"
+          echo "Prepared vivado-mcp-server: $PWD/$BIN"
+
+          {
+            echo "### Vivado MCP server"
+            echo
+            echo "| Found | Path |"
+            echo "|---|---|"
+            echo "| yes | \`$PWD/$BIN\` |"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Downloading/chmod-ing the binary above is not enough -- the harness
+      # (verifiers/vivado_mcp.py, runtime/vivado_session_setup.py) only ever
+      # *connects* to a Vivado MCP server already listening at
+      # http://127.0.0.1:18090/mcp; it never launches one. Without this
+      # step every case fails with "MCP init failed ... [Errno 111]
+      # Connection refused" -- neither [ZB] Runner Diagnostics nor [ZB]
+      # opencode setup start the server, only this workflow actually needs
+      # a live Vivado session.
+      #
+      # --port 18090 matches the harness's hardcoded default
+      # (_DEFAULT_VIVADO_MCP_URL in cli_backends/*.py, verifiers/vivado_mcp.py),
+      # so no SKILL_TEST_VIVADO_MCP_URL override is needed. --state-dir
+      # scopes this job's port-file/lock state to its own workspace (rather
+      # than the shared ~/.vivado-ai default) so a concurrent job on this
+      # same shared runner can never see or fight over this job's port
+      # file. Within that scope --force only ever reclaims a stale/dead
+      # state from a *previous run of this same workflow* on this runner,
+      # never a healthy unrelated server (the binary's own
+      # cleanStaleServer() would otherwise pick an alternate port instead
+      # of 18090, which the harness's hardcoded default would then miss).
+      # --background daemonizes so this step returns immediately.
+      - name: Start Vivado MCP server
+        run: |
+          export VIVADO_STATE_DIR="$PWD/.vivado-mcp-state"
+          mkdir -p "$VIVADO_STATE_DIR"
+          echo "VIVADO_STATE_DIR=$VIVADO_STATE_DIR" >> "$GITHUB_ENV"
+
+          "$VIVADO_MCP_BIN" --background --port 18090 --force \
+            --state-dir "$VIVADO_STATE_DIR"
+
+          echo "Waiting for MCP server to become healthy on 127.0.0.1:18090..."
+          for i in $(seq 1 30); do
+            # -f: treat any non-2xx response (e.g. a 404 from some unrelated
+            # service that happens to already be listening on this port) as
+            # a failure too, not just a connection error.
+            if curl -sS -f -o /dev/null --max-time 2 http://127.0.0.1:18090/health; then
+              echo "MCP server healthy after ${i}s"
+              curl -sS http://127.0.0.1:18090/health
+              echo
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::vivado-mcp-server did not become healthy within 30s"
+          exit 1
+
+      # Populates skill_testing.test_cases_root (_workspace/, gitignored,
+      # empty on every fresh checkout) from tests/<skill>/<suite>/ + the
+      # matching staging/<skill>/ skill content -- see skill_eval/CLAUDE.md's
+      # "Skill source of truth" section. continue-on-error: this workflow
+      # only cares about ip-configurator installing cleanly (verified
+      # next); an unrelated skill's genuinely broken suite elsewhere in
+      # staging/ shouldn't block this run.
+      - name: Install skill test suites
+        working-directory: skill_eval
+        continue-on-error: true
+        run: skills-test install
+
+      - name: Verify ip-configurator installed
+        working-directory: skill_eval
+        run: |
+          test -d .claude/skills/ip-configurator \
+            && test -d _workspace/ip-configurator_gen \
+            || { echo "::error::ip-configurator did not install (expected .claude/skills/ip-configurator and _workspace/ip-configurator_gen) -- see the Install skill test suites step above"; exit 1; }
+
+      # _runtime/ (holds results.db) is otherwise created lazily by the
+      # first `skills-test run` -- pre-create it so nothing downstream
+      # trips over a missing parent directory.
+      - name: Ensure runtime directory exists
+        working-directory: skill_eval
+        run: mkdir -p _runtime
+
+      # Deliberately not run yet -- flip SKILL_TEST_IPCFG_SMOKE_TEST once
+      # AZURE_API_KEY (secret) and AZURE_RESOURCE_NAME (variable) are
+      # confirmed added to this repo. This is the only step in the
+      # workflow that actually calls Azure / the gateway, and the only one
+      # that spends live Vivado sessions.
+      #
+      # Three client/model legs on one case x 3 reps:
+      #   claude_code/opus, claude_code/sonnet, opencode/azure/gpt-5.4-mini
+      #
+      # Set via skill_testing.coding_agents rather than --client/--model:
+      # that flag pair takes a *single* client and model (customer_cli.py
+      # errors if either is given without the other), so it can express one
+      # leg, not three. coding_agents is the documented fleet override --
+      # "replaces invocation.clients / invocation.coding_agent for every
+      # case, for every skill" (config_schema.json) -- which is exactly the
+      # shape needed here, and it leaves the suite's own runner_spec.yaml
+      # (currently claude_code/sonnet only) untouched. Written with a
+      # heredoc into a run-scoped copy of config.yaml, passed via --config,
+      # so the checked-in file is never mutated.
+      #
+      # One invocation, not three sequential ones: the harness expands the
+      # legs itself and schedules them with resource awareness, honouring
+      # parallel_default and throttling session-backed groups against the
+      # run-scoped vivado_mcp_session_cap (18). Three separate run calls
+      # would serialise needlessly and write three separate test_runs
+      # records, which defeats the consistency math -- see skill_eval's
+      # CLAUDE.md on --reps: repeated attempts belong in *one* record so
+      # score spread and PASS/FAIL disagreement are measured correctly.
+      #
+      # --reps 3 matches consistency_lifecycle.min_reps, so this run
+      # produces an assessable lifecycle snapshot instead of UNASSESSED.
+      # Full suite: 32 cases x 3 reps x 3 legs = 288 attempts.
+      - name: Full run - ip-configurator (32 cases x 3 reps x 3 clients, gated)
+        if: ${{ vars.SKILL_TEST_IPCFG_SMOKE_TEST == '1' }}
+        working-directory: skill_eval
+        run: |
+          # Run-scoped config: base file + the three-leg fleet override.
+          cp config.yaml /tmp/ipcfg-ci-config.yaml
+          python3 - <<'PY'
+          import yaml
+
+          with open("/tmp/ipcfg-ci-config.yaml") as fh:
+              cfg = yaml.safe_load(fh)
+
+          # Model ids are the short aliases the backends already expect:
+          # claude_code.py's _MODEL_ALIAS maps opus/sonnet through to
+          # `claude --model`, and the prior signoff run (see
+          # skill-signoffs/ip-configurator_summary) recorded exactly
+          # "claude_code/sonnet", so these match what has run before.
+          cfg["skill_testing"]["coding_agents"] = [
+              {"name": "claude_code", "model": "opus"},
+              {"name": "claude_code", "model": "sonnet"},
+              {"name": "opencode", "model": "azure/gpt-5.4-mini"},
+          ]
+          # Runner validation sustained 18/18 sessions with globally staggered
+          # starts. This is one server-wide cap shared by all three legs.
+          cfg["skill_testing"]["vivado_mcp_session_cap"] = 18
+
+          with open("/tmp/ipcfg-ci-config.yaml", "w") as fh:
+              yaml.safe_dump(cfg, fh, sort_keys=False)
+          PY
+
+          # Echo the override so the log shows which legs actually ran --
+          # the harness also prints its own "Master override:" line.
+          python3 -c "import yaml;print(yaml.safe_load(open('/tmp/ipcfg-ci-config.yaml'))['skill_testing']['coding_agents'])"
+
+          # No --cases filter: every case in the suite (32) runs.
+          #
+          # --parallel 18 sets both the scheduler pool and requested shard
+          # count. The run-scoped vivado_mcp_session_cap=18 is global across
+          # all three legs; build_group_registry distributes those permits as
+          # six shared-session shards per client/model leg. Every setup reserves
+          # a URL-keyed launch slot five seconds after the prior reservation,
+          # then releases the lock before vivado_start so startups overlap.
+          # Reps remain serial members of their case's shared shard.
+          skills-test --config /tmp/ipcfg-ci-config.yaml run \
+            --skills ip-configurator \
+            --reps 3 \
+            --parallel 18 \
+            --verbose
+
+      - name: Smoke test skipped
+        if: ${{ vars.SKILL_TEST_IPCFG_SMOKE_TEST != '1' }}
+        run: |
+          echo "Smoke test skipped (set repo variable SKILL_TEST_IPCFG_SMOKE_TEST=1 to enable once AZURE_API_KEY/AZURE_RESOURCE_NAME are confirmed working)." \
+            >> "$GITHUB_STEP_SUMMARY"
+
+      # `skills-test run` already writes a versioned, self-contained
+      # per-skill signoff package to skill_signoffs_root/<skill>_summary/
+      # by default (report.html/report_vN.html + README.md with a run
+      # history table + the installed skill content) -- see
+      # reporting/skill_signoffs.py's own module docstring: "durable
+      # inspection evidence for deciding whether a tested skill can be
+      # promoted from staging/ to production". That's the artifact this
+      # workflow uploads, rather than the whole-suite dashboard. Only
+      # meaningful once the smoke test above actually ran.
+      # The signoff package alone is the *rendered* verdict. These two add
+      # the raw evidence behind it, which is what you actually need when a
+      # case fails and the HTML doesn't explain why:
+      #
+      #   _runtime/logs/**   one forensic JSON per attempt (session_log.py's
+      #                      write_test_log) carrying the full transcript,
+      #                      the tool_timeline incl. per-call is_error, and
+      #                      the grader breakdown -- plus any copied
+      #                      artifacts. 9 attempts = 9 files here.
+      #   _runtime/results.db  the SQLite the dashboard is generated from;
+      #                      lets you re-run queries or re-render a report
+      #                      offline instead of re-running the suite.
+      #
+      # always() so a *failed* run still uploads them -- that is precisely
+      # the run whose logs you want, and the default (success-only) would
+      # discard them exactly when they matter. Uploaded as one artifact so
+      # the report and the evidence that produced it stay together.
+      - name: Upload IP Configurator report + session logs + results DB
+        if: ${{ always() && vars.SKILL_TEST_IPCFG_SMOKE_TEST == '1' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ip-configurator-report
+          path: |
+            skill-signoffs/ip-configurator_summary/
+            skill_eval/_runtime/logs/
+            skill_eval/_runtime/results.db
+          if-no-files-found: warn
+
+      # GitHub Actions artifacts aren't directly linkable by URL from
+      # within the same job before the upload step above completes, so
+      # point at the standard place to find it (this run's own Summary
+      # page) rather than trying to construct a URL. The pass/fail table
+      # is read straight out of the just-written signoff README's own
+      # "Run history" table (its latest row = this run) instead of
+      # reimplementing that rendering here.
+      # Renders the report *into* the run's Summary tab rather than
+      # publishing it. GitHub Pages was the original ask, but this repo is
+      # INTERNAL with Pages not enabled: Pages on a private/internal repo
+      # needs Enterprise, and it would serve full agent transcripts from a
+      # URL whose access control differs from the repo's -- a real exposure
+      # decision for a suite whose test_cases.yaml is an answer key. The
+      # Summary tab inherits repo permissions exactly, needs no new infra,
+      # and is readable without downloading anything.
+      #
+      # Sourced from results.db rather than the signoff README because at
+      # 288 attempts the per-case/per-leg matrix is the thing you actually
+      # want to read, and only the DB has it. always() so a timed-out or
+      # failed run still reports whatever completed -- that is the run whose
+      # partial results matter most.
+      - name: "Job summary: full report"
+        if: ${{ always() && vars.SKILL_TEST_IPCFG_SMOKE_TEST == '1' }}
+        continue-on-error: true
+        working-directory: skill_eval
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import os, sqlite3
+          from pathlib import Path
+
+          print("## IP Configurator — full suite report\n")
+
+          db = Path("_runtime/results.db")
+          if not db.exists():
+              print("_No results.db — the run produced no records._\n")
+              raise SystemExit(0)
+
+          con = sqlite3.connect(str(db))
+          con.row_factory = sqlite3.Row
+          # Scope to the newest run_id so a re-run doesn't blend with history.
+          row = con.execute(
+              "SELECT run_id FROM skill_test_results "
+              "ORDER BY id DESC LIMIT 1").fetchone()
+          if row is None:
+              print("_No attempts recorded._\n")
+              raise SystemExit(0)
+          run_id = row["run_id"]
+
+          rows = con.execute(
+              "SELECT case_id, client, model, status, aggregate_score, "
+              "       cost_usd, total_tokens, wall_clock_s "
+              "FROM skill_test_results WHERE run_id = ?", (run_id,)).fetchall()
+
+          total = len(rows)
+          passed = sum(r["status"] == "PASS" for r in rows)
+          cost = sum((r["cost_usd"] or 0) for r in rows)
+          toks = sum((r["total_tokens"] or 0) for r in rows)
+          wall = sum((r["wall_clock_s"] or 0) for r in rows)
+
+          print(f"**Run `{run_id}`** — {passed}/{total} attempts passed "
+                f"({passed * 100 // total if total else 0}%), "
+                f"${cost:,.2f}, {toks:,} tokens, "
+                f"{wall / 3600:.1f}h of agent time\n")
+
+          # Per-leg rollup: the cross-client comparison this fleet exists for.
+          print("### By client / model\n")
+          print("| Client / Model | Pass | Attempts | Pass rate | Cost | Tokens |")
+          print("|---|---:|---:|---:|---:|---:|")
+          legs: dict[tuple, list] = {}
+          for r in rows:
+              legs.setdefault((r["client"], r["model"]), []).append(r)
+          for (cl, mo), rs in sorted(legs.items()):
+              p = sum(x["status"] == "PASS" for x in rs)
+              c = sum((x["cost_usd"] or 0) for x in rs)
+              t = sum((x["total_tokens"] or 0) for x in rs)
+              print(f"| `{cl}/{mo}` | {p} | {len(rs)} | {p * 100 // len(rs)}% "
+                    f"| ${c:,.2f} | {t:,} |")
+          print()
+
+          # Per-case matrix, worst first -- a 32-row table where the rows
+          # that need attention sort to the top.
+          print("### By case\n")
+          leg_keys = sorted(legs)
+          head = " | ".join(f"{c}/{m}" for c, m in leg_keys)
+          print(f"| Case | {head} | Pass rate |")
+          print("|---|" + "---|" * len(leg_keys) + "---:|")
+
+          cases: dict[str, dict] = {}
+          for r in rows:
+              cases.setdefault(r["case_id"], {}).setdefault(
+                  (r["client"], r["model"]), []).append(r["status"])
+
+          def rate(d):
+              alls = [s for v in d.values() for s in v]
+              return (sum(s == "PASS" for s in alls), len(alls))
+
+          for case_id in sorted(cases, key=lambda c: (rate(cases[c])[0] / max(1, rate(cases[c])[1]), c)):
+              d = cases[case_id]
+              cells = []
+              for k in leg_keys:
+                  st = d.get(k, [])
+                  if not st:
+                      cells.append("—")
+                  else:
+                      ok = sum(s == "PASS" for s in st)
+                      # n/N per leg makes a flaky case (2/3) visually
+                      # distinct from a cleanly failing one (0/3).
+                      cells.append(("✅ " if ok == len(st) else
+                                    "❌ " if ok == 0 else "⚠️ ") + f"{ok}/{len(st)}")
+              p, n = rate(d)
+              print(f"| `{case_id}` | " + " | ".join(cells)
+                    + f" | {p * 100 // n if n else 0}% |")
+          print()
+
+          print("Full HTML report, session logs and `results.db`: "
+                "artifact **ip-configurator-report** in the Artifacts "
+                "section of this page.\n")
+          PY
+
+          # Lifecycle verdict + cross-run history from the signoff README --
+          # the DB above covers this run, this covers the trend across runs.
+          export README="../skill-signoffs/ip-configurator_summary/report/README.md"
+          if [ -f "$README" ]; then
+            python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import os
+          from pathlib import Path
+          text = Path(os.environ["README"]).read_text()
+          for marker in ("## Lifecycle", "## Run history"):
+              idx = text.find(marker)
+              if idx == -1:
+                  continue
+              nxt = text.find("\n## ", idx + 1)
+              print(text[idx:nxt] if nxt != -1 else text[idx:])
+              print()
+          PY
+          fi
+
+      # Best-effort graceful shutdown (releases its port-file/state cleanly)
+      # -- always(), so a failed/timed-out run above doesn't leave the
+      # daemon running past this job. continue-on-error: this is cleanup,
+      # not part of the job's pass/fail signal, and VIVADO_STATE_DIR only
+      # ever existed if the earlier start step ran.
+      - name: Stop Vivado MCP server
+        if: always()
+        continue-on-error: true
+        run: |
+          if [ -n "$VIVADO_STATE_DIR" ]; then
+            curl -sS -X POST --max-time 5 http://127.0.0.1:18090/shutdown || true
+          fi

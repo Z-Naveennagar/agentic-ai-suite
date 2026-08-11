@@ -1,0 +1,137 @@
+# Copyright (C) 2026, Advanced Micro Devices, Inc. All rights reserved.
+# SPDX-License-Identifier: MIT
+#
+# CODEOWNERS file for agentic-ai-suite repository
+#
+# ORDERING CONVENTION:
+#   1st owner = auto-assigned on GitHub issues (via GitHub Action)
+#   2nd owner = secondary reviewer (engineering or contributor)
+#   Last     = @gpocklas_amdeng (standing reviewer for all skills)
+#
+# How it works:
+# - The first listed owner gets auto-assigned any issue filed against this skill
+# - At least ONE owner must approve PRs (but not the person who pushed)
+# - All listed owners are notified on PRs
+#
+# Documentation: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default fallback
+* @gpocklas_amdeng @rickys_amdeng
+
+# ──────────────────────────────────────────────────────────────────────
+# Released skills (skills/)
+# ──────────────────────────────────────────────────────────────────────
+
+# EAS-21: Timing Methodology Checks
+/skills/timing-methodology-checks/** @blaine_amdeng @gpocklas_amdeng
+
+# EAS-29: Vivado Revision Control
+/skills/vivado-revision-control/** @sunayana_amdeng @yatindra_amdeng @gpocklas_amdeng
+
+# rtl-lint — no EAS ticket; keeping existing owners
+/skills/rtl-lint/** @shikhas_amdeng @sthondep_amdeng @gpocklas_amdeng
+
+# TODO: hls-architect — in skills/ but no CODEOWNERS entry or EAS ticket.
+#       Using default fallback until owner is determined.
+
+# ──────────────────────────────────────────────────────────────────────
+# Hardware-debug skills (hw-*) — owned in BOTH skills/ and staging/
+#
+# These skills move between staging/ and skills/ over their lifecycle;
+# keeping an entry in both trees means ownership always holds.
+# GitHub may report "path does not match any files" for the tree a
+# given skill is not currently in — that is expected; do NOT prune.
+#
+# 1st owner = EAS Jira assignee (engineering), 2nd = skill contributor
+# ──────────────────────────────────────────────────────────────────────
+
+# EAS-22: ILA and VIO Trigger and Capture (ChipScope MCP)
+/skills/hw-ila-debug/** @mdarnall_amdeng @sivapanv_amdeng @gpocklas_amdeng
+/skills/hw-vio-debug/** @mdarnall_amdeng @sivapanv_amdeng @gpocklas_amdeng
+/staging/hw-ila-debug/** @mdarnall_amdeng @sivapanv_amdeng @gpocklas_amdeng
+/staging/hw-vio-debug/** @mdarnall_amdeng @sivapanv_amdeng @gpocklas_amdeng
+
+# EAS-23: IBERT Eye Scan and Link Tuning (ChipScope MCP)
+/skills/hw-ibert-gt-debug/** @benmorri_amdeng @sivapanv_amdeng @gpocklas_amdeng
+/staging/hw-ibert-gt-debug/** @benmorri_amdeng @sivapanv_amdeng @gpocklas_amdeng
+
+# EAS-24: NoC Debug (ChipScope MCP)
+/skills/hw-noc-debug/** @dkopelov_amdeng @aamirs_amdeng @gpocklas_amdeng
+/staging/hw-noc-debug/** @dkopelov_amdeng @aamirs_amdeng @gpocklas_amdeng
+
+# EAS-25: SysMon Device Health Check (ChipScope MCP)
+/skills/hw-sysmon/** @dkopelov_amdeng @bhargavc_amdeng @gpocklas_amdeng
+/staging/hw-sysmon/** @dkopelov_amdeng @bhargavc_amdeng @gpocklas_amdeng
+
+# EAS-26: NoC Performance Monitor (ChipScope MCP)
+/skills/hw-noc-perfmon/** @dkopelov_amdeng @aamirs_amdeng @gpocklas_amdeng
+/staging/hw-noc-perfmon/** @dkopelov_amdeng @aamirs_amdeng @gpocklas_amdeng
+
+# EAS-27: DDRMC Calibration Debug (ChipScope MCP)
+/skills/hw-ddrmc-debug/** @dkopelov_amdeng @sivapanv_amdeng @gpocklas_amdeng
+/staging/hw-ddrmc-debug/** @dkopelov_amdeng @sivapanv_amdeng @gpocklas_amdeng
+
+# EAS-28: PCIe Link Debug (ChipScope MCP)
+/skills/hw-pcie-link-debug/** @vikhyatg_amdeng @gpocklas_amdeng
+/staging/hw-pcie-link-debug/** @vikhyatg_amdeng @gpocklas_amdeng
+
+# ──────────────────────────────────────────────────────────────────────
+# Vivado Solutions skills (staging/)
+#
+# 1st owner = primary skill contributor (auto-assigned on issues)
+# 2nd owner = Vivado engineering reviewer
+# ──────────────────────────────────────────────────────────────────────
+
+# EAS-15: Versal RTL Coding Guidelines
+# TODO: Vivado Engineering reviewer unknown — add when identified
+/staging/versal-rtl-coding-guidelines/** @sthondep_amdeng @gpocklas_amdeng
+
+# EAS-16: Versal RTL Design Advisories
+/staging/versal-rtl-design-advisories/** @sthondep_amdeng @gpocklas_amdeng
+
+# EAS-18: RTL Elaboration Analysis
+# TODO: Fan Zhang (Vivado Engineering) — no GitHub EMU account found.
+#       Add as second owner when EMU account is created.
+/staging/rtl-elaboration-analysis/** @pmanavar_amdeng @shikhas_amdeng @gpocklas_amdeng
+
+# EAS-19: opt_design Log Analysis
+/staging/opt-design-analysis/** @georgeo_amdeng @czhang3_amdeng @gpocklas_amdeng
+
+# EAS-20: Physopt Log Analysis
+/staging/phys-opt-design-analysis/** @vanajau_amdeng @czhang3_amdeng @gpocklas_amdeng
+
+# rtl-lint (staging copy) — same owners as skills/
+/staging/rtl-lint/** @shikhas_amdeng @sthondep_amdeng @gpocklas_amdeng
+
+# EAS-60: RTL Functional Verification
+/staging/rtl-functional-verification/** @shameera_amdeng @gpocklas_amdeng
+
+# EAS-30: Segmented Configuration Skills
+/staging/segcfg-build-images/** @georgeo_amdeng @bkfross_amdeng @gpocklas_amdeng
+/staging/segcfg-debug-guide/** @georgeo_amdeng @bkfross_amdeng @gpocklas_amdeng
+/staging/segcfg-design-check/** @georgeo_amdeng @bkfross_amdeng @gpocklas_amdeng
+/staging/segcfg-firmware-build/** @georgeo_amdeng @bkfross_amdeng @gpocklas_amdeng
+/staging/segcfg-overview/** @georgeo_amdeng @bkfross_amdeng @gpocklas_amdeng
+/staging/segcfg-pl-reload/** @georgeo_amdeng @bkfross_amdeng @gpocklas_amdeng
+/staging/segcfg-programming/** @georgeo_amdeng @bkfross_amdeng @gpocklas_amdeng
+/staging/segcfg-project-setup/** @georgeo_amdeng @bkfross_amdeng @gpocklas_amdeng
+
+# ──────────────────────────────────────────────────────────────────────
+# TODO: Skills without CODEOWNERS entries (using default fallback)
+#
+# The following skills/staging directories have no EAS ticket or
+# identified owner. They fall back to the default rule above.
+# Add entries here when ownership is determined.
+#
+# staging/versal-timing-closure     — no EAS ticket, owner unknown
+# staging/vivado-opt-design-analyze — overlaps with opt-design-analysis (EAS-19)?
+# staging/soc-orchestration         — no EAS ticket, owner unknown
+# skills/hls-architect              — no EAS ticket, owner unknown
+#
+# EAS-63: ILA/VIO Insertion (BD or RTL) — assigned to Nabeel Shirazi
+#   staging/vivado-bd-ila-insert, staging/vivado-bd-vio-insert
+#   Deferred — will add when skill development begins.
+#
+# TODO: Suman Kumar Timmireddy (Vivado Engineering for EAS-53 DFX) —
+#       no GitHub EMU account. Add when available.
+# ──────────────────────────────────────────────────────────────────────

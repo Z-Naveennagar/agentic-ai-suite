@@ -1,0 +1,7 @@
+.venv/
+.tools/
+.pytest_cache/
+**/__pycache__/
+*.py[cod]
+results.xml
+sim_build/

@@ -1,0 +1,110 @@
+# ── Suite runner spec: hls-intro-matmul_gen — C++ -> HLS acceleration ──
+# Accelerate the baseline float matmul kernel to >= 8x baseline latency via
+# hls-architect -> hls-optimize -> hls-run-flow, staying correct against
+# main.cpp's ULP testbench. Shared invocation + host requirements for every
+# case in test_cases.yaml.
+#
+# NOTE: no MATLAB and no OpenCV needed — the design is self-contained C++ and
+# the testbench self-checks (prints PASS/FAIL). Only Vitis HLS is required.
+
+skill_name: hls-architect
+skill_version: "1.0.0"
+suite_id: hls-intro-matmul_gen
+
+invocation:
+  coding_agent:
+    - name: opencode
+      model: azure/gpt-5.4
+
+    # azure/gpt-5.4-mini temporarily disabled — it does not clear this suite's
+    # architect gates (synthesizes the baseline with unbounded trip counts, so
+    # the report Interval comes back '?', and emits no #pragma HLS DATAFLOW in
+    # the architect stage). Re-enable to measure the smaller model again.
+    # - name: opencode
+    #   model: azure/gpt-5.4-mini
+
+  # hls-run-flow must be present so hls-optimize can actually run C synthesis
+  # to measure baseline vs optimized latency for the 8x target.
+  # The hls-* validators (dataflow, synthesizable, burst, flattenable, stencil,
+  # array-to-stream) must also be present: hls-architect invokes /hls-dataflow at
+  # Steps 2b/2c and the full validation battery at Step 3a. Without them in the
+  # allowlist the architect's mandatory verification gates are unreachable.
+  skills: [hls-architect, hls-optimize, hls-run-flow, hls-dataflow, hls-synthesizable, hls-burst-inference, hls-flattenable, hls-stencil-pattern, hls-array-to-stream]
+
+  # Baseline synthesis + an iterative optimize loop that re-runs C synthesis
+  # many times -> large time/token budget.
+  timeout_seconds: 3600
+  retries: 1
+  max_tokens_per_run: 500000
+
+  # NOTE: prompts live per-case in test_cases.yaml (prompt /
+  # prompt_without_skill), not here.
+
+# The mandated JSON output contract, appended to EVERY case's prompt (final =
+# shared_prompt_prefix + output_contract + <test_cases.yaml prompt> -- see
+# core/case_loader.py). Defined once here instead of repeated inline in each
+# case's prompt. Graded by the `output_contract_match` grader in
+# grader_spec.yaml against each case's expected.expected_output.
+output_contract: |
+    Save these under `outputs/hls-intro-matmul_gen_01/`:
+      - `kernel_final.cpp` — your final kernel (keep the `kernel.hpp` signature).
+      - `architect_kernel_hls.cpp` — the restructured kernel captured by the output of architect,
+        BEFORE any performance optimization/tuning (not the
+        tuned final version); same `kernel.hpp` signature. Don't mix with the optimized kernel Omit only if your
+        workflow has no distinct pre-optimization stage.
+      - `final_synth.rpt`, `baseline_synth.rpt` — the per-function performance
+        reports your flow produces for the optimized and baseline kernels, each
+        containing the top-function "Interval" (II) at 64x64x64. Decide for
+        yourself which HLS flow(s) to run to measure and confirm the result;
+        save whichever report carries the measured top-function Interval as a
+        numeric value (not "?").
+      - `csim.log` — final C-sim console output (must show PASS).
+      - `cosim.rpt` — REQUIRED whenever C synthesis shows a meaningful
+        improvement over the baseline (per the optimize skill's escalation rule:
+        latency improved >= 10% OR the top-function Interval/II was reduced):
+        escalate to C/RTL co-simulation to CONFIRM the improvement on real RTL
+        and copy the co-simulation report (the `<top>_cosim.rpt` under
+        `.../hls/sim/report/`). Do NOT report success on the C-synthesis estimate
+        alone. (Only if no attempt improves the design by >= 10% is cosim not
+        required.)
+      - `results.json` — a JSON object with exactly these keys (csim_verification
+        and architect_verification must be exactly "PASS" or "FAIL" — a bare
+        status, not a sentence; put any explanation in your final report text,
+        not in this field):
+          {
+            "csim_verification": "PASS" | "FAIL",
+            "architect_verification": "PASS" | "FAIL",
+            "baseline_interval_cycles": <number>,
+            "optimized_interval_cycles": <number>,
+            "throughput_speedup": <number>,
+            "achieved_clock_ns": <number>
+          }
+        and, whenever you escalate to cosim, also include
+        "cosim_interval_cycles" (the confirmed cosim latency/II from cosim.rpt).
+
+      Also pin the /hls-optimize process evidence (copy them out of the HLS
+      component after optimization finishes):
+      - `optimize_git_log.txt` — full `git log` of the HLS component
+        (`git -C <component> log` — include the commit messages so each
+        per-attempt commit, with its Hypothesis/Observed body, is captured).
+      - `qor_history.csv` — copy of the optimizer's `.memory/qor_history.csv`.
+      - `optimize_outcomes.md` — copy of `.memory/optimize_outcomes.md`.
+
+      Then report the baseline vs optimized Interval (II), the throughput
+      speedup, how you confirmed correctness, and — whenever csynth showed a
+      meaningful improvement — the cosim-confirmed result.
+    End your response with a JSON object of the form:
+    {"verdict": "YES"|"NO", "explanation": "<your reasoning>"}
+
+requirements:
+  vivado: false            # driven through Vitis (v++), not vivado directly
+  vitis: true              # C synthesis required
+  hardware: null
+  min_memory_gb: 5
+  min_disk_gb: 3
+  estimated_duration_minutes: 60
+  tags: [hls, cpp-to-hls, optimization, synthesis-verification, hls-architect]
+
+cleanup:
+  - working_dir
+  - workspace_processes

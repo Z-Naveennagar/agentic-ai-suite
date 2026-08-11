@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "activation": "source env.sh",
+  "tools": {
+    "verilator": {
+      "version": "5.050",
+      "executable": "verilator",
+      "license": "LGPL-3.0-only OR Artistic-2.0"
+    },
+    "cocotb": {
+      "version": "2.0.1",
+      "python": "python3",
+      "config_executable": "cocotb-config"
+    },
+    "jsonschema": {
+      "version": "4.26.0",
+      "python": "python3"
+    },
+    "pyyaml": {
+      "version": "6.0.3",
+      "python": "python3"
+    },
+    "pytest": {
+      "version": "9.1.1",
+      "python": "python3"
+    },
+    "codex": {
+      "version": "0.145.0",
+      "executable": "codex",
+      "custom_agents": ".codex/agents"
+    },
+    "vivado": {
+      "version": "2025.2",
+      "executable": "vivado",
+      "access": "vivado-mcp-server"
+    },
+    "vitis": {
+      "version": "2025.2",
+      "executable": "vitis",
+      "access": "headless-python-api"
+    },
+    "vpp": {
+      "version": "2025.2",
+      "executable": "v++",
+      "access": "command-line"
+    }
+  },
+  "verification": {
+    "default_backend": "cocotb-verilator",
+    "vendor_backend": "vivado-mcp-xsim",
+    "smoke_test": "make -C smoke/verilator-cocotb"
+  }
+}

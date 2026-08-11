@@ -1,0 +1,276 @@
+{
+  "schema_version": 1,
+  "case_id": "kv260_video_cropper",
+  "revision": 1,
+  "status": "READY",
+  "owner": "amd_soc_hardware_validator",
+  "standard_profile": "portable-vio-ila-v1",
+  "target": {
+    "part": "xck26-sfvc784-2LV-c",
+    "board_part": "xilinx.com:kv260_som:part0:1.4"
+  },
+  "required_capabilities": [
+    "jtag",
+    "vivado_hw_manager",
+    "ila",
+    "vio",
+    "ssh",
+    "ps_software",
+    "dma"
+  ],
+  "programming": {
+    "accepted_backends": [
+      "vivado_hw_manager",
+      "linux_fpga_manager"
+    ],
+    "require_matching_ltx": true,
+    "requires_xsa": true
+  },
+  "stimulus": {
+    "adapter": "ps_dma",
+    "control_plane": "ssh",
+    "data_plane": "dma",
+    "seed": 1,
+    "description": "Use PS DMA for deterministic image traffic; VIO controls the test shell and System ILA observes accepted transfers and final status."
+  },
+  "instrumentation": {
+    "vio_cores": [
+      {
+        "id": "VIO-HW-TEST-0",
+        "clock_domain": "clk",
+        "controls": [
+          {
+            "name": "hw_test_reset",
+            "width": 1,
+            "source": "hardware test shell",
+            "purpose": "Hold the test shell in reset.",
+            "safe_initial_value": "0x1"
+          },
+          {
+            "name": "hw_test_start",
+            "width": 1,
+            "source": "hardware test shell",
+            "purpose": "Start one deterministic self-test.",
+            "safe_initial_value": "0x0"
+          },
+          {
+            "name": "hw_test_enable",
+            "width": 1,
+            "source": "hardware test shell",
+            "purpose": "Enable stimulus generation.",
+            "safe_initial_value": "0x0"
+          }
+        ],
+        "status": [
+          {
+            "name": "hw_test_busy",
+            "width": 1,
+            "source": "hardware test shell",
+            "purpose": "Report an active test."
+          },
+          {
+            "name": "hw_test_done",
+            "width": 1,
+            "source": "hardware test shell",
+            "purpose": "Report bounded completion."
+          },
+          {
+            "name": "hw_test_pass",
+            "width": 1,
+            "source": "hardware test shell",
+            "purpose": "Report aggregate pass status."
+          },
+          {
+            "name": "hw_test_error_code",
+            "width": 16,
+            "source": "hardware test shell",
+            "purpose": "Identify the first failure."
+          }
+        ]
+      }
+    ],
+    "ila_cores": [
+      {
+        "id": "ILA-HW-TEST-0",
+        "clock_domain": "clk",
+        "kind": "system_ila",
+        "depth": 1024,
+        "probes": [
+          {
+            "name": "hw_test_start",
+            "width": 1,
+            "source": "hardware test shell",
+            "purpose": "Trigger on accepted test start.",
+            "role": "trigger"
+          },
+          {
+            "name": "hw_test_activity",
+            "width": 1,
+            "source": "kv260_video_cropper",
+            "purpose": "Observe accepted DUT traffic.",
+            "role": "data"
+          },
+          {
+            "name": "hw_test_done",
+            "width": 1,
+            "source": "hardware test shell",
+            "purpose": "Correlate completion with traffic.",
+            "role": "status"
+          },
+          {
+            "name": "hw_test_pass",
+            "width": 1,
+            "source": "hardware test shell",
+            "purpose": "Capture final self-check status.",
+            "role": "status"
+          }
+        ],
+        "trigger": {
+          "probe": "hw_test_start",
+          "condition": "eq1'bR",
+          "position": 128
+        }
+      }
+    ],
+    "debug_map_required": true
+  },
+  "test_sequence": [
+    {
+      "id": "HW-ACT-PRECHECK",
+      "action": "precheck_target",
+      "timeout_seconds": 30,
+      "description": "Verify target identity, capabilities, and artifact hashes."
+    },
+    {
+      "id": "HW-ACT-QUIESCE",
+      "action": "quiesce",
+      "timeout_seconds": 30,
+      "description": "Quiesce software access to programmable logic."
+    },
+    {
+      "id": "HW-ACT-PROGRAM",
+      "action": "program",
+      "timeout_seconds": 120,
+      "description": "Program the authorized image."
+    },
+    {
+      "id": "HW-ACT-REFRESH",
+      "action": "refresh_debug",
+      "timeout_seconds": 30,
+      "description": "Associate the matching LTX and refresh debug cores."
+    },
+    {
+      "id": "HW-ACT-RESET",
+      "action": "reset_vio",
+      "timeout_seconds": 10,
+      "description": "Drive VIO controls to their safe reset values."
+    },
+    {
+      "id": "HW-ACT-IMMEDIATE",
+      "action": "capture_immediate",
+      "timeout_seconds": 60,
+      "description": "Capture an immediate ILA connectivity trace."
+    },
+    {
+      "id": "HW-ACT-CONFIGURE",
+      "action": "configure_stimulus",
+      "timeout_seconds": 30,
+      "description": "Configure deterministic DMA stimulus with the declared seed."
+    },
+    {
+      "id": "HW-ACT-ARM",
+      "action": "arm_ila",
+      "timeout_seconds": 30,
+      "description": "Arm the functional ILA trigger."
+    },
+    {
+      "id": "HW-ACT-START",
+      "action": "start",
+      "timeout_seconds": 10,
+      "description": "Pulse the VIO test-start control."
+    },
+    {
+      "id": "HW-ACT-WAIT",
+      "action": "wait_done",
+      "timeout_seconds": 120,
+      "description": "Wait for bounded self-test completion."
+    },
+    {
+      "id": "HW-ACT-STATUS",
+      "action": "read_status",
+      "timeout_seconds": 30,
+      "description": "Read final VIO status."
+    },
+    {
+      "id": "HW-ACT-UPLOAD",
+      "action": "upload_ila",
+      "timeout_seconds": 60,
+      "description": "Upload the functional ILA capture."
+    },
+    {
+      "id": "HW-ACT-EVALUATE",
+      "action": "evaluate",
+      "timeout_seconds": 30,
+      "description": "Evaluate all mandatory criteria."
+    },
+    {
+      "id": "HW-ACT-CLEANUP",
+      "action": "cleanup",
+      "timeout_seconds": 30,
+      "description": "Restore the declared safe state."
+    }
+  ],
+  "pass_criteria": [
+    {
+      "id": "HW-CRIT-TARGET",
+      "mandatory": true,
+      "measurement": "target.part_matches",
+      "operator": "equals",
+      "expected": true
+    },
+    {
+      "id": "HW-CRIT-DEBUG",
+      "mandatory": true,
+      "measurement": "debug.required_cores_present",
+      "operator": "equals",
+      "expected": true
+    },
+    {
+      "id": "HW-CRIT-DONE",
+      "mandatory": true,
+      "measurement": "vio.hw_test_done",
+      "operator": "equals",
+      "expected": 1
+    },
+    {
+      "id": "HW-CRIT-PASS",
+      "mandatory": true,
+      "measurement": "vio.hw_test_pass",
+      "operator": "equals",
+      "expected": 1
+    },
+    {
+      "id": "HW-CRIT-ERROR",
+      "mandatory": true,
+      "measurement": "vio.hw_test_error_code",
+      "operator": "equals",
+      "expected": 0
+    },
+    {
+      "id": "HW-CRIT-CAPTURE",
+      "mandatory": true,
+      "measurement": "ila.functional_capture",
+      "operator": "exists",
+      "expected": true
+    }
+  ],
+  "cleanup": {
+    "required": true,
+    "actions": [
+      "reset_vio_outputs",
+      "stop_test_software",
+      "restore_safe_state"
+    ]
+  },
+  "external_equipment": []
+}

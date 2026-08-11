@@ -1,0 +1,57 @@
+# ── Suite runner spec: hls-dataflow ──────────────────────────
+# Shared invocation + host requirements for EVERY test case listed in
+# test_cases.yaml. One suite = one runner_spec + one grader_spec +
+# one test_cases.yaml.
+
+skill_name: hls-dataflow
+skill_version: "1.0.0"
+suite_id: hls-dataflow
+
+invocation:
+  coding_agent:
+    - name: opencode
+      model: azure/gpt-5.4
+
+    - name: opencode
+      model: azure/gpt-5.4-mini
+    
+  # Skill-stage allowlist: ship only the skill(s) under test into the
+  # workspace `.claude/skills/` tree so triggering is measured fairly.
+  skills: [hls-dataflow]
+
+  # Per-attempt wall-clock cap. Default 900 is fine for this
+  # static-review suite — no real synthesis/implementation runs.
+  timeout_seconds: 900
+  # Re-attempts after a timeout. On timeout the harness redoes the run,
+  # reusing the same MCP session, until this count is hit.
+  retries: 2
+  max_tokens_per_run: 60000
+
+  # NOTE: prompts live per-case in test_cases.yaml (prompt /
+  # prompt_without_skill), not here.
+
+# The mandated JSON output contract, appended to EVERY case's prompt (final =
+# shared_prompt_prefix + output_contract + <test_cases.yaml prompt> -- see
+# core/case_loader.py). Defined once here instead of repeated inline in each
+# of the 5 case prompts. Graded by the `output_contract_match` grader in
+# grader_spec.yaml against each case's expected.expected_output.
+output_contract: |
+  End your response with a JSON object of the form:
+  {"verdict": "YES"|"NO", "explanation": "<your reasoning>"}
+
+requirements:
+  vivado: false
+  vitis: false
+  hardware: null
+  min_memory_gb: 2
+  min_disk_gb: 1
+  estimated_duration_minutes: 2
+  # Domain + shape + skill name, inferred from the queries-manifest:
+  tags: [hls, static-review, hls-dataflow]
+
+cleanup:
+  # Release everything this case leaves behind after grading:
+  - working_dir          # wipe the per-test workspace directory
+  - workspace_processes  # reap any leftover child process (vivado tcl,
+                         # opencode serve, proxy-mode MCP worker) still
+                         # holding the workspace open

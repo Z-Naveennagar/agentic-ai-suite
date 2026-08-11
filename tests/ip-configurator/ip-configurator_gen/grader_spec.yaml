@@ -1,0 +1,220 @@
+# ── Suite grader spec: ip-configurator-test-kit ──────────────────────────
+# Rich output_schema format (field -> grader). The per-case golden
+# `{expected_output}` from test_cases.yaml `expected` is substituted into
+# grader_args before grading, so one schema grades every case in the suite.
+#
+# Hallucination contract:
+#   - This is a config-match IP-configuration suite with no
+#     synthesis-verification step. The mandatory pass/fail gates are
+#     skill_triggered, no_tool_errors, and output_contract: each must pass for
+#     the case to pass (any gate failing => hallucination_detected => FAIL).
+#   - output_contract is the correctness gate. It compares the JSON result the
+#     agent emits (the contract mandated in runner_spec.yaml's output_contract)
+#     against the golden identified_ip/as_configured for this case. The
+#     comparison is tolerant (numeric fuzz, true/false<->1/0, comma-list
+#     element-wise, separator/case-insensitive names); `notes` is compared
+#     semantically by the LLM judge; the agent's other extra self-reported
+#     fields (vlnv version, mcp_calls, part_swapped) are allowed and do not
+#     affect the verdict.
+output_schema:
+  skill_triggered:
+    grader: trigger
+    always: true
+    mandatory: true
+    grader_args: '{skills}'
+  # Answer-key gate. test_cases.yaml holds the golden `expected` values
+  # this schema substitutes into `{expected_output}` below, so an agent
+  # that reads it can satisfy output_contract without doing the
+  # configuration work -- a green run that measured nothing. Nothing
+  # stages that file into the workspace, but the suite tree is on the same
+  # filesystem as the agent's cwd and a bash/read/grep call can still
+  # reach it, so absence-of-staging is not containment.
+  #
+  # mandatory: true so a leak gates the case outright (see the
+  # hallucination contract above) rather than shaving points off a
+  # weighted score that could still clear threshold.
+  answer_key_not_read:
+    grader: answer_leakage
+    always: true
+    mandatory: true
+  no_tool_errors:
+    grader: content_contains
+    always: true
+    mandatory: false
+    weight: 0
+    grader_args:
+      source: stderr
+      substring: 'ERROR:'
+      must_not_contain: true
+  # Runs the harness's own live read-back of this case's block-design cell
+  # (scripts/vivado_bd_readback.py, this suite dir) while the group's
+  # Vivado session is still up -- grading already happens before reset:
+  # tears it down. Its own pass/fail is just "did the script run
+  # successfully" (exit 0); it does not itself compare the read-back
+  # against `expected_output` -- that's left to a future config_match-style
+  # step reading the outputs/as_built.json this writes. mandatory: false
+  # so a script hiccup here doesn't count as hallucination_detected.
+  vivado_readback:
+    grader: harness_script
+    always: true
+    mandatory: false
+    weight: 0
+    grader_args:
+      script: scripts/vivado_bd_readback.py
+      args:
+        - --cell={cell_name}
+        - --session-id={session_id}
+        - --out=outputs/as_built.json
+        - --working-dir={workspace}
+      timeout_seconds: 120
+
+  output_contract:
+    grader: output_contract_match
+    always: true
+    mandatory: true
+    # Skill-specific: the golden result assumes the skill ran, so this check
+    # applies to the with-skill arm only and is skipped in the no-skill arm
+    # (which also has no verify: read-back artifact to grade).
+    skill_only: true
+    grader_args:
+      # NOT "{expected_output}" (the full 8-field golden) -- source: artifact
+      # can only ever supply device-state fields; tier1_success/tier2_success/
+      # self_fidelity/notes are the agent's own self-report and can never come
+      # from a live read-back, so they'd show as permanently "missing" here.
+      # `output_contract_match` has no `expected_fields:` filter (that key
+      # above was a no-op -- the grader always deep-compares the whole
+      # `expected` dict), so the fields this check gates on are controlled by
+      # only including them in `expected` itself.
+      expected:
+        identified_ip: "{expected_output.identified_ip}"
+        vlnv: "{expected_output.vlnv}"
+        as_configured: "{expected_output.as_configured}"
+      source: artifact
+      artifact: outputs/as_built.json
+      allow_extra: true
+
+  discovery_first:
+    grader: discovery_first
+    always: true
+    mandatory: false
+    weight: 0
+    skill_only: true
+    grader_args:
+      tool: vivado_execute
+      discovery_patterns:
+        - 'ipcfg::configure_feature'
+        - 'ipcfg::find_params'
+        - 'ipcfg::cell_dict_keys'
+        - 'ipcfg::resolve_vlnv'
+        - 'ipcfg::discover_params'
+        - 'ipcfg::param_deps'
+        - 'ipcfg::param_dict'
+        - 'ipcfg::param_block'
+        - 'ipcfg::snapshot_all'
+        - 'ipcfg::probe_subkey_range'
+        - 'ipcfg::resolve_subkeys'
+        - 'ipcfg::rule_for_vlnv'
+        - 'ipcfg::automation_config_schema'
+        - 'list_property'
+        - 'get_ipdefs'
+        # Reading a property back IS discovery -- it is how a nested dict's
+        # real sub-keys get observed, and it is what makes a later write informed.
+        - 'get_property'
+      # Only PARAMETER writes belong here. A bare `create_bd_cell` / ipcfg::create_cell
+      # is deliberately absent: instantiating the cell is the PREREQUISITE for
+      # reading it back (you cannot introspect a cell that does not exist), so
+      # requiring discovery before it would forbid the correct flow. The
+      # -set_param form does carry params, so it counts.
+      mutation_patterns:
+        - 'set_property'
+        - 'create_bd_cell[^\n]*-set_param'
+        - 'ipcfg::apply_dict'
+        - 'ipcfg::create_cell_cfg'
+        - 'ipcfg::autofix_apply'
+        - 'ipcfg::apply_automation_harvest'
+      combined_patterns:
+        - 'ipcfg::configure_feature'
+  # PROCEDURE telemetry #2: did the agent check PART AVAILABILITY before it
+  # INSTANTIATED? Same grader, inverted patterns -- and it has to be a separate
+  # instance rather than an edit to the one above, because the two gates guard
+  # opposite sides of `create_bd_cell`. Above, cell creation is deliberately NOT
+  # a mutation (you cannot introspect a cell that does not exist, so demanding
+  # discovery first would forbid the correct flow). Here, cell creation is
+  # EXACTLY the mutation being guarded: the availability question must be
+  # settled before the cell is instantiated, not after.
+  #
+  # Why this is worth measuring: `get_ipdefs`/`ipcfg::vlnv_ok` report catalog
+  # membership, NOT part availability, so an IP can pass vlnv_ok and still fail
+  # create with [BD 5-683] -- and that failure is unrecoverable in Tier 2, since
+  # catch only sees "[Common 17-39] ... failed due to earlier errors". An agent
+  # that skips ipcfg::ip_availability therefore has no route back from a
+  # wrong-part pick except silently choosing a different, available IP: exactly
+  # the case-16 failure (clk_wizard -> clkx5_wiz). output_contract catches the
+  # wrong IP; this catches the missing check that caused it.
+  #
+  # Non-gating (mandatory: false, weight: 0) like the instance above.
+  availability_first:
+    grader: discovery_first
+    always: true
+    mandatory: false
+    weight: 0
+    skill_only: true
+    grader_args:
+      tool: vivado_execute
+      discovery_patterns:
+        - 'ipcfg::ip_availability'
+        - 'ipcfg::resolve_vlnv'
+        - 'get_ipdefs'
+      mutation_patterns:
+        - 'create_bd_cell'
+        - 'ipcfg::create_cell'
+        - 'ipcfg::create_cell_cfg'
+      # configure_feature runs the availability gate internally (Phase 1b) and
+      # returns CF:FAIL:WRONG_PART before creating anything, so its create IS
+      # availability-informed by construction.
+      combined_patterns:
+        - 'ipcfg::configure_feature'
+
+  output_contract_by_llm:
+    grader: output_contract_match
+    always: true
+    mandatory: false
+    weight: 0
+    # Skill-specific: the golden result assumes the skill ran, so this check
+    # applies to the with-skill arm only and is skipped in the no-skill arm.
+    skill_only: true
+    grader_args:
+      # identified_ip/vlnv/as_configured are already gated above by the
+      # `output_contract` step (against the live read-back artifact) -- don't
+      # re-check them here too. This step only covers the fields that step
+      # CAN'T: the agent's own self-report, which no read-back can supply.
+      expected:
+        tier1_success: "{expected_output.tier1_success}"
+        tier2_success: "{expected_output.tier2_success}"
+        self_fidelity: "{expected_output.self_fidelity}"
+        notes: "{expected_output.notes}"
+      source: final_response
+      allow_extra: true
+      # `notes` is free-form prose: compare it with the LLM judge, not
+      # literal/tolerant equality. `semantic_fields` maps the field to an
+      # INTENT -- what the judge should evaluate for it. The golden note is a
+      # terse design-rationale summary while the agent's note may narrate the
+      # execution it performed; the intent tells the judge to check design
+      # consistency (IP/width/direction/doc grounding), ignore framing, and
+      # fail only on a factual contradiction. Scored 0-100; >=
+      # semantic_threshold passes. No judge configured -> the field is not gated.
+      semantic_threshold: 70
+      semantic_fields:
+        notes: >
+          Judge whether the agent's note is factually CONSISTENT with the
+          golden design rationale for this IP configuration: same IP kind and
+          the same key parameters (e.g. width, direction/all-outputs, defaults)
+          and, where the golden cites one, doc grounding. The agent's note may
+          instead narrate the steps it took -- that different framing, extra
+          detail, or omission of the doc reference is FINE. Score high when
+          nothing in the agent's note contradicts the golden's design facts;
+          score low only on a genuine factual contradiction (wrong IP, wrong
+          width, wrong direction, or a config claim that conflicts with golden).
+scoring:
+  aggregation: weighted_sum
+  pass_threshold: 70.0

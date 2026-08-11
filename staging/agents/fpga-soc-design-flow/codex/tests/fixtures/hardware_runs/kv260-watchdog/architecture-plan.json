@@ -1,0 +1,1592 @@
+{
+  "schema_version": 1,
+  "request_id": "kv260-watchdog-ipcfg-v01-20260730",
+  "spec_revision": 1,
+  "revision": 1,
+  "status": "READY",
+  "modules": [
+    {
+      "id": "MOD-WATCHDOG",
+      "name": "kv260_watchdog_irq",
+      "function": "Implement the exact regression-facing reloadable watchdog: load a nonzero 32-bit timeout on reload, consume one count per enabled and armed clock, emit one interrupt cycle at expiry, latch sticky expiry status, and remain disarmed until reload.",
+      "implementation": "rtl",
+      "owner": "vivado_rtl_engineer",
+      "requirement_ids": [
+        "REQ-RTL-ONLY",
+        "REQ-PUBLIC-INTERFACE",
+        "REQ-TIMEOUT",
+        "REQ-COUNTDOWN",
+        "REQ-EXPIRY-LATENCY",
+        "REQ-IRQ",
+        "REQ-STICKY",
+        "REQ-CLEAR",
+        "REQ-REARM",
+        "REQ-RESET"
+      ],
+      "clock_domains": [
+        "CLK-PL100"
+      ],
+      "reset_domains": [
+        "RST-WATCHDOG-SYNC-N"
+      ],
+      "parameters": [
+        {
+          "name": "TIMEOUT_WIDTH",
+          "value": 32,
+          "units": "bits"
+        },
+        {
+          "name": "TIMEOUT_MIN",
+          "value": 1,
+          "units": "clock cycles"
+        },
+        {
+          "name": "TIMEOUT_MAX",
+          "value": 4294967295,
+          "units": "clock cycles"
+        }
+      ],
+      "performance": {
+        "latency_cycles_max": 4294967295,
+        "initiation_interval_max": 1,
+        "throughput_min": 100000000,
+        "throughput_units": "control and countdown samples per second"
+      }
+    },
+    {
+      "id": "MOD-CONTROL-ADAPTER",
+      "name": "kv260_watchdog_ctrl_adapter",
+      "function": "Translate AXI GPIO control levels into a direct enable level plus single-cycle reload and clear_expired pulses; a held reload or clear bit produces only one pulse until software returns the bit low and raises it again.",
+      "implementation": "rtl",
+      "owner": "vivado_rtl_engineer",
+      "requirement_ids": [
+        "REQ-RTL-ONLY",
+        "REQ-PL-CLOCK",
+        "REQ-AXI-CONTROL",
+        "REQ-TIMEOUT",
+        "REQ-CLEAR",
+        "REQ-REARM",
+        "REQ-RESET"
+      ],
+      "clock_domains": [
+        "CLK-PL100"
+      ],
+      "reset_domains": [
+        "RST-WATCHDOG-SYNC-N"
+      ],
+      "parameters": [
+        {
+          "name": "CONTROL_WIDTH",
+          "value": 3,
+          "units": "bits"
+        },
+        {
+          "name": "PULSE_WIDTH",
+          "value": 1,
+          "units": "clock cycles"
+        }
+      ],
+      "performance": {
+        "latency_cycles_max": 1,
+        "initiation_interval_max": 1,
+        "throughput_min": 100000000,
+        "throughput_units": "control samples per second"
+      }
+    },
+    {
+      "id": "MOD-ZYNQ-PS",
+      "name": "zynq_ultra_ps_e_0",
+      "function": "Apply the KV260 Zynq UltraScale+ MPSoC board preset, enable a 32-bit PS HPM AXI master into the PL, generate pl_clk0 at exactly 100 MHz, expose active-low pl_resetn0, and receive the watchdog interrupt on PL_PS_IRQ0[0].",
+      "implementation": "platform",
+      "owner": "amd_soc_platform_integrator",
+      "requirement_ids": [
+        "REQ-TARGET",
+        "REQ-PL-CLOCK",
+        "REQ-AXI-CONTROL",
+        "REQ-PS-IRQ",
+        "REQ-IP-INTEGRATOR",
+        "REQ-DELIVERABLES"
+      ],
+      "clock_domains": [
+        "CLK-PL100"
+      ],
+      "reset_domains": [
+        "RST-PS-PL-RESETN0"
+      ],
+      "parameters": [
+        {
+          "name": "DEVICE_PART",
+          "value": "xck26-sfvc784-2LV-c",
+          "units": null
+        },
+        {
+          "name": "BOARD_PART",
+          "value": "xilinx.com:kv260_som:part0:1.4",
+          "units": null
+        },
+        {
+          "name": "PL0_CLOCK_FREQUENCY",
+          "value": 100000000,
+          "units": "Hz"
+        },
+        {
+          "name": "PL_PS_IRQ0_WIDTH",
+          "value": 1,
+          "units": "bits"
+        },
+        {
+          "name": "PL_RESETN0_POLARITY_ACTIVE_LOW",
+          "value": true,
+          "units": null
+        },
+        {
+          "name": "HPM0_DATA_WIDTH",
+          "value": 32,
+          "units": "bits"
+        }
+      ],
+      "performance": {
+        "latency_cycles_max": null,
+        "initiation_interval_max": null,
+        "throughput_min": null,
+        "throughput_units": null
+      }
+    },
+    {
+      "id": "MOD-AXI-SMARTCONNECT",
+      "name": "smartconnect_0",
+      "function": "Route the PS AXI4-Lite control path to the control and status AXI GPIO slaves with protocol-compliant buffering and backpressure.",
+      "implementation": "existing_ip",
+      "owner": "amd_soc_platform_integrator",
+      "requirement_ids": [
+        "REQ-PL-CLOCK",
+        "REQ-AXI-CONTROL",
+        "REQ-IP-INTEGRATOR"
+      ],
+      "clock_domains": [
+        "CLK-PL100"
+      ],
+      "reset_domains": [
+        "RST-PL-PERIPHERAL-N"
+      ],
+      "parameters": [
+        {
+          "name": "NUM_SI",
+          "value": 1,
+          "units": "interfaces"
+        },
+        {
+          "name": "NUM_MI",
+          "value": 2,
+          "units": "interfaces"
+        },
+        {
+          "name": "AXI_DATA_WIDTH",
+          "value": 32,
+          "units": "bits"
+        }
+      ],
+      "performance": {
+        "latency_cycles_max": null,
+        "initiation_interval_max": 1,
+        "throughput_min": null,
+        "throughput_units": null
+      }
+    },
+    {
+      "id": "MOD-AXI-GPIO-CONTROL",
+      "name": "axi_gpio_control",
+      "function": "Provide PS-writable AXI4-Lite registers: GPIO channel 1 is the 32-bit timeout value and GPIO channel 2 is a three-bit output containing enable, reload request, and clear request.",
+      "implementation": "existing_ip",
+      "owner": "amd_soc_platform_integrator",
+      "requirement_ids": [
+        "REQ-PL-CLOCK",
+        "REQ-AXI-CONTROL",
+        "REQ-IP-INTEGRATOR"
+      ],
+      "clock_domains": [
+        "CLK-PL100"
+      ],
+      "reset_domains": [
+        "RST-PL-PERIPHERAL-N"
+      ],
+      "parameters": [
+        {
+          "name": "CHANNEL1_WIDTH",
+          "value": 32,
+          "units": "bits"
+        },
+        {
+          "name": "CHANNEL2_WIDTH",
+          "value": 3,
+          "units": "bits"
+        },
+        {
+          "name": "CHANNEL1_DATA_OFFSET",
+          "value": 0,
+          "units": "bytes"
+        },
+        {
+          "name": "CHANNEL2_DATA_OFFSET",
+          "value": 8,
+          "units": "bytes"
+        },
+        {
+          "name": "ADDRESS_WINDOW_SIZE",
+          "value": 65536,
+          "units": "bytes"
+        }
+      ],
+      "performance": {
+        "latency_cycles_max": null,
+        "initiation_interval_max": 1,
+        "throughput_min": null,
+        "throughput_units": null
+      }
+    },
+    {
+      "id": "MOD-AXI-GPIO-STATUS",
+      "name": "axi_gpio_status",
+      "function": "Provide a PS-readable one-bit AXI GPIO status register for expired_sticky_o so the sticky flag has a connected integration consumer without changing the required watchdog interface.",
+      "implementation": "existing_ip",
+      "owner": "amd_soc_platform_integrator",
+      "requirement_ids": [
+        "REQ-STICKY",
+        "REQ-PL-CLOCK",
+        "REQ-AXI-CONTROL",
+        "REQ-IP-INTEGRATOR"
+      ],
+      "clock_domains": [
+        "CLK-PL100"
+      ],
+      "reset_domains": [
+        "RST-PL-PERIPHERAL-N"
+      ],
+      "parameters": [
+        {
+          "name": "CHANNEL1_WIDTH",
+          "value": 1,
+          "units": "bits"
+        },
+        {
+          "name": "CHANNEL1_DATA_OFFSET",
+          "value": 0,
+          "units": "bytes"
+        },
+        {
+          "name": "ADDRESS_WINDOW_SIZE",
+          "value": 65536,
+          "units": "bytes"
+        }
+      ],
+      "performance": {
+        "latency_cycles_max": null,
+        "initiation_interval_max": 1,
+        "throughput_min": null,
+        "throughput_units": null
+      }
+    },
+    {
+      "id": "MOD-PROC-SYS-RESET",
+      "name": "proc_sys_reset_0",
+      "function": "Condition PS pl_resetn0 for the 100 MHz PL domain: connect pl_resetn0 directly to ext_reset_in with no inverter, configure ext_reset_in as active-low, clock the block from pl_clk0, and generate active-low peripheral_aresetn for every AXI reset and both handwritten RTL resetn inputs.",
+      "implementation": "existing_ip",
+      "owner": "amd_soc_platform_integrator",
+      "requirement_ids": [
+        "REQ-RESET",
+        "REQ-PL-CLOCK",
+        "REQ-IP-INTEGRATOR"
+      ],
+      "clock_domains": [
+        "CLK-PL100"
+      ],
+      "reset_domains": [
+        "RST-PS-PL-RESETN0",
+        "RST-PL-PERIPHERAL-N"
+      ],
+      "parameters": [
+        {
+          "name": "OUTPUT_POLARITY_ACTIVE_LOW",
+          "value": true,
+          "units": null
+        },
+        {
+          "name": "C_EXT_RESET_HIGH",
+          "value": 0,
+          "units": "0 means ext_reset_in active-low"
+        },
+        {
+          "name": "EXT_RESET_SOURCE",
+          "value": "zynq_ultra_ps_e_0/pl_resetn0 direct; no inverter",
+          "units": null
+        },
+        {
+          "name": "SYNC_CLOCK_SOURCE",
+          "value": "zynq_ultra_ps_e_0/pl_clk0",
+          "units": null
+        },
+        {
+          "name": "OUTPUT_RESET",
+          "value": "peripheral_aresetn",
+          "units": null
+        }
+      ],
+      "performance": {
+        "latency_cycles_max": null,
+        "initiation_interval_max": null,
+        "throughput_min": null,
+        "throughput_units": null
+      }
+    },
+    {
+      "id": "MOD-WATCHDOG-BD-SHIM",
+      "name": "kv260_watchdog_bd_shim",
+      "function": "Provide a platform-owned structural Verilog top for Vivado Module Reference, instantiating the required SystemVerilog watchdog and its SystemVerilog control adapter without changing either RTL-owned module. This avoids assuming Vivado 2025.2 accepts a SystemVerilog top as a block-design Module Reference.",
+      "implementation": "platform",
+      "owner": "amd_soc_platform_integrator",
+      "requirement_ids": [
+        "REQ-PUBLIC-INTERFACE",
+        "REQ-RTL-ONLY",
+        "REQ-PL-CLOCK",
+        "REQ-AXI-CONTROL",
+        "REQ-PS-IRQ",
+        "REQ-IP-INTEGRATOR"
+      ],
+      "clock_domains": [
+        "CLK-PL100"
+      ],
+      "reset_domains": [
+        "RST-WATCHDOG-SYNC-N"
+      ],
+      "parameters": [
+        {
+          "name": "STRUCTURAL_ONLY",
+          "value": true,
+          "units": null
+        },
+        {
+          "name": "TOP_LANGUAGE",
+          "value": "Verilog",
+          "units": null
+        }
+      ],
+      "performance": {
+        "latency_cycles_max": 0,
+        "initiation_interval_max": 1,
+        "throughput_min": 100000000,
+        "throughput_units": "scalar samples per second"
+      }
+    },
+    {
+      "id": "MOD-IRQ-CONCAT",
+      "name": "xlconcat_irq",
+      "function": "Present the one-bit watchdog interrupt as the single enabled PL-to-PS IRQ0 input of the processing system without pulse stretching.",
+      "implementation": "existing_ip",
+      "owner": "amd_soc_platform_integrator",
+      "requirement_ids": [
+        "REQ-IRQ",
+        "REQ-PS-IRQ",
+        "REQ-IP-INTEGRATOR"
+      ],
+      "clock_domains": [
+        "CLK-PL100"
+      ],
+      "reset_domains": [],
+      "parameters": [
+        {
+          "name": "NUM_PORTS",
+          "value": 1,
+          "units": "ports"
+        },
+        {
+          "name": "OUTPUT_WIDTH",
+          "value": 1,
+          "units": "bits"
+        }
+      ],
+      "performance": {
+        "latency_cycles_max": 0,
+        "initiation_interval_max": 1,
+        "throughput_min": 100000000,
+        "throughput_units": "interrupt samples per second"
+      }
+    }
+  ],
+  "interfaces": [
+    {
+      "id": "IF-PS-PL-CLOCK",
+      "name": "PS 100 MHz PL clock fanout",
+      "scope": "internal",
+      "protocol": "single-ended fabric clock",
+      "source_module": "MOD-ZYNQ-PS",
+      "destination_module": "MOD-PROC-SYS-RESET",
+      "direction": "source_to_destination",
+      "data_width": 1,
+      "clock_domain": "CLK-PL100",
+      "signals": [
+        "zynq_ultra_ps_e_0/pl_clk0",
+        "proc_sys_reset_0/slowest_sync_clk",
+        "all AXI aclk pins",
+        "kv260_watchdog_bd_shim/clk"
+      ],
+      "requirement_ids": [
+        "REQ-PL-CLOCK",
+        "REQ-AXI-CONTROL",
+        "REQ-IP-INTEGRATOR"
+      ]
+    },
+    {
+      "id": "IF-PS-RESETN-TO-PROC",
+      "name": "PS active-low PL reset into proc_sys_reset",
+      "scope": "internal",
+      "protocol": "active-low reset source, direct connection with no inverter",
+      "source_module": "MOD-ZYNQ-PS",
+      "destination_module": "MOD-PROC-SYS-RESET",
+      "direction": "source_to_destination",
+      "data_width": 1,
+      "clock_domain": "CLK-PL100",
+      "signals": [
+        "zynq_ultra_ps_e_0/pl_resetn0",
+        "proc_sys_reset_0/ext_reset_in",
+        "CONFIG.C_EXT_RESET_HIGH=0"
+      ],
+      "requirement_ids": [
+        "REQ-RESET",
+        "REQ-PL-CLOCK",
+        "REQ-IP-INTEGRATOR"
+      ]
+    },
+    {
+      "id": "IF-PERIPHERAL-ARESETN",
+      "name": "conditioned active-low PL reset fanout",
+      "scope": "internal",
+      "protocol": "active-low reset; asynchronous assertion and synchronous deassertion from proc_sys_reset, synchronously sampled by handwritten RTL",
+      "source_module": "MOD-PROC-SYS-RESET",
+      "destination_module": "MOD-WATCHDOG-BD-SHIM",
+      "direction": "source_to_destination",
+      "data_width": 1,
+      "clock_domain": "CLK-PL100",
+      "signals": [
+        "proc_sys_reset_0/peripheral_aresetn",
+        "all AXI aresetn pins",
+        "kv260_watchdog_bd_shim/resetn",
+        "kv260_watchdog_irq/resetn",
+        "kv260_watchdog_ctrl_adapter/resetn"
+      ],
+      "requirement_ids": [
+        "REQ-RESET",
+        "REQ-PL-CLOCK",
+        "REQ-AXI-CONTROL",
+        "REQ-IP-INTEGRATOR"
+      ]
+    },
+    {
+      "id": "IF-PUBLIC-CLK",
+      "name": "watchdog public clk",
+      "scope": "external",
+      "protocol": "single-ended clock",
+      "source_module": null,
+      "destination_module": "MOD-WATCHDOG",
+      "direction": "input",
+      "data_width": 1,
+      "clock_domain": "CLK-PL100",
+      "signals": [
+        "clk"
+      ],
+      "requirement_ids": [
+        "REQ-PUBLIC-INTERFACE",
+        "REQ-PL-CLOCK"
+      ]
+    },
+    {
+      "id": "IF-PUBLIC-RESETN",
+      "name": "watchdog public resetn",
+      "scope": "external",
+      "protocol": "synchronous active-low reset",
+      "source_module": null,
+      "destination_module": "MOD-WATCHDOG",
+      "direction": "input",
+      "data_width": 1,
+      "clock_domain": "CLK-PL100",
+      "signals": [
+        "resetn"
+      ],
+      "requirement_ids": [
+        "REQ-PUBLIC-INTERFACE",
+        "REQ-RESET"
+      ]
+    },
+    {
+      "id": "IF-PUBLIC-ENABLE",
+      "name": "watchdog public enable",
+      "scope": "external",
+      "protocol": "sampled level control",
+      "source_module": null,
+      "destination_module": "MOD-WATCHDOG",
+      "direction": "input",
+      "data_width": 1,
+      "clock_domain": "CLK-PL100",
+      "signals": [
+        "enable"
+      ],
+      "requirement_ids": [
+        "REQ-PUBLIC-INTERFACE",
+        "REQ-COUNTDOWN"
+      ]
+    },
+    {
+      "id": "IF-PUBLIC-RELOAD",
+      "name": "watchdog public reload",
+      "scope": "external",
+      "protocol": "sampled one-cycle command",
+      "source_module": null,
+      "destination_module": "MOD-WATCHDOG",
+      "direction": "input",
+      "data_width": 1,
+      "clock_domain": "CLK-PL100",
+      "signals": [
+        "reload"
+      ],
+      "requirement_ids": [
+        "REQ-PUBLIC-INTERFACE",
+        "REQ-TIMEOUT",
+        "REQ-REARM"
+      ]
+    },
+    {
+      "id": "IF-PUBLIC-CLEAR",
+      "name": "watchdog public clear_expired",
+      "scope": "external",
+      "protocol": "sampled one-cycle command",
+      "source_module": null,
+      "destination_module": "MOD-WATCHDOG",
+      "direction": "input",
+      "data_width": 1,
+      "clock_domain": "CLK-PL100",
+      "signals": [
+        "clear_expired"
+      ],
+      "requirement_ids": [
+        "REQ-PUBLIC-INTERFACE",
+        "REQ-CLEAR"
+      ]
+    },
+    {
+      "id": "IF-PUBLIC-TIMEOUT",
+      "name": "watchdog public timeout_cycles",
+      "scope": "external",
+      "protocol": "sampled parallel value",
+      "source_module": null,
+      "destination_module": "MOD-WATCHDOG",
+      "direction": "input",
+      "data_width": 32,
+      "clock_domain": "CLK-PL100",
+      "signals": [
+        "timeout_cycles[31:0]"
+      ],
+      "requirement_ids": [
+        "REQ-PUBLIC-INTERFACE",
+        "REQ-TIMEOUT"
+      ]
+    },
+    {
+      "id": "IF-PUBLIC-IRQ",
+      "name": "watchdog public irq_o",
+      "scope": "external",
+      "protocol": "one-cycle pulse",
+      "source_module": "MOD-WATCHDOG",
+      "destination_module": null,
+      "direction": "output",
+      "data_width": 1,
+      "clock_domain": "CLK-PL100",
+      "signals": [
+        "irq_o"
+      ],
+      "requirement_ids": [
+        "REQ-PUBLIC-INTERFACE",
+        "REQ-IRQ"
+      ]
+    },
+    {
+      "id": "IF-PUBLIC-STICKY",
+      "name": "watchdog public expired_sticky_o",
+      "scope": "external",
+      "protocol": "sticky status level",
+      "source_module": "MOD-WATCHDOG",
+      "destination_module": null,
+      "direction": "output",
+      "data_width": 1,
+      "clock_domain": "CLK-PL100",
+      "signals": [
+        "expired_sticky_o"
+      ],
+      "requirement_ids": [
+        "REQ-PUBLIC-INTERFACE",
+        "REQ-STICKY"
+      ]
+    },
+    {
+      "id": "IF-PS-AXI-CONTROL",
+      "name": "PS HPM AXI control master",
+      "scope": "internal",
+      "protocol": "AXI4-Lite memory mapped, 32-bit data",
+      "source_module": "MOD-ZYNQ-PS",
+      "destination_module": "MOD-AXI-SMARTCONNECT",
+      "direction": "source_to_destination",
+      "data_width": 32,
+      "clock_domain": "CLK-PL100",
+      "signals": [
+        "M_AXI_HPM0_FPD"
+      ],
+      "requirement_ids": [
+        "REQ-AXI-CONTROL",
+        "REQ-IP-INTEGRATOR"
+      ]
+    },
+    {
+      "id": "IF-AXI-TO-CONTROL-GPIO",
+      "name": "AXI control GPIO slave",
+      "scope": "internal",
+      "protocol": "AXI4-Lite memory mapped, 32-bit data, one unique 64 KiB window",
+      "source_module": "MOD-AXI-SMARTCONNECT",
+      "destination_module": "MOD-AXI-GPIO-CONTROL",
+      "direction": "source_to_destination",
+      "data_width": 32,
+      "clock_domain": "CLK-PL100",
+      "signals": [
+        "M00_AXI"
+      ],
+      "requirement_ids": [
+        "REQ-AXI-CONTROL",
+        "REQ-IP-INTEGRATOR"
+      ]
+    },
+    {
+      "id": "IF-AXI-TO-STATUS-GPIO",
+      "name": "AXI status GPIO slave",
+      "scope": "internal",
+      "protocol": "AXI4-Lite memory mapped, 32-bit data, one unique 64 KiB window",
+      "source_module": "MOD-AXI-SMARTCONNECT",
+      "destination_module": "MOD-AXI-GPIO-STATUS",
+      "direction": "source_to_destination",
+      "data_width": 32,
+      "clock_domain": "CLK-PL100",
+      "signals": [
+        "M01_AXI"
+      ],
+      "requirement_ids": [
+        "REQ-STICKY",
+        "REQ-AXI-CONTROL",
+        "REQ-IP-INTEGRATOR"
+      ]
+    },
+    {
+      "id": "IF-GPIO-TIMEOUT",
+      "name": "AXI GPIO timeout value",
+      "scope": "internal",
+      "protocol": "sampled parallel value; channel 1 DATA at offset 0x00",
+      "source_module": "MOD-AXI-GPIO-CONTROL",
+      "destination_module": "MOD-WATCHDOG-BD-SHIM",
+      "direction": "source_to_destination",
+      "data_width": 32,
+      "clock_domain": "CLK-PL100",
+      "signals": [
+        "gpio_io_o[31:0]",
+        "timeout_cycles[31:0]"
+      ],
+      "requirement_ids": [
+        "REQ-TIMEOUT",
+        "REQ-AXI-CONTROL"
+      ]
+    },
+    {
+      "id": "IF-GPIO-CONTROL-LEVELS",
+      "name": "AXI GPIO control levels",
+      "scope": "internal",
+      "protocol": "channel 2 DATA at offset 0x08: bit 0 enable, bit 1 reload request, bit 2 clear request",
+      "source_module": "MOD-AXI-GPIO-CONTROL",
+      "destination_module": "MOD-WATCHDOG-BD-SHIM",
+      "direction": "source_to_destination",
+      "data_width": 3,
+      "clock_domain": "CLK-PL100",
+      "signals": [
+        "gpio2_io_o[0]=enable_level",
+        "gpio2_io_o[1]=reload_level",
+        "gpio2_io_o[2]=clear_level"
+      ],
+      "requirement_ids": [
+        "REQ-AXI-CONTROL",
+        "REQ-COUNTDOWN",
+        "REQ-TIMEOUT",
+        "REQ-CLEAR"
+      ]
+    },
+    {
+      "id": "IF-ADAPTER-WATCHDOG-CONTROL",
+      "name": "conditioned watchdog controls",
+      "scope": "internal",
+      "protocol": "one level plus two one-cycle pulses",
+      "source_module": "MOD-CONTROL-ADAPTER",
+      "destination_module": "MOD-WATCHDOG",
+      "direction": "source_to_destination",
+      "data_width": 3,
+      "clock_domain": "CLK-PL100",
+      "signals": [
+        "enable",
+        "reload",
+        "clear_expired"
+      ],
+      "requirement_ids": [
+        "REQ-COUNTDOWN",
+        "REQ-TIMEOUT",
+        "REQ-CLEAR",
+        "REQ-REARM",
+        "REQ-AXI-CONTROL"
+      ]
+    },
+    {
+      "id": "IF-STICKY-STATUS",
+      "name": "sticky status to AXI GPIO",
+      "scope": "internal",
+      "protocol": "sampled status level; channel 1 DATA at offset 0x00",
+      "source_module": "MOD-WATCHDOG-BD-SHIM",
+      "destination_module": "MOD-AXI-GPIO-STATUS",
+      "direction": "source_to_destination",
+      "data_width": 1,
+      "clock_domain": "CLK-PL100",
+      "signals": [
+        "expired_sticky_o",
+        "gpio_io_i[0]"
+      ],
+      "requirement_ids": [
+        "REQ-STICKY",
+        "REQ-AXI-CONTROL"
+      ]
+    },
+    {
+      "id": "IF-WATCHDOG-IRQ-CONCAT",
+      "name": "watchdog interrupt into concat",
+      "scope": "internal",
+      "protocol": "one-cycle active-high interrupt pulse",
+      "source_module": "MOD-WATCHDOG-BD-SHIM",
+      "destination_module": "MOD-IRQ-CONCAT",
+      "direction": "source_to_destination",
+      "data_width": 1,
+      "clock_domain": "CLK-PL100",
+      "signals": [
+        "irq_o",
+        "In0[0]"
+      ],
+      "requirement_ids": [
+        "REQ-IRQ",
+        "REQ-PS-IRQ"
+      ]
+    },
+    {
+      "id": "IF-IRQ-TO-PS",
+      "name": "PL-to-PS watchdog interrupt",
+      "scope": "internal",
+      "protocol": "Zynq UltraScale+ MPSoC PL_PS_IRQ0 active-high interrupt input",
+      "source_module": "MOD-IRQ-CONCAT",
+      "destination_module": "MOD-ZYNQ-PS",
+      "direction": "source_to_destination",
+      "data_width": 1,
+      "clock_domain": "CLK-PL100",
+      "signals": [
+        "dout[0]",
+        "pl_ps_irq0[0]"
+      ],
+      "requirement_ids": [
+        "REQ-IRQ",
+        "REQ-PS-IRQ",
+        "REQ-IP-INTEGRATOR"
+      ]
+    }
+  ],
+  "clock_domains": [
+    {
+      "id": "CLK-PL100",
+      "name": "pl_clk0_100mhz",
+      "frequency_hz": 100000000,
+      "source": "MOD-ZYNQ-PS PL0 fabric clock configured by the KV260 board-preset processing-system block",
+      "constraint_name": "pl_clk0"
+    }
+  ],
+  "reset_domains": [
+    {
+      "id": "RST-PS-PL-RESETN0",
+      "name": "pl_resetn0",
+      "clock_domain": "CLK-PL100",
+      "polarity": "active_low",
+      "assertion": "asynchronous",
+      "deassertion": "asynchronous"
+    },
+    {
+      "id": "RST-PL-PERIPHERAL-N",
+      "name": "peripheral_aresetn",
+      "clock_domain": "CLK-PL100",
+      "polarity": "active_low",
+      "assertion": "asynchronous",
+      "deassertion": "synchronous"
+    },
+    {
+      "id": "RST-WATCHDOG-SYNC-N",
+      "name": "watchdog_resetn_sampled",
+      "clock_domain": "CLK-PL100",
+      "polarity": "active_low",
+      "assertion": "synchronous",
+      "deassertion": "synchronous"
+    }
+  ],
+  "cdc_crossings": [],
+  "work_packages": [
+    {
+      "id": "WP-WATCHDOG-RTL",
+      "agent": "vivado_rtl_engineer",
+      "architecture_elements": [
+        "MOD-WATCHDOG",
+        "MOD-CONTROL-ADAPTER",
+        "IF-PUBLIC-CLK",
+        "IF-PUBLIC-RESETN",
+        "IF-PUBLIC-ENABLE",
+        "IF-PUBLIC-RELOAD",
+        "IF-PUBLIC-CLEAR",
+        "IF-PUBLIC-TIMEOUT",
+        "IF-PUBLIC-IRQ",
+        "IF-PUBLIC-STICKY",
+        "IF-GPIO-TIMEOUT",
+        "IF-GPIO-CONTROL-LEVELS",
+        "IF-ADAPTER-WATCHDOG-CONTROL",
+        "IF-STICKY-STATUS",
+        "IF-WATCHDOG-IRQ-CONCAT"
+      ],
+      "inputs": [
+        "runs/kv260-watchdog-ipcfg-v01-20260730/user-request.md",
+        "runs/kv260-watchdog-ipcfg-v01-20260730/hardware-spec.json",
+        "runs/kv260-watchdog-ipcfg-v01-20260730/architecture-plan.json"
+      ],
+      "outputs": [
+        "runs/kv260-watchdog-ipcfg-v01-20260730/design/rtl/kv260_watchdog_irq.sv",
+        "runs/kv260-watchdog-ipcfg-v01-20260730/design/rtl/kv260_watchdog_ctrl_adapter.sv",
+        "runs/kv260-watchdog-ipcfg-v01-20260730/design/manifests/rtl-source-manifest-fragment.json",
+        "Vivado SystemVerilog elaboration evidence for both owned modules"
+      ],
+      "acceptance_ids": [
+        "ACC-PUBLIC-INTERFACE",
+        "ACC-RTL-ONLY",
+        "ACC-SIM-RESET",
+        "ACC-SIM-RELOAD-LATENCY",
+        "ACC-SIM-DISABLED-HOLD",
+        "ACC-SIM-IRQ-STICKY",
+        "ACC-SIM-CLEAR",
+        "ACC-SIM-REARM"
+      ],
+      "depends_on": []
+    },
+    {
+      "id": "WP-KV260-PLATFORM",
+      "agent": "amd_soc_platform_integrator",
+      "architecture_elements": [
+        "MOD-ZYNQ-PS",
+        "MOD-AXI-SMARTCONNECT",
+        "MOD-AXI-GPIO-CONTROL",
+        "MOD-AXI-GPIO-STATUS",
+        "MOD-PROC-SYS-RESET",
+        "MOD-WATCHDOG-BD-SHIM",
+        "MOD-IRQ-CONCAT",
+        "IF-PS-PL-CLOCK",
+        "IF-PS-RESETN-TO-PROC",
+        "IF-PERIPHERAL-ARESETN",
+        "IF-PS-AXI-CONTROL",
+        "IF-AXI-TO-CONTROL-GPIO",
+        "IF-AXI-TO-STATUS-GPIO",
+        "IF-GPIO-TIMEOUT",
+        "IF-GPIO-CONTROL-LEVELS",
+        "IF-ADAPTER-WATCHDOG-CONTROL",
+        "IF-STICKY-STATUS",
+        "IF-WATCHDOG-IRQ-CONCAT",
+        "IF-IRQ-TO-PS"
+      ],
+      "inputs": [
+        "runs/kv260-watchdog-ipcfg-v01-20260730/user-request.md",
+        "runs/kv260-watchdog-ipcfg-v01-20260730/hardware-spec.json",
+        "runs/kv260-watchdog-ipcfg-v01-20260730/architecture-plan.json",
+        "runs/kv260-watchdog-ipcfg-v01-20260730/design/rtl/kv260_watchdog_irq.sv",
+        "runs/kv260-watchdog-ipcfg-v01-20260730/design/rtl/kv260_watchdog_ctrl_adapter.sv",
+        "runs/kv260-watchdog-ipcfg-v01-20260730/design/manifests/rtl-source-manifest-fragment.json"
+      ],
+      "outputs": [
+        "runs/kv260-watchdog-ipcfg-v01-20260730/design/vivado/create_project.tcl",
+        "runs/kv260-watchdog-ipcfg-v01-20260730/design/vivado/create_bd.tcl",
+        "runs/kv260-watchdog-ipcfg-v01-20260730/design/vivado/rtl/kv260_watchdog_bd_shim.v",
+        "runs/kv260-watchdog-ipcfg-v01-20260730/design/vivado/kv260_watchdog_system.bd",
+        "runs/kv260-watchdog-ipcfg-v01-20260730/design/vivado/hdl/kv260_watchdog_system_wrapper.v",
+        "runs/kv260-watchdog-ipcfg-v01-20260730/design/vivado/address-map.json",
+        "runs/kv260-watchdog-ipcfg-v01-20260730/design/evidence/ip-configuration-evidence.json",
+        "runs/kv260-watchdog-ipcfg-v01-20260730/design/evidence/realized-clock-reset-topology.json",
+        "runs/kv260-watchdog-ipcfg-v01-20260730/design/vivado/kv260_watchdog.xsa",
+        "runs/kv260-watchdog-ipcfg-v01-20260730/source-manifest.json",
+        "Vivado board-part, IP-configuration readback, structural-Verilog Module Reference validation, validate_bd_design, address-assignment, wrapper-generation, and XSA-export evidence"
+      ],
+      "acceptance_ids": [
+        "ACC-TARGET",
+        "ACC-IP-INTEGRATOR",
+        "ACC-CONSTRAINTS",
+        "ACC-SYNTHESIS",
+        "ACC-ARTIFACTS"
+      ],
+      "depends_on": [
+        "WP-WATCHDOG-RTL"
+      ]
+    }
+  ],
+  "source_plan": [
+    {
+      "id": "SRC-WATCHDOG-RTL",
+      "name": "kv260_watchdog_irq",
+      "path": "design/rtl/kv260_watchdog_irq.sv",
+      "kind": "rtl",
+      "language": "SystemVerilog",
+      "owner": "vivado_rtl_engineer",
+      "implements": [
+        "MOD-WATCHDOG",
+        "IF-PUBLIC-CLK",
+        "IF-PUBLIC-RESETN",
+        "IF-PUBLIC-ENABLE",
+        "IF-PUBLIC-RELOAD",
+        "IF-PUBLIC-CLEAR",
+        "IF-PUBLIC-TIMEOUT",
+        "IF-PUBLIC-IRQ",
+        "IF-PUBLIC-STICKY"
+      ]
+    },
+    {
+      "id": "SRC-CONTROL-ADAPTER-RTL",
+      "name": "kv260_watchdog_ctrl_adapter",
+      "path": "design/rtl/kv260_watchdog_ctrl_adapter.sv",
+      "kind": "rtl",
+      "language": "SystemVerilog",
+      "owner": "vivado_rtl_engineer",
+      "implements": [
+        "MOD-CONTROL-ADAPTER",
+        "IF-GPIO-CONTROL-LEVELS",
+        "IF-ADAPTER-WATCHDOG-CONTROL"
+      ]
+    },
+    {
+      "id": "SRC-VIVADO-PROJECT-TCL",
+      "name": "create_project",
+      "path": "design/vivado/create_project.tcl",
+      "kind": "tcl",
+      "language": "Tcl",
+      "owner": "amd_soc_platform_integrator",
+      "implements": [
+        "MOD-ZYNQ-PS"
+      ]
+    },
+    {
+      "id": "SRC-WATCHDOG-BD-SHIM",
+      "name": "kv260_watchdog_bd_shim",
+      "path": "design/vivado/rtl/kv260_watchdog_bd_shim.v",
+      "kind": "rtl",
+      "language": "Verilog",
+      "owner": "amd_soc_platform_integrator",
+      "implements": [
+        "MOD-WATCHDOG-BD-SHIM",
+        "MOD-WATCHDOG",
+        "MOD-CONTROL-ADAPTER",
+        "IF-GPIO-TIMEOUT",
+        "IF-GPIO-CONTROL-LEVELS",
+        "IF-ADAPTER-WATCHDOG-CONTROL",
+        "IF-STICKY-STATUS",
+        "IF-WATCHDOG-IRQ-CONCAT"
+      ]
+    },
+    {
+      "id": "SRC-BLOCK-DESIGN-TCL",
+      "name": "create_bd",
+      "path": "design/vivado/create_bd.tcl",
+      "kind": "tcl",
+      "language": "Tcl",
+      "owner": "amd_soc_platform_integrator",
+      "implements": [
+        "MOD-ZYNQ-PS",
+        "MOD-AXI-SMARTCONNECT",
+        "MOD-AXI-GPIO-CONTROL",
+        "MOD-AXI-GPIO-STATUS",
+        "MOD-PROC-SYS-RESET",
+        "MOD-WATCHDOG-BD-SHIM",
+        "MOD-IRQ-CONCAT",
+        "IF-PS-PL-CLOCK",
+        "IF-PS-RESETN-TO-PROC",
+        "IF-PERIPHERAL-ARESETN",
+        "IF-PS-AXI-CONTROL",
+        "IF-AXI-TO-CONTROL-GPIO",
+        "IF-AXI-TO-STATUS-GPIO",
+        "IF-GPIO-TIMEOUT",
+        "IF-GPIO-CONTROL-LEVELS",
+        "IF-ADAPTER-WATCHDOG-CONTROL",
+        "IF-STICKY-STATUS",
+        "IF-WATCHDOG-IRQ-CONCAT",
+        "IF-IRQ-TO-PS"
+      ]
+    },
+    {
+      "id": "SRC-BLOCK-DESIGN",
+      "name": "kv260_watchdog_system",
+      "path": "design/vivado/kv260_watchdog_system.bd",
+      "kind": "block_design",
+      "language": null,
+      "owner": "amd_soc_platform_integrator",
+      "implements": [
+        "MOD-ZYNQ-PS",
+        "MOD-AXI-SMARTCONNECT",
+        "MOD-AXI-GPIO-CONTROL",
+        "MOD-AXI-GPIO-STATUS",
+        "MOD-PROC-SYS-RESET",
+        "MOD-WATCHDOG-BD-SHIM",
+        "MOD-IRQ-CONCAT"
+      ]
+    },
+    {
+      "id": "SRC-BLOCK-DESIGN-WRAPPER",
+      "name": "kv260_watchdog_system_wrapper",
+      "path": "design/vivado/hdl/kv260_watchdog_system_wrapper.v",
+      "kind": "rtl",
+      "language": "Verilog",
+      "owner": "amd_soc_platform_integrator",
+      "implements": [
+        "MOD-ZYNQ-PS",
+        "MOD-WATCHDOG-BD-SHIM",
+        "MOD-WATCHDOG",
+        "MOD-CONTROL-ADAPTER"
+      ]
+    },
+    {
+      "id": "SRC-ADDRESS-MAP",
+      "name": "address_map",
+      "path": "design/vivado/address-map.json",
+      "kind": "other",
+      "language": "JSON",
+      "owner": "amd_soc_platform_integrator",
+      "implements": [
+        "IF-AXI-TO-CONTROL-GPIO",
+        "IF-AXI-TO-STATUS-GPIO"
+      ]
+    },
+    {
+      "id": "SRC-IP-CONFIG-EVIDENCE",
+      "name": "ip_configuration_evidence",
+      "path": "design/evidence/ip-configuration-evidence.json",
+      "kind": "other",
+      "language": "JSON",
+      "owner": "amd_soc_platform_integrator",
+      "implements": [
+        "MOD-ZYNQ-PS",
+        "MOD-AXI-SMARTCONNECT",
+        "MOD-AXI-GPIO-CONTROL",
+        "MOD-AXI-GPIO-STATUS",
+        "MOD-PROC-SYS-RESET",
+        "MOD-IRQ-CONCAT"
+      ]
+    },
+    {
+      "id": "SRC-REALIZED-CLOCK-RESET",
+      "name": "realized_clock_reset_topology",
+      "path": "design/evidence/realized-clock-reset-topology.json",
+      "kind": "other",
+      "language": "JSON",
+      "owner": "amd_soc_platform_integrator",
+      "implements": [
+        "IF-PS-PL-CLOCK",
+        "IF-PS-RESETN-TO-PROC",
+        "IF-PERIPHERAL-ARESETN"
+      ]
+    },
+    {
+      "id": "SRC-XSA-PACKAGE",
+      "name": "kv260_watchdog",
+      "path": "design/vivado/kv260_watchdog.xsa",
+      "kind": "package",
+      "language": null,
+      "owner": "amd_soc_platform_integrator",
+      "implements": [
+        "MOD-ZYNQ-PS",
+        "MOD-WATCHDOG-BD-SHIM",
+        "MOD-WATCHDOG",
+        "MOD-CONTROL-ADAPTER"
+      ]
+    }
+  ],
+  "verification_obligations": [
+    {
+      "id": "VER-TARGET",
+      "name": "Target and tool identity",
+      "requirement_ids": [
+        "REQ-TARGET"
+      ],
+      "method": "Vivado project property inspection",
+      "pass_condition": "Vivado 2025.2 reports PART=xck26-sfvc784-2LV-c and BOARD_PART=xilinx.com:kv260_som:part0:1.4 for the generated project.",
+      "owner": "amd_soc_verifier"
+    },
+    {
+      "id": "VER-PUBLIC-INTERFACE",
+      "name": "Exact regression-facing interface",
+      "requirement_ids": [
+        "REQ-PUBLIC-INTERFACE"
+      ],
+      "method": "source inspection and elaboration",
+      "pass_condition": "design/rtl/kv260_watchdog_irq.sv defines module kv260_watchdog_irq with no required public parameters and exactly the specified seven ports, directions, and widths.",
+      "owner": "amd_soc_verifier"
+    },
+    {
+      "id": "VER-RTL-ONLY",
+      "name": "Handwritten RTL technology gate",
+      "requirement_ids": [
+        "REQ-RTL-ONLY"
+      ],
+      "method": "source and project manifest inspection",
+      "pass_condition": "The watchdog and control adapter are handwritten SystemVerilog and no HLS source, project, generated watchdog IP, or selected HLS agent is present.",
+      "owner": "amd_soc_verifier"
+    },
+    {
+      "id": "VER-RESET",
+      "name": "Synchronous active-low watchdog reset",
+      "requirement_ids": [
+        "REQ-RESET",
+        "REQ-PL-CLOCK"
+      ],
+      "method": "cocotb-Verilator simulation plus block-design inspection",
+      "pass_condition": "A resetn transition between rising edges does not change watchdog outputs; the first rising edge sampling resetn low clears irq_o and expired_sticky_o and disarms the watchdog, and the integrated reset source is synchronized to CLK-PL100.",
+      "owner": "amd_soc_verifier"
+    },
+    {
+      "id": "VER-RELOAD-LATENCY",
+      "name": "Reload and exact timeout latency",
+      "requirement_ids": [
+        "REQ-TIMEOUT",
+        "REQ-COUNTDOWN",
+        "REQ-EXPIRY-LATENCY"
+      ],
+      "method": "directed and randomized cocotb-Verilator simulation",
+      "pass_condition": "For representative nonzero N including 1, 2, and larger randomized values, reload loads a fresh interval without consuming a count and irq_o first asserts on exactly the Nth subsequent enabled and armed rising edge.",
+      "owner": "amd_soc_verifier"
+    },
+    {
+      "id": "VER-DISABLED-HOLD",
+      "name": "Disabled countdown hold",
+      "requirement_ids": [
+        "REQ-COUNTDOWN",
+        "REQ-EXPIRY-LATENCY"
+      ],
+      "method": "directed and randomized cocotb-Verilator simulation",
+      "pass_condition": "Cycles sampled with enable low preserve the remaining count and armed state, emit no interrupt, and do not contribute to the N enabled-edge expiry interval.",
+      "owner": "amd_soc_verifier"
+    },
+    {
+      "id": "VER-IRQ-STICKY",
+      "name": "One-cycle IRQ and sticky expiry",
+      "requirement_ids": [
+        "REQ-IRQ",
+        "REQ-STICKY"
+      ],
+      "method": "cocotb-Verilator simulation",
+      "pass_condition": "Each expiry raises irq_o for exactly one complete CLK-PL100 cycle, sets expired_sticky_o, and produces no later interrupt without a reload.",
+      "owner": "amd_soc_verifier"
+    },
+    {
+      "id": "VER-CLEAR",
+      "name": "Sticky clear independence",
+      "requirement_ids": [
+        "REQ-CLEAR",
+        "REQ-STICKY"
+      ],
+      "method": "cocotb-Verilator simulation",
+      "pass_condition": "A sampled clear_expired clears expired_sticky_o and neither emits irq_o nor changes countdown, arming, or disarming state.",
+      "owner": "amd_soc_verifier"
+    },
+    {
+      "id": "VER-REARM",
+      "name": "Post-expiry disarm and rearm",
+      "requirement_ids": [
+        "REQ-REARM",
+        "REQ-TIMEOUT",
+        "REQ-IRQ"
+      ],
+      "method": "cocotb-Verilator simulation",
+      "pass_condition": "An expired watchdog remains disarmed with irq_o low until a later reload, and each later reload permits exactly one new expiry interrupt after the full programmed interval.",
+      "owner": "amd_soc_verifier"
+    },
+    {
+      "id": "VER-CONTROL-ADAPTER",
+      "name": "AXI GPIO control conditioning",
+      "requirement_ids": [
+        "REQ-AXI-CONTROL",
+        "REQ-TIMEOUT",
+        "REQ-CLEAR",
+        "REQ-REARM"
+      ],
+      "method": "cocotb-Verilator adapter simulation and block-design net inspection",
+      "pass_condition": "Enable follows channel-2 bit 0; each low-to-high transition of bits 1 and 2 produces exactly one registered CLK-PL100 pulse after no more than one cycle; held-high bits do not retrigger; lowering then raising a bit permits a new pulse; and timeout channel 1 connects all 32 bits.",
+      "owner": "amd_soc_verifier"
+    },
+    {
+      "id": "VER-IP-INTEGRATOR",
+      "name": "KV260 block-design integration",
+      "requirement_ids": [
+        "REQ-IP-INTEGRATOR",
+        "REQ-PL-CLOCK",
+        "REQ-AXI-CONTROL",
+        "REQ-PS-IRQ"
+      ],
+      "method": "Vivado validate_bd_design and connectivity inspection",
+      "pass_condition": "The KV260 board preset is applied; validate_bd_design passes; PS AXI reaches both GPIO slaves; the structural Verilog kv260_watchdog_bd_shim Module Reference elaborates and instantiates the unmodified RTL-owned SystemVerilog modules; timeout and all three controls are connected; sticky status is readable; and irq_o reaches enabled PL_PS_IRQ0[0] through a one-input xlconcat without pulse stretching.",
+      "owner": "amd_soc_verifier"
+    },
+    {
+      "id": "VER-IP-CONFIGURATION",
+      "name": "Live IP configuration and coverage evidence",
+      "requirement_ids": [
+        "REQ-TARGET",
+        "REQ-PL-CLOCK",
+        "REQ-AXI-CONTROL",
+        "REQ-PS-IRQ",
+        "REQ-IP-INTEGRATOR"
+      ],
+      "method": "ip-configurator evidence and Vivado cell-property readback inspection",
+      "pass_condition": "design/evidence/ip-configuration-evidence.json names the linked ip-configurator skill and unattended mode; includes a complete atomic requirement ledger, catalog availability results, requested and realized CONFIG values for PS, SmartConnect, both AXI GPIO cells, proc_sys_reset, and xlconcat; records empty stuck, hard-revert, inert-enabler, invalid-parameter, ignored-parameter, and disabled-parameter findings; and reports COVERAGE:FULL.",
+      "owner": "amd_soc_verifier"
+    },
+    {
+      "id": "VER-CLOCK-RESET-TOPOLOGY",
+      "name": "Realized 100 MHz clock and polarity-correct reset topology",
+      "requirement_ids": [
+        "REQ-RESET",
+        "REQ-PL-CLOCK",
+        "REQ-AXI-CONTROL",
+        "REQ-IP-INTEGRATOR"
+      ],
+      "method": "Vivado net/pin/property inspection and realized-clock-reset-topology.json comparison",
+      "pass_condition": "Vivado readback proves pl_clk0 is exactly 100000000 Hz and directly drives proc_sys_reset/slowest_sync_clk, all AXI ACLK pins, and shim clk; PS pl_resetn0 is active-low and directly drives proc_sys_reset/ext_reset_in with no inverter; proc_sys_reset reads CONFIG.C_EXT_RESET_HIGH=0; peripheral_aresetn is active-low and drives every AXI aresetn plus shim resetn; the DUT and adapter use only synchronous if (!resetn) sampling; and design/evidence/realized-clock-reset-topology.json records the same fanout and polarities.",
+      "owner": "amd_soc_verifier"
+    },
+    {
+      "id": "VER-ADDRESS-MAP",
+      "name": "AXI address-map uniqueness and register layout",
+      "requirement_ids": [
+        "REQ-AXI-CONTROL",
+        "REQ-IP-INTEGRATOR"
+      ],
+      "method": "Vivado address-segment inspection and generated address-map artifact comparison",
+      "pass_condition": "Vivado assigns nonoverlapping 64 KiB windows to control and status AXI GPIO slaves; address-map.json records the assigned bases; control offsets are timeout DATA=0x00 and controls DATA2=0x08; status offset is DATA=0x00.",
+      "owner": "amd_soc_verifier"
+    },
+    {
+      "id": "VER-CONSTRAINTS",
+      "name": "Board-flow constraints only",
+      "requirement_ids": [
+        "REQ-CONSTRAINTS"
+      ],
+      "method": "source manifest and Vivado fileset inspection",
+      "pass_condition": "No handwritten XDC exists or is required, and all implementation constraints originate from board flow, the processing-system configuration, or generated IP Integrator products.",
+      "owner": "amd_soc_verifier"
+    },
+    {
+      "id": "VER-SYNTHESIS",
+      "name": "Integrated synthesis",
+      "requirement_ids": [
+        "REQ-PUBLIC-INTERFACE",
+        "REQ-RTL-ONLY",
+        "REQ-IP-INTEGRATOR",
+        "REQ-DELIVERABLES"
+      ],
+      "method": "Vivado synthesis",
+      "pass_condition": "synth_1 completes without errors for the generated block-design wrapper and retains the watchdog, control adapter, AXI connectivity, reset connectivity, and interrupt path.",
+      "owner": "amd_soc_verifier"
+    },
+    {
+      "id": "VER-TIMING",
+      "name": "Routed 100 MHz timing",
+      "requirement_ids": [
+        "REQ-PL-CLOCK",
+        "REQ-DELIVERABLES"
+      ],
+      "method": "Vivado post-route timing summary",
+      "pass_condition": "WNS is at least 0 ns, TNS is 0 ns, WHS is at least 0 ns, and THS is 0 ns for the implemented design, including CLK-PL100.",
+      "owner": "amd_soc_verifier"
+    },
+    {
+      "id": "VER-DRC",
+      "name": "Post-route DRC",
+      "requirement_ids": [
+        "REQ-IP-INTEGRATOR",
+        "REQ-DELIVERABLES"
+      ],
+      "method": "Vivado post-route DRC",
+      "pass_condition": "Post-route DRC reports zero errors and no critical warning that invalidates programming-image generation or XSA export.",
+      "owner": "amd_soc_verifier"
+    },
+    {
+      "id": "VER-ARTIFACTS",
+      "name": "Bitstream and XSA existence",
+      "requirement_ids": [
+        "REQ-DELIVERABLES"
+      ],
+      "method": "artifact existence and nonzero-size checks",
+      "pass_condition": "The active run contains a nonempty implemented .bit and a nonempty .xsa exported from the same implemented hardware revision.",
+      "owner": "amd_soc_verifier"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "DEC-DIRECT-RTL",
+      "requirement_ids": [
+        "REQ-RTL-ONLY",
+        "REQ-PUBLIC-INTERFACE",
+        "REQ-TIMEOUT",
+        "REQ-COUNTDOWN",
+        "REQ-EXPIRY-LATENCY",
+        "REQ-IRQ",
+        "REQ-STICKY",
+        "REQ-CLEAR",
+        "REQ-REARM"
+      ],
+      "selected": "Handwritten SystemVerilog for MOD-WATCHDOG and MOD-CONTROL-ADAPTER; no HLS, AIE, or PS software work package.",
+      "alternatives": [
+        "HLS watchdog",
+        "AI Engine implementation",
+        "PS software watchdog",
+        "Custom AXI4-Lite slave register bank"
+      ],
+      "rationale": "The approved request explicitly requires handwritten RTL and prohibits HLS. A 32-bit counter, state bits, and two pulse conditioners are small deterministic control logic. Keeping AXI protocol handling in standard AMD IP minimizes protocol-verification scope while preserving the exact public kernel.",
+      "evidence_source": "USER",
+      "confidence": "HIGH",
+      "changes_observable_behavior": false
+    },
+    {
+      "id": "DEC-AXI-CONTROL",
+      "requirement_ids": [
+        "REQ-AXI-CONTROL",
+        "REQ-STICKY",
+        "REQ-IP-INTEGRATOR"
+      ],
+      "selected": "One dual-channel AXI GPIO for timeout and controls, one input AXI GPIO for sticky status, and one SmartConnect from the PS HPM master. Control DATA2 bits are enable=0, reload_request=1, clear_request=2; reload and clear are rising-edge conditioned to one-cycle pulses.",
+      "alternatives": [
+        "Handwritten AXI4-Lite register slave",
+        "Pack all functions into a packaged custom AXI peripheral",
+        "Use persistent reload and clear levels directly"
+      ],
+      "rationale": "AMD AXI GPIO supports AXI4-Lite, independently configurable single or dual channels, and widths from 1 to 32 bits. Standard IP supplies protocol buffering and backpressure. The adapter prevents a software-held command bit from repeatedly reloading or clearing. Two nonoverlapping 64 KiB bases are assigned by Vivado and recorded in address-map.json; fixed intra-IP offsets remain DATA=0x00 and DATA2=0x08.",
+      "evidence_source": "AMD_DOC",
+      "confidence": "HIGH",
+      "changes_observable_behavior": false
+    },
+    {
+      "id": "DEC-CLOCK-CDC",
+      "requirement_ids": [
+        "REQ-PL-CLOCK",
+        "REQ-AXI-CONTROL",
+        "REQ-PS-IRQ"
+      ],
+      "selected": "Configure Zynq PS pl_clk0 to exactly 100000000 Hz and fan it out directly to proc_sys_reset/slowest_sync_clk, all SmartConnect and AXI GPIO ACLK pins, and kv260_watchdog_bd_shim/clk; no Clocking Wizard and no PL CDC crossing.",
+      "alternatives": [
+        "Separate AXI and watchdog clocks with CDC synchronizers",
+        "Clocking Wizard derived control clock"
+      ],
+      "rationale": "The specification requires the watchdog and AXI control interface to share a PS-supplied 100 MHz PL clock. PL0 is explicitly configured and read back at 100 MHz rather than relying on a preset default. A single fanout domain removes CDC buffering and verification obligations. AXI backpressure remains inside standard IP; the watchdog has no FIFO or data buffering.",
+      "evidence_source": "AMD_DOC",
+      "confidence": "HIGH",
+      "changes_observable_behavior": false
+    },
+    {
+      "id": "DEC-RESET",
+      "requirement_ids": [
+        "REQ-RESET",
+        "REQ-PL-CLOCK",
+        "REQ-IP-INTEGRATOR"
+      ],
+      "selected": "PS pl_resetn0 is active-low and connects directly, without inversion, to proc_sys_reset_0/ext_reset_in. Configure/read back CONFIG.C_EXT_RESET_HIGH=0, drive slowest_sync_clk from the 100 MHz pl_clk0 net, and fan active-low peripheral_aresetn to every AXI aresetn and kv260_watchdog_bd_shim/resetn. MOD-WATCHDOG and MOD-CONTROL-ADAPTER consume that net only in synchronous if (!resetn) branches.",
+      "alternatives": [
+        "Handwritten reset synchronizer",
+        "Asynchronous reset in watchdog sequential logic",
+        "Unsynchronized direct PS reset"
+      ],
+      "rationale": "The platform requires a reset derived from the PS and synchronized to CLK-PL100, while the public watchdog contract requires synchronous active-low behavior. Vivado 2025.2 proc_sys_reset v5.0 metadata maps C_EXT_RESET_HIGH=0 to an ACTIVE_LOW ext_reset_in and declares peripheral_aresetn ACTIVE_LOW. The direct active-low path avoids double inversion; the RTL sampling rule prevents asynchronous public-output changes.",
+      "evidence_source": "VIVADO_OBSERVED",
+      "confidence": "HIGH",
+      "changes_observable_behavior": false
+    },
+    {
+      "id": "DEC-BD-RTL-REPRESENTATION",
+      "requirement_ids": [
+        "REQ-PUBLIC-INTERFACE",
+        "REQ-RTL-ONLY",
+        "REQ-IP-INTEGRATOR"
+      ],
+      "selected": "Instantiate a platform-owned structural Verilog top, kv260_watchdog_bd_shim, as the Vivado Module Reference. The shim instantiates the unmodified SystemVerilog kv260_watchdog_irq and kv260_watchdog_ctrl_adapter sources.",
+      "alternatives": [
+        "SystemVerilog top used directly as a Module Reference",
+        "Packaged custom IP containing the SystemVerilog modules"
+      ],
+      "rationale": "Vivado 2025.2 regression evidence has observed filemgmt 56-195 for SystemVerilog top definitions used as Module References. A structural Verilog top preserves the required public SystemVerilog source and hash while giving IP Integrator a supported representation with no additional functional state. The platform integrator must obtain fresh elaboration and validate_bd_design evidence for this exact representation.",
+      "evidence_source": "VIVADO_OBSERVED",
+      "confidence": "HIGH",
+      "changes_observable_behavior": false
+    },
+    {
+      "id": "DEC-IP-CONFIGURATOR-EVIDENCE",
+      "requirement_ids": [
+        "REQ-TARGET",
+        "REQ-PL-CLOCK",
+        "REQ-AXI-CONTROL",
+        "REQ-PS-IRQ",
+        "REQ-IP-INTEGRATOR"
+      ],
+      "selected": "The platform integrator must use the linked ip-configurator skill in unattended mode for every Vivado IP cell and emit a requirement ledger, catalog availability results, requested CONFIG values, read-back/audit results, warning scans, and coverage in design/evidence/ip-configuration-evidence.json.",
+      "alternatives": [
+        "Unverified raw set_property commands",
+        "Rely on block-automation defaults without readback"
+      ],
+      "rationale": "The linked skill treats the live Vivado catalog and cell readback as the source of truth, detects silently ignored BD parameters, and requires coverage disclosure. This is necessary for proving the exact 100 MHz PS clock, active-low reset polarity, AXI GPIO direction/width, and interrupt enable rather than merely intending them.",
+      "evidence_source": "DERIVED",
+      "confidence": "HIGH",
+      "changes_observable_behavior": false
+    },
+    {
+      "id": "DEC-IRQ-PATH",
+      "requirement_ids": [
+        "REQ-IRQ",
+        "REQ-PS-IRQ",
+        "REQ-IP-INTEGRATOR"
+      ],
+      "selected": "Connect irq_o through a one-input xlconcat to enabled PL_PS_IRQ0[0], with no pulse stretching or CDC.",
+      "alternatives": [
+        "Interrupt Controller IP",
+        "Pulse stretcher",
+        "Polling sticky status only"
+      ],
+      "rationale": "PG201 identifies PL_PS_IRQ0 as a PL-to-PS interrupt input. The approved observable behavior is an exact one-CLK-PL100-cycle irq_o pulse, so the integration preserves that pulse and uses the sticky flag for software-visible persistence rather than changing interrupt width.",
+      "evidence_source": "AMD_DOC",
+      "confidence": "HIGH",
+      "changes_observable_behavior": false
+    },
+    {
+      "id": "DEC-CONTROL-PRECEDENCE",
+      "requirement_ids": [
+        "REQ-RESET",
+        "REQ-TIMEOUT",
+        "REQ-COUNTDOWN",
+        "REQ-CLEAR",
+        "REQ-IRQ",
+        "REQ-STICKY",
+        "REQ-REARM"
+      ],
+      "selected": "Within MOD-WATCHDOG, sampled reset dominates all actions; otherwise irq_o defaults low each cycle, reload dominates countdown/expiry and does not clear sticky status, clear operates independently on sticky status, and a same-cycle expiry sets sticky after a clear. Reload of timeout N arms with remaining=N and consumes no count until a later eligible edge.",
+      "alternatives": [
+        "Expiry dominates reload",
+        "Reload implicitly clears sticky status",
+        "Clear disarms the watchdog"
+      ],
+      "rationale": "This gives deterministic implementation behavior for simultaneous events that the approved specification does not require tests to distinguish. It preserves every specified independent control behavior: reload only reloads/rearms, clear only clears sticky, and reset has explicit priority.",
+      "evidence_source": "DERIVED",
+      "confidence": "HIGH",
+      "changes_observable_behavior": false
+    },
+    {
+      "id": "DEC-PIPELINE-BUFFERING",
+      "requirement_ids": [
+        "REQ-COUNTDOWN",
+        "REQ-EXPIRY-LATENCY",
+        "REQ-AXI-CONTROL"
+      ],
+      "selected": "No datapath pipeline, FIFO, or backpressure exists inside the watchdog. The countdown is one sequential stage; the adapter adds at most one cycle from an AXI GPIO control-level transition to a command pulse. AXI channel buffering and backpressure are owned by SmartConnect and AXI GPIO.",
+      "alternatives": [
+        "Pipeline the countdown/comparison",
+        "Queue reload commands in a FIFO",
+        "Implement custom AXI channel buffering"
+      ],
+      "rationale": "A 32-bit decrement-and-terminal test is expected to meet 100 MHz without pipelining on the target. Added watchdog pipeline stages would complicate exact N-edge expiry behavior. Command queuing is neither requested nor meaningful for level-mapped software controls.",
+      "evidence_source": "DERIVED",
+      "confidence": "HIGH",
+      "changes_observable_behavior": false
+    },
+    {
+      "id": "DEC-RESOURCE-BUDGET",
+      "requirement_ids": [
+        "REQ-RTL-ONLY",
+        "REQ-PL-CLOCK",
+        "REQ-DELIVERABLES"
+      ],
+      "selected": "Budget the handwritten watchdog plus adapter at no more than 128 LUTs, 128 flip-flops, 0 DSPs, and 0 BRAMs. Budget the complete added PL subsystem excluding the hard PS at no more than 5000 LUTs, 5000 flip-flops, 0 DSPs, and 0 BRAMs; any generated AXI infrastructure that consumes BRAM or DSP is an architecture review trigger.",
+      "alternatives": [
+        "No explicit resource budget",
+        "BRAM-backed timeout storage",
+        "DSP-based decrementer"
+      ],
+      "rationale": "The direct RTL contains one 32-bit counter, armed/IRQ/sticky state, and a few pulse-conditioning registers; it needs no memory or arithmetic hard block. The wider subsystem allowance leaves conservative margin for SmartConnect, two AXI GPIO instances, reset, concat, and generated wrapper logic while remaining small relative to the K26 PL.",
+      "evidence_source": "DERIVED",
+      "confidence": "MEDIUM",
+      "changes_observable_behavior": false
+    },
+    {
+      "id": "DEC-INTEGRATION-OWNER",
+      "requirement_ids": [
+        "REQ-IP-INTEGRATOR",
+        "REQ-TARGET",
+        "REQ-DELIVERABLES"
+      ],
+      "selected": "amd_soc_platform_integrator is the integration owner and aggregates the RTL fragment with board-design artifacts into source-manifest.json.",
+      "alternatives": [
+        "vivado_rtl_engineer as PL-only integration owner"
+      ],
+      "rationale": "AGENT_ARCHITECTURE_v0.1 assigns integration ownership to amd_soc_platform_integrator whenever PS or IP Integrator block-design work is present. The selected platform branch owns board preset, clocks, resets, AXI connectivity, address assignment, block-design validation, wrapper generation, and XSA export.",
+      "evidence_source": "DERIVED",
+      "confidence": "HIGH",
+      "changes_observable_behavior": false
+    }
+  ],
+  "risks": [
+    {
+      "id": "RISK-AXI-COMMAND-LEVEL",
+      "severity": "medium",
+      "statement": "AXI GPIO stores reload and clear as levels, so a direct connection would repeat a command on every clock while software leaves a bit high.",
+      "mitigation": "MOD-CONTROL-ADAPTER converts each low-to-high request transition into one CLK-PL100 pulse; verification holds each request high for multiple cycles and requires no retrigger, then toggles low before a subsequent request."
+    },
+    {
+      "id": "RISK-IRQ-CAPTURE",
+      "severity": "medium",
+      "statement": "The mandated interrupt is only one 100 MHz PL clock cycle, so incorrect IRQ width configuration or added clock-domain logic could prevent PS capture.",
+      "mitigation": "Enable exactly one PL_PS_IRQ0 input, connect through only xlconcat, add no pulse stretcher or CDC, validate the block-design net, and preserve expired_sticky_o as PS-readable status for diagnosis."
+    },
+    {
+      "id": "RISK-RESET-SEMANTICS",
+      "severity": "medium",
+      "statement": "pl_resetn0 and peripheral_aresetn are active-low; leaving proc_sys_reset ext_reset_in at an active-high interpretation or inserting an inverter would reverse or double-invert reset behavior. Processor System Reset can also assert its output asynchronously while the public watchdog requires edge-only output changes.",
+      "mitigation": "Connect pl_resetn0 directly with no inverter, set and read back CONFIG.C_EXT_RESET_HIGH=0, verify peripheral_aresetn fanout to every AXI aresetn and shim resetn, implement RTL resets only as synchronous if (!resetn) branches, and test between-edge reset transitions."
+    },
+    {
+      "id": "RISK-SYSTEMVERILOG-MODULE-REFERENCE",
+      "severity": "medium",
+      "statement": "Vivado 2025.2 can reject a SystemVerilog top used directly as an IP Integrator Module Reference with filemgmt 56-195.",
+      "mitigation": "Use the platform-owned structural Verilog kv260_watchdog_bd_shim as the Module Reference, preserve and hash the required SystemVerilog source independently, and require fresh elaboration plus validate_bd_design evidence for the selected representation."
+    },
+    {
+      "id": "RISK-SILENT-IP-CONFIG-IGNORE",
+      "severity": "medium",
+      "statement": "IP Integrator can issue non-fatal warnings for unknown, disabled, or ignored CONFIG parameters, making a script appear successful while a required clock, reset, channel, or interrupt setting did not take effect.",
+      "mitigation": "The platform work package mandates the linked ip-configurator workflow, live catalog availability gating, parameter readback and intent audits, warning scans, enabler checks, a complete requirement ledger, and COVERAGE:FULL evidence before integration may report READY."
+    },
+    {
+      "id": "RISK-ADDRESS-ASSIGNMENT",
+      "severity": "low",
+      "statement": "Vivado-assigned AXI base addresses can vary with block-design automation, so undocumented bases would make later integration evidence ambiguous.",
+      "mitigation": "Require nonoverlapping 64 KiB segments, capture the actual assigned bases in design/vivado/address-map.json and the XSA, and verify fixed AXI GPIO intra-IP offsets."
+    },
+    {
+      "id": "RISK-RESOURCE-ESTIMATE",
+      "severity": "low",
+      "statement": "Platform IP resource use is configuration- and release-dependent, so architecture resource values are budgets rather than measured utilization.",
+      "mitigation": "Collect post-synthesis hierarchical utilization for watchdog RTL and the complete PL subsystem; return to architecture if any budget is exceeded or if BRAM/DSP appears unexpectedly."
+    }
+  ]
+}

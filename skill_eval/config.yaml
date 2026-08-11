@@ -1,0 +1,105 @@
+# Default configuration for the AMD Agent Skills evaluation harness.
+# Schema: src/skills_testing/schemas/config_schema.json
+
+skill_testing:
+  test_cases_root: "_workspace"
+  test_suites: "../tests"
+  staging_root: "../staging"
+  skill_signoffs_root: "../skill-signoffs"
+  workspace_root: "~/.cache/amd-skills-test/workspaces"
+  parallel_default: 2
+  memory_budget_pct: 80
+  vivado_mcp_session_cap: 7
+  pre_invoke_memory_headroom_gb: 10
+  vivado_session_timeout_s: 1800
+  cleanup_orphaned_sessions: true
+  keep_tmp_on_failure: false
+
+  llm_judge:
+    enabled: true
+    model: "azure/gpt-5.4"
+    fallback_model: "azure/gpt-5.4"
+    timeout_seconds: 180
+    max_concurrency: 6
+    max_retries: 2
+    retry_backoff_seconds: 5
+    gateway:
+      enabled: false
+      model: "azure/gpt-5.4"
+      fallback_model: "azure/gpt-5.4"
+      max_tokens: 1024
+
+  session_log:
+    enabled: true
+    dir: "_runtime/logs"
+    max_output_chars: 200000
+    artifact_size_cap_bytes: 262144
+    copy_artifacts: true
+
+  consistency_lifecycle:
+    min_reps: 3
+    min_coverage_rate: 1.0
+    min_pass_rate: 0.80
+    max_failed_case_rate: 0.20
+    max_error_rate: 0.0
+    max_skip_rate: 0.0
+    max_case_score_stddev: 0.05
+    max_flaky_case_rate: 0.0
+    max_mandatory_grader_fail_rate: 0.0
+    max_weighted_grader_fail_rate: 0.20
+    consecutive_fails_to_deprecate: 2
+    releases_in_deprecate_to_remove: 2
+
+  # Only these installed skills are eligible for `skills-test run`.
+  allowlist:
+    - hls-array-to-stream
+    - hls-burst-inference
+    - hls-dataflow
+    - ip-configurator
+
+  # Denied skills never run, even when explicitly requested.
+  denylist:
+    - pptx
+    - skill-generator
+    - frontend-design
+
+  coding_agents: []
+
+database:
+  path: "_runtime/results.db"
+
+results_dir: "_runtime/results"
+
+cli_backends:
+  copilot:
+    keep_byok: true
+    lemonade_base_url: "http://localhost:8000/api/v1"
+    default_models:
+      - "claude-opus-4.6"
+      - "claude-sonnet-4.5"
+      - "gpt-5.2-codex"
+      - "gemini-3-pro"
+      - "gpt-5-mini"
+  opencode:
+    lemonade_base_url: "http://localhost:8000/api/v1"
+    bin_path: "/usr/local/bin/opencode"
+    default_models:
+      - "lemonade/Qwen3.5-35B-A3B-GGUF"
+      - "lemonade/Qwen3-Coder-30B-A3B-Instruct-GGUF"
+  claude_code:
+    default_models:
+      - "sonnet"
+      - "opus"
+  cursor:
+    default_models:
+      - "claude-4.6-sonnet-medium-thinking"
+      - "gemini-3-flash"
+      - "claude-4.6-opus-high-thinking"
+
+vivado_mcp:
+  bin_path: "/home/.vivado-ai/bin/vivado-mcp-server-linux-amd64"
+
+grading:
+  mcp_server_aliases:
+    vivado-mcp-server: vivado
+    vivado-doc-search: vivado

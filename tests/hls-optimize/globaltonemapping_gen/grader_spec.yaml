@@ -1,0 +1,235 @@
+# ── Suite grader spec: globaltonemapping_gen ─────────────────────────────
+# Rich output_schema format (field -> grader). Per-case expected values from
+# test_cases.yaml are substituted into {tokens} before grading.
+#
+# Approach: correctness is now verified INDEPENDENTLY of results.json (mirrors
+# matmul) by grepping the agent's pinned RAW testbench log (xf_gtm_tb.cpp's own
+# "Test Passed"/"ERROR: Test Failed." verdict). speedup + resource ratio are
+# still EXTRACTED from the pinned results.json, but must be corroborated by REAL
+# baseline+optimized impl reports (baseline_report_valid/final_report_valid), so
+# the numbers can't be fabricated with no report behind them. Independent
+# evidence: skill_triggered + ran_csynth + csim_log_* + *_report_valid.
+#
+# output_contract (output_contract_match) replaces the old separate verdict/
+# reasoning llm_judge graders: it diffs the agent's final {"verdict",
+# "explanation"} JSON against expected_output — verdict by literal/tolerant
+# equality (no partial credit), explanation via an LLM judge guided by
+# semantic_fields' intent. The contract itself is declared once in
+# runner_spec.yaml's `output_contract:` and appended to every case's prompt.
+#
+# NOTE (remaining gap): a FULLY independent numeric speedup gate — parsing true
+# latency (cosim cycles x post-route clock) + resources out of the two real
+# reports and computing the ratio itself, like matmul's check_speedup.sh — is
+# NOT yet added. It needs a real gtm report to calibrate the parser against
+# (none exists yet), and a grader recompile is impractical (OpenCV + Versal).
+#
+#   MANDATORY gates (all must pass):
+#     - skill_triggered : hls-optimize (+ hls-run-flow) was invoked
+#     - ran_csynth      : HLS C-synthesis actually ran (v++ ... --mode hls)
+#     - results_json    : the agent wrote the pinned results.json
+#     - csim_log_pass       : pinned RAW testbench log shows "Test Passed" (INDEPENDENT)
+#     - csim_log_no_failure : pinned RAW testbench log has no "Test Failed" (INDEPENDENT)
+#     - latency_speedup : results.json latency_speedup >= {target_speedup}
+#     - resource_ok     : results.json resource_ratio <= {max_resource_ratio}
+#     - baseline_report_valid : real baseline impl report exists + looks real
+#     - final_report_valid    : real optimized impl report exists + looks real
+#     - output_contract : final-response {verdict, explanation} JSON matches the
+#                         golden — 2x true-latency met, <=1.5x area, correct
+#   SOFT self-report cross-checks (NOT load-bearing; flag over-claiming):
+#     - test_passed (results.json vs the independent csim_log_* above)
+#   SOFT/weighted:
+#     - impl_report_copy_exists (no_tool_errors is weight 0 — informational
+#       only, see its own note below)
+output_schema:
+  skill_triggered:
+    grader: trigger
+    always: true
+    mandatory: true
+    grader_args: '{skills}'
+
+  ran_csynth:
+    grader: tool_call_observed
+    always: true
+    mandatory: true
+    grader_args:
+      command: '{tool_call_observed}'
+      min_calls: 1
+
+  no_tool_errors:
+    # weight: 0 -- purely informational: still runs and is recorded per-case
+    # (visible in the dashboard), but contributes nothing to the aggregate
+    # score, matching every other suite in this repo. A bare 'ERROR:' scan of
+    # stderr false-positives easily over a full csim/csynth/cosim/impl loop
+    # (the agent's own grep pattern, a tolerated diagnostic it then fixes), so
+    # it must never be able to move pass/fail on its own.
+    grader: content_contains
+    always: true
+    mandatory: false
+    weight: 0
+    grader_args:
+      source: stderr
+      substring: 'ERROR:'
+      must_not_contain: true
+
+  # The final-response contract: the agent's {"verdict", "explanation"} JSON is
+  # diffed against this case's expected_output. verdict is compared
+  # literally/tolerantly (YES/NO, no partial credit); explanation is LLM-judged
+  # for substance against the intent in semantic_fields below.
+  output_contract:
+    grader: output_contract_match
+    always: false
+    mandatory: true
+    grader_args:
+      expected: '{expected_output}'
+      source: final_response
+      semantic_threshold: 60
+      semantic_fields:
+        # Judge for CONSISTENCY with the golden, NOT for coverage of it — see the
+        # matching note in hls-intro-matmul_gen/grader_spec.yaml. The outcome
+        # numbers are already gated deterministically by latency_speedup and
+        # resource_ok, and correctness by testbench_unmodified + csim_log_*, so
+        # prose completeness must not be able to hard-fail a run on its own.
+        # NOTE: this does not weaken the honest-reporting check — a run that
+        # misses the targets fails on the `verdict` field, which is compared
+        # literally (YES/NO) and is not affected by this intent at all.
+        explanation: >
+          Judge whether the agent's explanation is CONSISTENT with the golden —
+          it must not contradict it. Ignore wording, length, level of detail,
+          ordering, and directory names, and ignore the exact latency/resource
+          figures (graded deterministically by latency_speedup/resource_ok). A
+          brief, accurate explanation that reports only the outcome — baseline vs
+          optimized true latency, the achieved speedup, the resource ratio, and
+          whether the testbench passed — is FULLY acceptable and must score high:
+          omitting narration of the intermediate steps is NOT a defect. Score low
+          ONLY for a positive error: inventing work that did not happen,
+          misstating the targets (part, clock, the >= {target_speedup}x latency
+          goal, or the <= {max_resource_ratio}x area cap), claiming success with
+          no synthesis/impl evidence, or contradicting the golden's outcome.
+
+  results_json:
+    grader: artifact_exists
+    always: true
+    mandatory: true
+    grader_args:
+      path: '{artifact_path}'
+      min_size_bytes: 2
+
+  # PREREQUISITE for every correctness gate below — the oracle must be the
+  # suite's own testbench. csim_log_pass/csim_log_no_failure/test_passed all
+  # ultimately read a verdict string, which only means something if
+  # xf_gtm_tb.cpp still performs the OpenCV reference comparison. Run 8c6d64c1
+  # (azure/gpt-5.4) rewrote the testbench to drop OpenCV "while preserving ...
+  # the verdict line", which would have satisfied all three gates without ever
+  # comparing against the reference. Mandatory: without this, the suite has no
+  # trustworthy correctness signal at all (a full recompile gate à la matmul's
+  # correctness_recompiled is impractical here — OpenCV + Versal).
+  testbench_unmodified:
+    grader: program
+    always: true
+    mandatory: true
+    grader_args:
+      command: graders/check_testbench_unmodified.sh
+      timeout: 60
+
+  # INDEPENDENT correctness (STRONGEST correctness gate, mirrors matmul's
+  # csim_log_pass): grade the RAW testbench console output the agent pinned, NOT
+  # results.json. xf_gtm_tb.cpp prints "Test Passed" on success. The log is the
+  # FINAL run only, so intermediate failures during the optimize loop don't
+  # false-fail. Nothing here reads results.json, so the agent cannot fake it.
+  csim_log_pass:
+    grader: content_contains
+    always: true
+    mandatory: true
+    grader_args:
+      source: file
+      path: '{csim_log_path}'
+      substring: 'Test Passed'
+
+  # INDEPENDENT correctness: the same raw log must NOT contain the testbench's
+  # failure line "ERROR: Test Failed." (xf_gtm_tb.cpp line 134).
+  csim_log_no_failure:
+    grader: content_contains
+    always: true
+    mandatory: true
+    grader_args:
+      source: file
+      path: '{csim_log_path}'
+      substring: 'Test Failed'
+      must_not_contain: true
+
+  # SOFT cross-check only — reads the SELF-REPORTED "test_passed" from
+  # results.json. NOT load-bearing: correctness is proven independently by
+  # csim_log_pass/csim_log_no_failure above. Kept to flag agent over-claiming
+  # (results.json says true but the real log shows Test Failed).
+  test_passed:
+    grader: content_contains
+    always: true
+    mandatory: false
+    weight: 0.5
+    grader_args:
+      source: file
+      path: '{artifact_path}'
+      regex: '"test_passed"\s*:\s*true'
+
+  latency_speedup:
+    grader: metric_threshold
+    always: true
+    mandatory: true
+    grader_args:
+      metric: latency_speedup
+      op: '>='
+      threshold: '{target_speedup}'
+      extract:
+        source: file
+        path: '{artifact_path}'
+        regex: '"latency_speedup"\s*:\s*"?([0-9]+(?:\.[0-9]+)?)'
+
+  resource_ok:
+    grader: metric_threshold
+    always: true
+    mandatory: true
+    grader_args:
+      metric: resource_ratio
+      op: '<='
+      threshold: '{max_resource_ratio}'
+      extract:
+        source: file
+        path: '{artifact_path}'
+        regex: '"resource_ratio"\s*:\s*"?([0-9]+(?:\.[0-9]+)?)'
+
+  # Corroborate the SELF-REPORTED latency_speedup / resource_ratio with REAL
+  # implementation reports: both the baseline and optimized impl reports must
+  # exist and actually look like impl reports (contain a resource/utilization
+  # summary), so the numbers in results.json can't be a pure fabrication with no
+  # report behind them. (Full independent numeric parse of true latency = cosim
+  # cycles x post-route clock is a follow-up — see the note in the run summary.)
+  baseline_report_valid:
+    grader: content_contains
+    always: true
+    mandatory: true
+    grader_args:
+      source: file
+      path: '{baseline_report_path}'
+      regex: '(?i)(LUT|CLB|slice|utilization|timing)'
+
+  final_report_valid:
+    grader: content_contains
+    always: true
+    mandatory: true
+    grader_args:
+      source: file
+      path: '{final_report_path}'
+      regex: '(?i)(LUT|CLB|slice|utilization|timing)'
+
+  impl_report_copy_exists:
+    grader: artifact_exists
+    always: true
+    mandatory: false
+    weight: 1.0
+    grader_args:
+      path: 'outputs/globaltonemapping_gen_01/final_impl.rpt'
+      min_size_bytes: 1
+
+scoring:
+  aggregation: weighted_sum
+  pass_threshold: 70.0

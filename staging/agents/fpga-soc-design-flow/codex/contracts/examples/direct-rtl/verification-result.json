@@ -1,0 +1,65 @@
+{
+  "architecture_revision": 1,
+  "artifacts": [
+    {
+      "exists": true,
+      "kind": "junit",
+      "path": "verification/results.xml"
+    }
+  ],
+  "backends": [
+    "cocotb-verilator"
+  ],
+  "checks": [
+    {
+      "details": "All simulator assertions passed.",
+      "id": "CHECK-SIMULATION",
+      "kind": "simulation",
+      "status": "PASS"
+    }
+  ],
+  "coverage_reviewed": true,
+  "feedback": null,
+  "request_id": "example-direct-rtl",
+  "requirement_coverage": [
+    {
+      "requirement_id": "REQ-COUNTER",
+      "status": "COVERED",
+      "test_ids": [
+        "TEST-COUNTER"
+      ]
+    }
+  ],
+  "revision": 1,
+  "schema_version": 1,
+  "source_revision": 1,
+  "spec_revision": 1,
+  "status": "PASS",
+  "tests": [
+    {
+      "artifacts": [
+        "verification/results.xml"
+      ],
+      "command": "make -C verification",
+      "details": "Reset, rising edges, and wrap behavior passed.",
+      "duration_seconds": 1.0,
+      "id": "TEST-COUNTER",
+      "requirement_ids": [
+        "REQ-COUNTER"
+      ],
+      "seed": 1,
+      "status": "PASS"
+    }
+  ],
+  "tool_versions": [
+    {
+      "name": "cocotb",
+      "version": "2.0.1"
+    },
+    {
+      "name": "Verilator",
+      "version": "5.050"
+    }
+  ],
+  "unverified_boundaries": []
+}

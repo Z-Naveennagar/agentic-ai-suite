@@ -1,0 +1,14 @@
+{
+  "title": "Vivado AI Assistant — Tool Reference",
+  "subtitle": "MCP server capabilities, tool reference, and documentation chat — Early Access",
+  "tab_name": "Vivado",
+  "kicker": "Early Access — Vivado AI Assistant",
+  "output": "deploy/pdf/output/Vivado-AI-Assistant-Guide.pdf",
+  "macros": {
+    "mcp_version": "0.6.9"
+  },
+  "sources": [
+    "deploy/pdf/sources/vivado-overview.md",
+    "docs/reference/vivado-mcp-tools.md"
+  ]
+}

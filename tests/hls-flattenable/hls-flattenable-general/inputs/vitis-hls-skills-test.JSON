@@ -1,0 +1,48 @@
+{
+    "description": "HLS coding style skills test",
+    "queries": [
+        {
+            "id": "hls_skill_test_hls_flattenable_01",
+            "category": "hls-flattenable",
+            "query": "/hls-flattenable is it flattenable loop nest?",
+            "input_file": "hls-flattenable_01.cpp:14-23",
+            "expected_answer": "no, there shouldn't be if-else when exiting inner loop"
+        },
+        {
+            "id": "hls_skill_test_hls_flattenable_02",
+            "category": "hls-flattenable",
+            "query": "/hls-flattenable is it flattenable loop nest?",
+            "input_file": "hls-flattenable_02.cpp:14-27",
+            "expected_answer": "yes"
+        },
+        {
+            "id": "hls_skill_test_hls_flattenable_03",
+            "category": "hls-flattenable",
+            "query": "/hls-flattenable is it flattenable loop nest?",
+            "input_file": "hls-flattenable_03.cpp:17-21",
+            "expected_answer": "no, the inner loop shouldn’t have dependency on outer loop"
+        },
+        {
+            "id": "hls_skill_test_hls_flattenable_04",
+            "category": "hls-flattenable",
+            "query": "/hls-flattenable is it flattenable loop nest?",
+            "input_file": "hls-flattenable_04.cpp:6-24",
+            "expected_answer": "no, there shouldn't control flow(if else) before entering inner loop"
+        },
+        {
+            "id": "hls_skill_test_hls_flattenable_05",
+            "category": "hls-flattenable",
+            "query": "/hls-flattenable is it flattenable loop nest?",
+            "input_file": "hls-flattenable_05.cpp:6-21",
+            "expected_answer": "no, there shouldn't be break inside inner loop"
+        },
+        {
+            "id": "hls_skill_test_hls_flattenable_06_mod",
+            "category": "hls-flattenable",
+            "query": "/hls-flattenable The following loop nest is not flattenable. Fix it to be flattenable while preserving behavior:",
+            "input_file": "hls-flattenable_06.cpp",
+            "cfg_file": "modification/hls_config.cfg",
+            "expected_answer": "FIXED_FLATTENABLE. foo() call before inner loop violates Rule 3. Fix: separate accumulation into its own loop before the L1+L2 nest."
+        }
+    ]
+}

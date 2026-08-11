@@ -1,0 +1,69 @@
+# ── Suite runner spec: hls-array-to-stream ──────────────────────────
+# Shared invocation + host requirements for EVERY test case listed in
+# test_cases.yaml. One suite = one runner_spec + one grader_spec +
+# one test_cases.yaml.
+
+skill_name: hls-array-to-stream
+skill_version: "1.0.0"
+suite_id: hls-array-to-stream
+
+invocation:
+  coding_agent:
+    - name: opencode
+      model: azure/gpt-5.4-mini
+    # Temporarily single-model: two models means two concurrent Vivado
+    # sessions per suite group, and the MCP server caps concurrent sessions at
+    # 7. Re-enable when running fewer cases at once.
+    # - name: opencode
+    #   model: azure/gpt-5.4
+    - name: claude_code
+      model: sonnet
+    # # This copilot account only accepts the `auto` selector; named models
+    # # (gpt-5.4, gpt-5, claude-sonnet-*) all return "model not available".
+    - name: copilot
+      model: auto
+    # # Cursor CLI (`agent`). `auto` lets Cursor's server pick an available
+    # # model — avoids "model not available" the way copilot does. Pin a
+    # # named id (e.g. claude-sonnet-5-high) once the account's access is
+    # # confirmed via `agent --list-models`. Cursor reads the staged
+    # # workspace `.claude/skills/` tree and the workspace-local
+    # # `.cursor/mcp.json` the backend writes for the Vivado MCP server.
+    - name: cursor
+      model: auto
+  skills: [hls-array-to-stream]
+
+  # Per-attempt wall-clock cap. Static-review case (no synthesis run) —
+  # defaults are sufficient.
+  timeout_seconds: 900
+  # Re-attempts after a timeout. On timeout the harness redoes the run,
+  # reusing the same MCP session, until this count is hit.
+  retries: 2
+  max_tokens_per_run: 60000
+
+  # NOTE: prompts live per-case in test_cases.yaml (prompt /
+  # prompt_without_skill), not here.
+
+# The mandated JSON output contract, appended to EVERY case's prompt (final =
+# shared_prompt_prefix + output_contract + <test_cases.yaml prompt> -- see
+# core/case_loader.py). Defined once here instead of repeated inline in each
+# of the 11 case prompts. Graded by the `output_contract_match` grader in
+# grader_spec.yaml against each case's expected.expected_output.
+output_contract: |
+  End your response with a JSON object of the form:
+  {"verdict": "YES"|"NO", "explanation": "<your reasoning>"}
+
+requirements:
+  vivado: false              # not invoked by this suite
+  vitis: false               # no run/verify (csynth/v++) step in any query
+  hardware: null
+  min_memory_gb: 2
+  min_disk_gb: 1
+  estimated_duration_minutes: 2
+  tags: [hls, static-review, hls-array-to-stream]
+
+cleanup:
+  # Release everything this case leaves behind after grading:
+  - working_dir          # wipe the per-test workspace directory
+  - workspace_processes  # reap any leftover child process (vivado tcl,
+                         # opencode serve, proxy-mode MCP worker) still
+                         # holding the workspace open

@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "request_id": "example-vitis-flow",
+  "revision": 1,
+  "flow": "embedded_and_acceleration",
+  "toolchain": {
+    "version": "2025.2",
+    "settings64": "/opt/AMDDesignTools/2025.2/Vitis/settings64.sh",
+    "vitis": "/opt/AMDDesignTools/2025.2/Vitis/bin/vitis",
+    "vpp": "/opt/AMDDesignTools/2025.2/Vitis/bin/v++"
+  },
+  "input_artifacts": [
+    {
+      "kind": "xsa",
+      "path": "input/kv260-extensible.xsa",
+      "sha256": null
+    },
+    {
+      "kind": "config",
+      "path": "input/hls.cfg",
+      "sha256": null
+    },
+    {
+      "kind": "config",
+      "path": "input/system.cfg",
+      "sha256": null
+    }
+  ],
+  "embedded": {
+    "xsa": "output/kv260-linked.xsa",
+    "xsa_kind": "fixed",
+    "workspace": "workspace",
+    "platform_name": "kv260_platform",
+    "cpu": "psu_cortexa53_0",
+    "os": "standalone",
+    "domain": "standalone_psu_cortexa53_0",
+    "generate_dtb": false,
+    "application_name": "hardware_test",
+    "template": "empty_application",
+    "source_directory": "software",
+    "source_files": ["main.c"],
+    "sysroot": null,
+    "timeout_seconds": 3600
+  },
+  "acceleration": {
+    "compile": [
+      {
+        "id": "audio_filter",
+        "mode": "hls",
+        "target": "hw",
+        "config": "input/hls.cfg",
+        "part": "xck26-sfvc784-2LV-c",
+        "platform": null,
+        "inputs": ["hls/audio_filter.cpp"],
+        "output": "output/audio_filter.xo",
+        "timeout_seconds": 3600
+      }
+    ],
+    "link": {
+      "platform": "input/kv260-extensible.xsa",
+      "target": "hw",
+      "configs": ["input/system.cfg"],
+      "inputs": ["output/audio_filter.xo"],
+      "output": "output/kv260-linked.xsa",
+      "temp_directory": "build/_x",
+      "log_directory": "build/logs",
+      "report_directory": "build/reports",
+      "jobs": 4,
+      "timeout_seconds": 43200
+    },
+    "package": {
+      "platform": "input/kv260-extensible.xsa",
+      "target": "hw",
+      "input": "output/kv260-linked.xsa",
+      "output_directory": "package",
+      "boot_mode": "sd",
+      "timeout_seconds": 3600
+    }
+  }
+}

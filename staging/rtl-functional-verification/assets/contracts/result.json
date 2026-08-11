@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "backend": "unconfigured",
+  "status": "ERROR",
+  "tool_versions": {},
+  "tests": {"required": 0, "run": 0, "passed": 0, "failed": 0, "skipped": 0},
+  "checks": {
+    "compile_ok": false,
+    "elaboration_ok": false,
+    "simulator_exit_code": 1,
+    "terminal_pass": false,
+    "assertion_failures": 0,
+    "checker_failures": 0,
+    "timeouts": 0
+  },
+  "seeds": [],
+  "coverage_required": false,
+  "coverage_reviewed": false,
+  "exclusions": [],
+  "unverified_boundaries": ["Replace this template with observed evidence before verification."],
+  "artifacts": {}
+}

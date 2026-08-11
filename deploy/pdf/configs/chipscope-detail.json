@@ -1,0 +1,13 @@
+{
+  "title": "ChipScope MCP Server — Complete Guide",
+  "subtitle": "Debug AMD Versal devices from your AI environment — Early Access",
+  "tab_name": "ChipScope",
+  "kicker": "Early Access — MCP Server Guide",
+  "output": "deploy/pdf/output/ChipScope-MCP-Server-Guide.pdf",
+  "sources": [
+    "deploy/pdf/sources/chipscope-overview.md",
+    "docs/getting-started/chipscope-mcp.md",
+    "docs/staging/chipscope/example-prompts.md",
+    "docs/reference/chipscope-tools.md"
+  ]
+}

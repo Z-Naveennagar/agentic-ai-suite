@@ -1,0 +1,235 @@
+# ── Suite: hls-array-to-stream ───────────────
+# HLS coding style skills test — array-to-stream conversion analysis.
+# Sourced from inputs/vitis-hls-skills-test.json (queries manifest).
+#
+# Placeholders substituted into any prompt:
+#   {input_file}  -> the first entry of a case's input_files
+# {skill_name} is internal bookkeeping only (used in expected.skills and in
+# SKILL.md lookups) — it never appears inside a prompt's literal text.
+# No test case, of any shape, ever names a skill in its customer-facing prompt.
+#
+# Per-case fields:
+#   id           unique case id
+#   input_files  files staged into the workspace from ./inputs
+#   prompt       the case's instruction — analysis-only one-liner, always
+#                skill-agnostic, informed by reading the relevant SKILL.md.
+#                The mandated {"verdict", "explanation"} JSON contract is NOT
+#                repeated per case: it's appended once via runner_spec.yaml's
+#                `output_contract:` (shared_prompt_prefix + output_contract +
+#                this prompt, per core/case_loader.py).
+#   expected     values substituted into grader_spec {tokens}:
+#                  expected_output -> golden {verdict, explanation} dict,
+#                                     graded whole by output_contract_match:
+#                                     verdict is literal/tolerant-compared
+#                                     (YES/NO, no partial credit), explanation
+#                                     is LLM-judged for substance via
+#                                     grader_spec's semantic_fields intent
+#                  skills          -> every skill this case is expected to invoke
+#                  tool_sequence   -> always present: expected tool calls in order
+
+suite_id: hls-array-to-stream
+description: >
+  HLS coding style skills test — array-to-stream conversion analysis.
+  Sourced from inputs/vitis-hls-skills-test.json.
+
+test_cases:
+
+  - id: hls-array-to-stream_01
+    input_files: [hls-array2stream-01.cpp]
+    prompt: |-
+      Analyze `{input_file}`: does this code follow the recommended
+      coding style for converting arrays to streaming interfaces in
+      Vitis HLS? TOP_FUNCTION = dut. Give a static analysis without
+      running HLS.
+    expected:
+      skills: [hls-array-to-stream]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: >
+          The code does NOT follow the recommended coding style for
+          array-to-stream conversion. It violates Rules 6.2 and 6.3: the
+          write side accesses the array in ascending order while the read
+          side accesses it in descending order. For a FIFO stream, both
+          sides must use the same iteration order and range.
+
+  - id: hls-array-to-stream_02
+    input_files: [hls-array2stream-02.cpp]
+    prompt: |-
+      Analyze `{input_file}`: does this code follow the recommended
+      coding style for converting arrays to streaming interfaces in
+      Vitis HLS? TOP_FUNCTION = dut. Give a static analysis without
+      running HLS.
+    expected:
+      skills: [hls-array-to-stream]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "YES"
+        explanation: >
+          The code FOLLOWS the recommended coding style for array-to-stream
+          conversion.
+
+  - id: hls-array-to-stream_03
+    input_files: [hls-array2stream-03.cpp]
+    prompt: |-
+      Analyze `{input_file}`: does this code follow the recommended
+      coding style for converting arrays to streaming interfaces in
+      Vitis HLS? TOP_FUNCTION = dut. Give a static analysis without
+      running HLS.
+    expected:
+      skills: [hls-array-to-stream]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: >
+          The code does NOT follow the recommended coding style for
+          array-to-stream conversion. The violation is Rule 6.4: the write
+          side accesses N-1 elements while the read side accesses N elements
+          — each side must access the same number of elements.
+
+  - id: hls-array-to-stream_04
+    input_files: [hls-array2stream-04.cpp]
+    prompt: |-
+      Analyze `{input_file}`: does this code follow the recommended
+      coding style for converting arrays to streaming interfaces in
+      Vitis HLS? TOP_FUNCTION = dut. Give a static analysis without
+      running HLS.
+    expected:
+      skills: [hls-array-to-stream]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "YES"
+        explanation: >
+          This code FOLLOWS the recommended coding style for array-to-stream
+          conversion.
+
+  - id: hls-array-to-stream_05
+    input_files: [hls-array2stream-05.cpp]
+    prompt: |-
+      Analyze `{input_file}`: does this code follow the recommended
+      coding style for converting arrays to streaming interfaces in
+      Vitis HLS? TOP_FUNCTION = dut. Give a static analysis without
+      running HLS.
+    expected:
+      skills: [hls-array-to-stream]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: >
+          The code does NOT follow the recommended coding style for
+          array-to-stream conversion. It fails Rule 6 (stream pragma access
+          pattern rules): the read side conditionally accesses only every
+          other element (i % 2 == 0), which violates the requirement that
+          each element be accessed exactly once and that both sides access
+          the same set of elements.
+
+  - id: hls-array-to-stream_06
+    input_files: [hls-array2stream-06.cpp]
+    prompt: |-
+      Analyze `{input_file}`: does this code follow the recommended
+      coding style for converting arrays to streaming interfaces in
+      Vitis HLS? TOP_FUNCTION = dut. Give a static analysis without
+      running HLS.
+    expected:
+      skills: [hls-array-to-stream]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: >
+          The code does NOT follow the recommended coding style. The
+          violation is Rule 4 (struct element type rules): the array element
+          type is a struct, and the write function sets each struct field
+          individually on the array element (array[i].color = i;
+          array[i].price = i+3) instead of preparing the whole struct in a
+          separate struct variable and then storing it at once.
+
+  - id: hls-array-to-stream_07
+    input_files: [hls-array2stream-07.cpp]
+    prompt: |-
+      Analyze `{input_file}`: does this code follow the recommended
+      coding style for converting arrays to streaming interfaces in
+      Vitis HLS? TOP_FUNCTION = dut. Give a static analysis without
+      running HLS.
+    expected:
+      skills: [hls-array-to-stream]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "YES"
+        explanation: >
+          The code FOLLOWS the recommended coding style for array-to-stream
+          conversion.
+
+  - id: hls-array-to-stream_08
+    input_files: [hls-array2stream-08.cpp]
+    prompt: |-
+      Analyze `{input_file}`: does this code follow the recommended
+      coding style for converting arrays to streaming interfaces in
+      Vitis HLS? TOP_FUNCTION = dut. Give a static analysis without
+      running HLS.
+    expected:
+      skills: [hls-array-to-stream]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: >
+          The code does NOT follow the recommended coding style. The
+          violation is Rule 5 (struct copy assignment rules): the struct
+          type defines a custom copy assignment operator (operator=(const A&
+          a) with non-default body), which is not allowed for streamed
+          struct types. Only the default copy assignment (operator=(const A&
+          a) = default) is permitted.
+
+  - id: hls-array-to-stream_09
+    input_files: [hls-array2stream-09.cpp]
+    prompt: |-
+      Analyze `{input_file}`: does this code follow the recommended
+      coding style for converting arrays to streaming interfaces in
+      Vitis HLS? TOP_FUNCTION = dut. Give a static analysis without
+      running HLS.
+    expected:
+      skills: [hls-array-to-stream]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "YES"
+        explanation: >
+          The code follows the recommended coding style for array-to-stream
+          conversion.
+
+  - id: hls-array-to-stream_10
+    input_files: [hls-array2stream-10.cpp]
+    prompt: |-
+      Analyze `{input_file}`: does this code follow the recommended
+      coding style for converting arrays to streaming interfaces in
+      Vitis HLS? TOP_FUNCTION = dut. Give a static analysis without
+      running HLS.
+    expected:
+      skills: [hls-array-to-stream]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: >
+          The code does NOT follow the recommended coding style. The
+          violation is Rule 4 (struct element type rules): the array element
+          type is a struct, and the write function sets each struct field
+          individually on the array element (array[i].color = 'a';
+          array[i].price = i) instead of preparing the whole struct in a
+          separate struct variable and then storing it at once.
+
+  - id: hls-array-to-stream_11
+    input_files: [hls-array2stream-11.cpp]
+    prompt: |-
+      Analyze `{input_file}`: does this code follow the recommended
+      coding style for converting arrays to streaming interfaces in
+      Vitis HLS? TOP_FUNCTION = dut. Give a static analysis without
+      running HLS.
+    expected:
+      skills: [hls-array-to-stream]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: >
+          The code does NOT follow the recommended coding style. The
+          violation is Rule 5 (struct copy assignment rules): the struct
+          type defines a custom copy assignment operator (operator=(const A&
+          a) with non-default body), which is not allowed for streamed
+          struct types.

@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "request_id": "kv260-watchdog-ipcfg-v01-20260730",
+  "producer": "vivado_impl_closure",
+  "source_lineage": {
+    "hardware_spec": {"revision": 1, "sha256": "67e535a2aea62e66d6b82d6f54f4463e48097fee7938eb93e13a0ce7103cbfda"},
+    "architecture_plan": {"revision": 1, "sha256": "ee3dfa6bc7bf1b02eeebf2ef52f2d13d884b38e30e36c37edad822ddd587bdfd"},
+    "hardware_test": {"revision": 1, "sha256": "0ad597b45182288be9be04b7a8b22acd373d39bf6c8297d07aa9bcd369f571ac"},
+    "source_manifest": {"revision": 2, "sha256": "a1d2941569e48740b2b355bb010bdc7efe0f88bb5687d30beb5ad07bfd7d7db3"},
+    "verification_result": {"revision": 2, "sha256": "dfe41a39f6707c3187312755e1568d46a97628f76a1e25c466e930b4f23407f5"}
+  },
+  "implementation_identity": {
+    "vivado_version": "2025.2",
+    "session_id": "fixture-session",
+    "project": "kv260_watchdog_fixture",
+    "top": "kv260_watchdog_fixture_top",
+    "part": "xck26-sfvc784-2LV-c",
+    "board_part": "xilinx.com:kv260_som:part0:1.4",
+    "implementation_run": "impl_1",
+    "run_strategy": "Vivado Implementation Defaults"
+  },
+  "build_set": {
+    "bitstream": {"path": "hardware-spec.json", "sha256": "67e535a2aea62e66d6b82d6f54f4463e48097fee7938eb93e13a0ce7103cbfda"},
+    "ltx": {"path": "architecture-plan.json", "sha256": "ee3dfa6bc7bf1b02eeebf2ef52f2d13d884b38e30e36c37edad822ddd587bdfd"},
+    "routed_checkpoint": {"path": "source-manifest.json", "sha256": "a1d2941569e48740b2b355bb010bdc7efe0f88bb5687d30beb5ad07bfd7d7db3"},
+    "fixed_xsa": {"path": "verification-result.json", "sha256": "dfe41a39f6707c3187312755e1568d46a97628f76a1e25c466e930b4f23407f5"},
+    "ltx_correspondence": {
+      "native_run_ltx_sha256": "ee3dfa6bc7bf1b02eeebf2ef52f2d13d884b38e30e36c37edad822ddd587bdfd",
+      "validator_generated_ltx_matches_native_run": true
+    }
+  },
+  "derivation": {
+    "implemented_object_discovery": ["fixture: get_debug_cores returned VIO and ILA"],
+    "logical_sources": [
+      {"path": "hardware-test.json", "sha256": "0ad597b45182288be9be04b7a8b22acd373d39bf6c8297d07aa9bcd369f571ac"}
+    ],
+    "implemented_design_open": true,
+    "validator_sourced_after_implemented_design_open": true
+  },
+  "clock": {
+    "logical_domain": "clk",
+    "physical_source": "zynq_ultra_ps_e_0/pl_clk0",
+    "frequency_hz": 100000000,
+    "constraint_period_ns": 10.0
+  },
+  "cores": [
+    {
+      "logical_id": "VIO-HW-TEST-0",
+      "type": "VIO",
+      "physical_cell": "vio_hw_test_0",
+      "uuid": "fixture-vio-uuid",
+      "physical_presence": {"primitive_count": 1, "is_blackbox": false}
+    },
+    {
+      "logical_id": "ILA-HW-TEST-0",
+      "type": "ILA",
+      "physical_cell": "ila_hw_test_0",
+      "uuid": "fixture-ila-uuid",
+      "physical_presence": {"primitive_count": 1, "is_blackbox": false}
+    }
+  ],
+  "qualification_boundary": {
+    "design_complete": true,
+    "physical_debug_cores_certified": true,
+    "hardware_programmed": false,
+    "hardware_qualified": false,
+    "reason": "Stable contract-validation fixture; no physical action is represented."
+  }
+}

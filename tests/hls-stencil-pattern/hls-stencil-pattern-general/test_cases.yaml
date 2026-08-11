@@ -1,0 +1,287 @@
+# ── Suite: hls-stencil-pattern-general ────────────
+# HLS coding style skills test — stencil-pattern analysis on 19 code
+# snippets covering the four rule groups (pragma legality, output-loop
+# rules, variable rules, and stencil access-pattern rules).
+#
+# Sourced from: inputs/vitis-hls-skills-test.JSON (queries manifest).
+#
+# Placeholders substituted into any prompt:
+#   {input_file}  -> the first entry of a case's input_files
+# {skill_name} / {flow_skill} are internal bookkeeping only (used in
+# expected.skills and in SKILL.md lookups) — they never appear inside
+# a prompt's literal text. No test case, of any shape, ever names a
+# skill in its customer-facing prompt.
+#
+# Per-case fields:
+#   id           unique case id
+#   input_files  files staged into the workspace from ./inputs
+#   prompt       the case's instruction — analysis-only one-liner, always
+#                skill-agnostic, informed by reading the relevant SKILL.md.
+#                The mandated {"verdict", "explanation"} JSON contract is NOT
+#                repeated per case: it's appended once via runner_spec.yaml's
+#                `output_contract:` (shared_prompt_prefix + output_contract +
+#                this prompt, per core/case_loader.py).
+#   expected     values substituted into grader_spec {tokens}:
+#                  expected_output -> golden {verdict, explanation} dict,
+#                                     graded whole by output_contract_match:
+#                                     verdict is literal/tolerant-compared
+#                                     (YES/NO, no partial credit), explanation
+#                                     is LLM-judged for substance via
+#                                     grader_spec's semantic_fields intent
+#                  skills          -> every skill this case is expected to invoke
+#                  tool_sequence   -> always present: expected tool calls in order
+
+suite_id: hls-stencil-pattern-general
+description: >
+  Static stencil-pattern analysis across 19 C/C++ snippets. Each case asks
+  whether stencil pattern optimization (the `array_stencil` pragma) can be
+  applied, covering pragma legality, output-loop structure, variable rules,
+  and access patterns. Sourced from inputs/vitis-hls-skills-test.JSON.
+
+test_cases:
+  - id: hls-stencil-pattern-general_01
+    input_files: [hls-stencil-pattern_01.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can stencil pattern optimization be
+      applied to this code? Give a static analysis without running HLS.
+      Explain your answer.
+    expected:
+      skills: [hls-stencil-pattern]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "YES"
+        explanation: "Can be applied — all rules pass: the legal pragma `array_stencil variable=in` targets a read-only 2D top-level argument, the output loops i,j have constant trip counts with step 1 and are perfectly nested, and the accesses `in[i+p][j+q]` form a contiguous 2D stencil."
+
+  - id: hls-stencil-pattern-general_02
+    input_files: [hls-stencil-pattern_02.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can stencil pattern optimization be
+      applied to this code? Give a static analysis without running HLS.
+      Explain your answer.
+    expected:
+      skills: [hls-stencil-pattern]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Cannot be applied — the pragma targets `filter_buf`, a local buffer declared inside the function body, not a top-level function argument."
+
+  - id: hls-stencil-pattern-general_03
+    input_files: [hls-stencil-pattern_03.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can stencil pattern optimization be
+      applied to this code? Give a static analysis without running HLS.
+      Explain your answer.
+    expected:
+      skills: [hls-stencil-pattern]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Cannot be applied — the output loop `r` has a non-constant trip count (`r < var`, where `var` is a function parameter), so the trip count is not known at compile time."
+
+  - id: hls-stencil-pattern-general_04
+    input_files: [hls-stencil-pattern_04.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can stencil pattern optimization be
+      applied to this code? Give a static analysis without running HLS.
+      Explain your answer.
+    expected:
+      skills: [hls-stencil-pattern]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Cannot be applied — access is not continuous in loop iteration space: the outermost output loop `c` controls the rightmost array dimension (`input[...][c+k2]`) while the inner loop `r` controls the leftmost."
+
+  - id: hls-stencil-pattern-general_05
+    input_files: [hls-stencil-pattern_05.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can stencil pattern optimization be
+      applied to this code? Give a static analysis without running HLS.
+      Explain your answer.
+    expected:
+      skills: [hls-stencil-pattern]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Cannot be applied — the variable `O` targeted by the pragma is not read-only in scope: it is also written via `O[r][c] = temp`."
+
+  - id: hls-stencil-pattern-general_06
+    input_files: [hls-stencil-pattern_06.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can stencil pattern optimization be
+      applied to this code? Give a static analysis without running HLS.
+      Explain your answer.
+    expected:
+      skills: [hls-stencil-pattern]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Cannot be applied — the output loops `r` and `c` have a loop step of 2 (`r+=2`, `c+=2`) instead of the required step of 1."
+
+  - id: hls-stencil-pattern-general_07
+    input_files: [hls-stencil-pattern_07.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can stencil pattern optimization be
+      applied to this code? Give a static analysis without running HLS.
+      Explain your answer.
+    expected:
+      skills: [hls-stencil-pattern]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Cannot be applied — the `array_stencil variable=O` pragma is placed before the `r` loop, outside any loop body; the pragma must be located within a loop."
+
+  - id: hls-stencil-pattern-general_08
+    input_files: [hls-stencil-pattern_08.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can stencil pattern optimization be
+      applied to this code? Give a static analysis without running HLS.
+      Explain your answer.
+    expected:
+      skills: [hls-stencil-pattern]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Cannot be applied — the output loops `i` and `j` have a loop step of 2 (`i+=2`, `j+=2`) instead of the required step of 1."
+
+  - id: hls-stencil-pattern-general_09
+    input_files: [hls-stencil-pattern_09.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can stencil pattern optimization be
+      applied to this code? Give a static analysis without running HLS.
+      Explain your answer.
+    expected:
+      skills: [hls-stencil-pattern]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Cannot be applied — the variable `c` targeted by the pragma has 3 dimensions (`int c[514][514][514]`), but only 1D or 2D variables are allowed."
+
+  - id: hls-stencil-pattern-general_10
+    input_files: [hls-stencil-pattern_10.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can stencil pattern optimization be
+      applied to this code? Give a static analysis without running HLS.
+      Explain your answer.
+    expected:
+      skills: [hls-stencil-pattern]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "YES"
+        explanation: "Can be applied — all rules pass: the read-only 1D top-level pointer `merlin_in` is accessed as `merlin_in[i*100+j+q]`; the pipeline on j unrolls the q loop so the pragma sits in the j loop controlling the rightmost dimension, the output loops i,j have constant trip counts with step 1 and are perfectly nested, and delinearization into 2D is valid because the stride 100 exceeds max(j+q)=99."
+
+  - id: hls-stencil-pattern-general_11
+    input_files: [hls-stencil-pattern_11.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can stencil pattern optimization be
+      applied to this code? Give a static analysis without running HLS.
+      Explain your answer.
+    expected:
+      skills: [hls-stencil-pattern]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "YES"
+        explanation: "Can be applied — all rules pass: the pipeline on the c loop unrolls the k1/k2 window loops so the `array_stencil variable=input` pragma lands in the c loop, which controls the rightmost dimension of the read-only 2D top-level argument `input`; the output loops r,c have constant trip counts with step 1 and are perfectly nested, and `input[r+k1][c+k2]` is a contiguous 3×3 stencil."
+
+  - id: hls-stencil-pattern-general_12
+    input_files: [hls-stencil-pattern_12.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can stencil pattern optimization be
+      applied to this code? Give a static analysis without running HLS.
+      Explain your answer.
+    expected:
+      skills: [hls-stencil-pattern]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Cannot be applied — the loop directly containing the pragma is the outer `r` loop, which controls the leftmost rather than the rightmost dimension of the 2D variable `input`."
+
+  - id: hls-stencil-pattern-general_13
+    input_files: [hls-stencil-pattern_13.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can stencil pattern optimization be
+      applied to this code? Give a static analysis without running HLS.
+      Explain your answer.
+    expected:
+      skills: [hls-stencil-pattern]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "YES"
+        explanation: "Can be applied — all rules pass: the legal pragma targets the read-only 2D top-level argument `c` and stays in the j loop, which controls the rightmost dimension; the output loops i,j have constant trip counts with step 1 and are perfectly nested, and the accesses c[i][j], c[i][j±1], c[i±1][j] form a 5-point 2D stencil with continuous ordering."
+
+  - id: hls-stencil-pattern-general_14
+    input_files: [hls-stencil-pattern_14.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can stencil pattern optimization be
+      applied to this code? Give a static analysis without running HLS.
+      Explain your answer.
+    expected:
+      skills: [hls-stencil-pattern]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Cannot be applied — the pragma `#pragma HLS array_stencil` is illegal because the required `variable=xxx` clause is missing."
+
+  - id: hls-stencil-pattern-general_15
+    input_files: [hls-stencil-pattern_15.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can stencil pattern optimization be
+      applied to this code? Give a static analysis without running HLS.
+      Explain your answer.
+    expected:
+      skills: [hls-stencil-pattern]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Cannot be applied — the output loops are not perfectly nested: a non-loop statement (`auto tmp_val = val+i;`) sits between the outer `i` loop header and the inner `j` loop header."
+
+  - id: hls-stencil-pattern-general_16
+    input_files: [hls-stencil-pattern_16.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can stencil pattern optimization be
+      applied to this code? Give a static analysis without running HLS.
+      Explain your answer.
+    expected:
+      skills: [hls-stencil-pattern]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Cannot be applied — the variable `merlin_in` is read indirectly through the external function `get_val()` defined outside the parent function, so it is not read within the same scope as the pragma."
+
+  - id: hls-stencil-pattern-general_17
+    input_files: [hls-stencil-pattern_17.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can stencil pattern optimization be
+      applied to this code? Give a static analysis without running HLS.
+      Explain your answer.
+    expected:
+      skills: [hls-stencil-pattern]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "YES"
+        explanation: "Can be applied — all rules pass: the pipeline on the j loop unrolls the q window loop, leaving the pragma in the j loop which controls the rightmost dimension of the read-only 2D top-level argument `merlin_in`; the output loops i,j have constant trip counts with step 1 and are perfectly nested, and `merlin_in[i][j+q]` forms a 1D horizontal stencil with continuous ordering."
+
+  - id: hls-stencil-pattern-general_18
+    input_files: [hls-stencil-pattern_18.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can stencil pattern optimization be
+      applied to this code? Give a static analysis without running HLS.
+      Explain your answer.
+    expected:
+      skills: [hls-stencil-pattern]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Cannot be applied — access is not continuous in loop iteration space: the outermost output loop `j` controls the rightmost dimension (`merlin_in[i][j+q]`) while the inner loop `i` controls the leftmost."
+
+  - id: hls-stencil-pattern-general_19
+    input_files: [hls-stencil-pattern_19.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can stencil pattern optimization be
+      applied to this code? Give a static analysis without running HLS.
+      Explain your answer.
+    expected:
+      skills: [hls-stencil-pattern]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Cannot be applied — the 1D access `merlin_in[i*90+j+q]` cannot be delinearized into 2D because the stride 90 is not greater than the maximum offset max(j+q)=99."

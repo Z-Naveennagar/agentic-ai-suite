@@ -1,0 +1,145 @@
+{
+  "schema_version": 1,
+  "id": "kv260_image_histogram",
+  "title": "KV260 streaming 16-bin image histogram",
+  "prompt_file": "prompt.md",
+  "target": {
+    "part": "xck26-sfvc784-2LV-c",
+    "board_part": "xilinx.com:kv260_som:part0:1.4",
+    "vivado_version": "2025.2"
+  },
+  "expected_route": [
+    "amd_soc_orchestrator",
+    "amd_soc_intent_to_spec",
+    "amd_soc_architect",
+    "vivado_rtl_engineer",
+    "amd_soc_platform_integrator",
+    "amd_soc_verifier",
+    "vivado_impl_closure"
+  ],
+  "candidate": {
+    "integration_mode": "ip_integrator",
+    "top": "kv260_image_histogram",
+    "simulation_top": "kv260_image_histogram",
+    "rtl_sources": [
+      "rtl/kv260_image_histogram.sv"
+    ],
+    "constraint_sources": []
+  },
+  "public_interface": {
+    "design_root": "design",
+    "modules": [
+      {
+        "name": "kv260_image_histogram",
+        "source": "rtl/kv260_image_histogram.sv",
+        "roles": [
+          "simulation_top",
+          "required_component"
+        ],
+        "parameters": [],
+        "ports": [
+          {
+            "name": "clk",
+            "direction": "input",
+            "width": 1
+          },
+          {
+            "name": "rst_n",
+            "direction": "input",
+            "width": 1
+          },
+          {
+            "name": "clear",
+            "direction": "input",
+            "width": 1
+          },
+          {
+            "name": "s_valid",
+            "direction": "input",
+            "width": 1
+          },
+          {
+            "name": "s_ready",
+            "direction": "output",
+            "width": 1
+          },
+          {
+            "name": "s_data",
+            "direction": "input",
+            "width": 8
+          },
+          {
+            "name": "query_bin",
+            "direction": "input",
+            "width": 4
+          },
+          {
+            "name": "query_count",
+            "direction": "output",
+            "width": 32
+          },
+          {
+            "name": "total_count",
+            "direction": "output",
+            "width": 32
+          }
+        ]
+      }
+    ],
+    "constraints": []
+  },
+  "simulation": {
+    "make_directory": "testbench",
+    "toplevel": "kv260_image_histogram"
+  },
+  "semantic_rubric": [
+    {
+      "id": "SEM-KERNEL-RTL",
+      "weight": 10,
+      "artifact": "architecture-plan.json",
+      "collection": "modules",
+      "match": {
+        "name": "kv260_image_histogram"
+      },
+      "field": "implementation",
+      "operator": "equals",
+      "expected": "rtl"
+    },
+    {
+      "id": "SEM-RTL-OWNER",
+      "weight": 10,
+      "artifact": "architecture-plan.json",
+      "collection": "modules",
+      "match": {
+        "name": "kv260_image_histogram"
+      },
+      "field": "owner",
+      "operator": "equals",
+      "expected": "vivado_rtl_engineer"
+    },
+    {
+      "id": "SEM-PLATFORM",
+      "weight": 10,
+      "artifact": "architecture-plan.json",
+      "collection": "work_packages",
+      "field": "agent",
+      "operator": "contains",
+      "expected": "amd_soc_platform_integrator"
+    },
+    {
+      "id": "SEM-NO-HLS",
+      "weight": 10,
+      "artifact": "architecture-plan.json",
+      "collection": "work_packages",
+      "field": "agent",
+      "operator": "not_contains",
+      "expected": "vitis_hls_engineer"
+    }
+  ],
+  "score_weights": {
+    "contracts": 10,
+    "semantics": 40,
+    "simulation": 30,
+    "vivado": 20
+  }
+}

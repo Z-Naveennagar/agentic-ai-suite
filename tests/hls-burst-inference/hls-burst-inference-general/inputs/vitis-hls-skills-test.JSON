@@ -1,0 +1,229 @@
+{
+    "description": "HLS coding style skills test",
+    "queries": [
+        {
+            "id": "hls_skill_test_hls_burst_inference_01",
+            "category": "hls-burst-inference",
+            "query": "/hls-burst-inference",
+            "input_file": "hls-burst-inference_01.cpp:5-13",
+            "expected_answer": "yes"
+        },
+        {
+            "id": "hls_skill_test_hls_burst_inference_02",
+            "category": "hls-burst-inference",
+            "query": "/hls-burst-inference",
+            "input_file": "hls-burst-inference_02.cpp:7-27",
+            "expected_answer": "no, both load and store occur on the same address of `a` in the same region (read a[i] and write a[i]), violating the dependency check"
+        },
+        {
+            "id": "hls_skill_test_hls_burst_inference_03",
+            "category": "hls-burst-inference",
+            "query": "/hls-burst-inference",
+            "input_file": "hls-burst-inference_03.cpp:4-11",
+            "expected_answer": "yes"
+        },
+        {
+            "id": "hls_skill_test_hls_burst_inference_04",
+            "category": "hls-burst-inference",
+            "query": "/hls-burst-inference",
+            "input_file": "hls-burst-inference_04.cpp:4-11",
+            "expected_answer": "no, `in` and `in1` are same-direction reads on the same bundle (aximm) and same default channel, violating the same-direction access check"
+        },
+        {
+            "id": "hls_skill_test_hls_burst_inference_05",
+            "category": "hls-burst-inference",
+            "query": "/hls-burst-inference",
+            "input_file": "hls-burst-inference_05.cpp:4-11",
+            "expected_answer": "no, `in` and `in1` are same-direction reads on the same channel (0) of the same bundle (aximm), violating the same-direction access check"
+        },
+        {
+            "id": "hls_skill_test_hls_burst_inference_06",
+            "category": "hls-burst-inference",
+            "query": "/hls-burst-inference",
+            "input_file": "hls-burst-inference_06.cpp:1-7",
+            "expected_answer": "no, the two reads of `in` (in[i-1] and in[i+20]) have overlapping index ranges, violating the consecutive/non-overlapping memory access check"
+        },
+        {
+            "id": "hls_skill_test_hls_burst_inference_07",
+            "category": "hls-burst-inference",
+            "query": "/hls-burst-inference",
+            "input_file": "hls-burst-inference_07.cpp:1-7",
+            "expected_answer": "no, the loop decrements i so accesses are in descending order, violating the monotonically increasing memory access pattern check"
+        },
+        {
+            "id": "hls_skill_test_hls_burst_inference_08",
+            "category": "hls-burst-inference",
+            "query": "/hls-burst-inference",
+            "input_file": "hls-burst-inference_08.cpp:11-27",
+            "expected_answer": "no, the accessed data type `MyType` is 12 bytes (3 ints) whose width is not a power of 2, violating the data type width check"
+        },
+        {
+            "id": "hls_skill_test_hls_burst_inference_09",
+            "category": "hls-burst-inference",
+            "query": "/hls-burst-inference",
+            "input_file": "hls-burst-inference_09.cpp:1-6",
+            "expected_answer": "no, `in` and `out` have the `volatile` qualifier, violating the volatile qualifier check"
+        },
+        {
+            "id": "hls_skill_test_hls_burst_inference_10",
+            "category": "hls-burst-inference",
+            "query": "/hls-burst-inference",
+            "input_file": "hls-burst-inference_10.cpp:1-7",
+            "expected_answer": "yes"
+        },
+        {
+            "id": "hls_skill_test_hls_burst_inference_11",
+            "category": "hls-burst-inference",
+            "query": "/hls-burst-inference",
+            "input_file": "hls-burst-inference_11.cpp:1-7",
+            "expected_answer": "no, the DATAFLOW pragma appears as a direct statement within the loop block, violating the dataflow pragma check"
+        },
+        {
+            "id": "hls_skill_test_hls_burst_inference_12",
+            "category": "hls-burst-inference",
+            "query": "/hls-burst-inference",
+            "input_file": "hls-burst-inference_12.cpp:1-7",
+            "expected_answer": "yes"
+        },
+        {
+            "id": "hls_skill_test_hls_burst_inference_13",
+            "category": "hls-burst-inference",
+            "query": "/hls-burst-inference",
+            "input_file": "hls-burst-inference_13.cpp:1-9",
+            "expected_answer": "no, the loop stride `step` is a runtime variable so the access pattern is not provably consecutive and the burst length is not determinable, violating the memory access pattern / burst length determinability checks"
+        },
+        {
+            "id": "hls_skill_test_hls_burst_inference_14",
+            "category": "hls-burst-inference",
+            "query": "/hls-burst-inference",
+            "input_file": "hls-burst-inference_14.cpp:3-14",
+            "expected_answer": "yes"
+        },
+        {
+            "id": "hls_skill_test_hls_burst_inference_15",
+            "category": "hls-burst-inference",
+            "query": "/hls-burst-inference",
+            "input_file": "hls-burst-inference_15.cpp:4-9",
+            "expected_answer": "no, the loop induction variable `i` uses an ap_uint type, which may fail burst inference (Limitation 1)"
+        },
+        {
+            "id": "hls_skill_test_hls_burst_inference_16",
+            "category": "hls-burst-inference",
+            "query": "/hls-burst-inference",
+            "input_file": "hls-burst-inference_16.cpp:1-10",
+            "expected_answer": "no, the reads of `in` are conditional (in[i] vs in[i+var]) with overlapping/non-contiguous index ranges, violating the memory access pattern check (conditional access)"
+        },
+        {
+            "id": "hls_skill_test_hls_burst_inference_17",
+            "category": "hls-burst-inference",
+            "query": "/hls-burst-inference",
+            "input_file": "hls-burst-inference_17.cpp:1-7",
+            "expected_answer": "no, `out[i] += in[j]` performs both load and store on the same address of `out` in the region, violating the dependency check"
+        },
+        {
+            "id": "hls_skill_test_hls_burst_inference_18",
+            "category": "hls-burst-inference",
+            "query": "/hls-burst-inference",
+            "input_file": "hls-burst-inference_18.cpp:1-7",
+            "expected_answer": "no, `out[i] += in[i]` performs both load and store on the same address of `out` in the region, violating the dependency check"
+        },
+        {
+            "id": "hls_skill_test_hls_burst_inference_19",
+            "category": "hls-burst-inference",
+            "query": "/hls-burst-inference",
+            "input_file": "hls-burst-inference_19.cpp:6-12",
+            "expected_answer": "no, the read of `in` occurs inside the non-inlined function `sub` (inline off), so it is a cross-function access that may fail burst inference (Limitation 5)"
+        },
+        {
+            "id": "hls_skill_test_hls_burst_inference_20",
+            "category": "hls-burst-inference",
+            "query": "/hls-burst-inference",
+            "input_file": "hls-burst-inference_20.cpp:6-12",
+            "expected_answer": "yes"
+        },
+        {
+            "id": "hls_skill_test_hls_burst_inference_21",
+            "category": "hls-burst-inference",
+            "query": "/hls-burst-inference",
+            "input_file": "hls-burst-inference_21.cpp:1-8",
+            "expected_answer": "no, `in` and `in1` are same-direction reads on the same channel (0) of the same bundle (aximm), violating the same-direction access check"
+        },
+        {
+            "id": "hls_skill_test_hls_burst_inference_22",
+            "category": "hls-burst-inference",
+            "query": "/hls-burst-inference",
+            "input_file": "hls-burst-inference_22.cpp:1-8",
+            "expected_answer": "yes"
+        },
+        {
+            "id": "hls_skill_test_hls_burst_inference_23",
+            "category": "hls-burst-inference",
+            "query": "/hls-burst-inference",
+            "input_file": "hls-burst-inference_23.cpp:1-5",
+            "expected_answer": "no, `in` and `out` have no m_axi interface pragma; under the default Vivado flow they are not M-AXI, violating the M-AXI interface check"
+        },
+        {
+            "id": "hls_skill_test_hls_burst_inference_24",
+            "category": "hls-burst-inference",
+            "query": "/hls-burst-inference",
+            "input_file": "hls-burst-inference_24.cpp:11-17",
+            "expected_answer": "no, `func1` and `func2` in the dataflow region access the same M-AXI ports (in/out), which may fail burst inference (shared M-AXI port in dataflow, Limitation 2)"
+        },
+        {
+            "id": "hls_skill_test_hls_burst_inference_25",
+            "category": "hls-burst-inference",
+            "query": "/hls-burst-inference",
+            "input_file": "hls-burst-inference_25.cpp:1-8",
+            "expected_answer": "no, the two reads of `in` (in[i] and in[i+50]) have overlapping index ranges, violating the consecutive/non-overlapping memory access check"
+        },
+        {
+            "id": "hls_skill_test_hls_burst_inference_26",
+            "category": "hls-burst-inference",
+            "query": "/hls-burst-inference",
+            "input_file": "hls-burst-inference_26.cpp:1-8",
+            "expected_answer": "yes"
+        },
+        {
+            "id": "hls_skill_test_hls_burst_inference_27",
+            "category": "hls-burst-inference",
+            "query": "/hls-burst-inference",
+            "input_file": "hls-burst-inference_27.cpp:1-18",
+            "expected_answer": "no, the read index of `in` wraps/resets (non-monotonic), so `in` accesses are not consecutive in increasing order, violating the memory access pattern check"
+        },
+        {
+            "id": "hls_skill_test_hls_burst_inference_28",
+            "category": "hls-burst-inference",
+            "query": "/hls-burst-inference",
+            "input_file": "hls-burst-inference_28.cpp:11-16",
+            "expected_answer": "yes"
+        },
+        {
+            "id": "hls_skill_test_hls_burst_inference_29",
+            "category": "hls-burst-inference",
+            "query": "/hls-burst-inference",
+            "input_file": "hls-burst-inference_29.cpp:1-13",
+            "expected_answer": "yes"
+        },
+        {
+            "id": "hls_skill_test_hls_burst_inference_30",
+            "category": "hls-burst-inference",
+            "query": "/hls-burst-inference",
+            "input_file": "hls-burst-inference_30.cpp:1-9",
+            "expected_answer": "no, accesses must be one next to another with no gaps, but `in` is read with stride 2 (in[0], in[2], ...) leaving gaps, violating the consecutive memory access check"
+        },
+        {
+            "id": "hls_skill_test_hls_burst_inference_31",
+            "category": "hls-burst-inference",
+            "query": "/hls-burst-inference",
+            "input_file": "hls-burst-inference_31.cpp:1-8",
+            "expected_answer": "no, the loop step is 2, so accesses to `in`/`out` are strided (out[0], out[2], ...) with gaps, violating the consecutive memory access check"
+        },
+        {
+            "id": "hls_skill_test_hls_burst_inference_32",
+            "category": "hls-burst-inference",
+            "query": "/hls-burst-inference",
+            "input_file": "hls-burst-inference_32.cpp:1-8",
+            "expected_answer": "no, although the reads of `in` (in[i] and in[i+1]) reconstruct a contiguous stream, `out` is written with stride 2 (out[0], out[2], ...) leaving gaps, violating the consecutive memory access check"
+        }
+    ]
+}

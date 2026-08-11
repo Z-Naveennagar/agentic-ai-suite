@@ -1,0 +1,50 @@
+# Copyright (C) 2026, Advanced Micro Devices, Inc. All rights reserved.
+# SPDX-License-Identifier: MIT
+#
+# Copybara configuration for selective skill publishing
+#
+# Usage:
+#   copybara copy.bara.sky publish-skills
+#
+# Only skills/ contents are published. staging/, tests/, and internal
+# references are excluded. Adjust origin_files glob to add per-skill
+# filtering (e.g., by frontmatter status field).
+
+core.workflow(
+    name = "publish-skills",
+    origin = git.origin(
+        url = "https://gitenterprise.xilinx.com/swm/agentic-ai-suite",
+        ref = "main",
+    ),
+    destination = git.destination(
+        # TODO: Update to the actual public/partner-facing repo URL
+        url = "https://github.com/AMD-aecg-cue-ai/agentic-ai-skills",
+        push = "main",
+    ),
+    origin_files = glob(
+        include = [
+            "skills/**",
+            "examples/**",
+            "docs/**",
+            "README.md",
+            "LICENSE",
+        ],
+        exclude = [
+            "staging/**",
+            "tests/**",
+            "deploy/**",
+            "plugin/**",
+            "**/evals/**",
+            "**/testcases/**",
+            "**/staging/**",
+        ],
+    ),
+    authoring = authoring.pass_thru("AMD AECG <aecg-cue-ai@amd.com>"),
+    transformations = [
+        # Strip internal GHE references
+        core.replace(
+            before = "gitenterprise.xilinx.com",
+            after = "github.com",
+        ),
+    ],
+)

@@ -1,0 +1,328 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "vitis-execution-plan.schema.json",
+  "title": "Vitis Execution Plan v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "request_id",
+    "revision",
+    "flow",
+    "toolchain",
+    "input_artifacts",
+    "embedded",
+    "acceleration"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "request_id": {"type": "string", "minLength": 1},
+    "revision": {"type": "integer", "minimum": 1},
+    "flow": {
+      "enum": ["embedded", "acceleration", "embedded_and_acceleration"]
+    },
+    "toolchain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "settings64", "vitis", "vpp"],
+      "properties": {
+        "version": {"type": "string", "minLength": 1},
+        "settings64": {"type": "string", "minLength": 1},
+        "vitis": {"type": "string", "minLength": 1},
+        "vpp": {"type": "string", "minLength": 1}
+      }
+    },
+    "input_artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "path", "sha256"],
+        "properties": {
+          "kind": {
+            "enum": [
+              "xsa",
+              "xpfm",
+              "hwh",
+              "xo",
+              "libadf",
+              "source",
+              "config",
+              "sysroot",
+              "other"
+            ]
+          },
+          "path": {"type": "string", "minLength": 1},
+          "sha256": {
+            "type": ["string", "null"],
+            "pattern": "^[0-9a-fA-F]{64}$"
+          }
+        }
+      }
+    },
+    "embedded": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/embedded"}
+      ]
+    },
+    "acceleration": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/acceleration"}
+      ]
+    }
+  },
+  "$defs": {
+    "path": {"type": "string", "minLength": 1},
+    "embedded": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "xsa",
+        "xsa_kind",
+        "workspace",
+        "platform_name",
+        "cpu",
+        "os",
+        "domain",
+        "generate_dtb",
+        "application_name",
+        "template",
+        "source_directory",
+        "source_files",
+        "sysroot",
+        "timeout_seconds"
+      ],
+      "properties": {
+        "xsa": {"$ref": "#/$defs/path"},
+        "xsa_kind": {"enum": ["fixed", "extensible"]},
+        "workspace": {"$ref": "#/$defs/path"},
+        "platform_name": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+        },
+        "cpu": {"type": "string", "minLength": 1},
+        "os": {"enum": ["standalone", "freertos", "linux"]},
+        "domain": {"type": "string", "minLength": 1},
+        "generate_dtb": {"type": "boolean"},
+        "application_name": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+        },
+        "template": {
+          "enum": [
+            "empty_application",
+            "hello_world",
+            "peripheral_tests",
+            "freertos_hello_world"
+          ]
+        },
+        "source_directory": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/path"}
+          ]
+        },
+        "source_files": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        },
+        "sysroot": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/path"}
+          ]
+        },
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 86400
+        }
+      }
+    },
+    "compile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "mode",
+        "target",
+        "config",
+        "part",
+        "platform",
+        "inputs",
+        "output",
+        "timeout_seconds"
+      ],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z][a-z0-9_-]*$"},
+        "mode": {"enum": ["hls", "aie"]},
+        "target": {"enum": ["hw", "hw_emu"]},
+        "config": {"$ref": "#/$defs/path"},
+        "part": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/path"}
+          ]
+        },
+        "platform": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/path"}
+          ]
+        },
+        "inputs": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/path"},
+          "uniqueItems": true
+        },
+        "output": {"$ref": "#/$defs/path"},
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 86400
+        }
+      }
+    },
+    "link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "platform",
+        "target",
+        "configs",
+        "inputs",
+        "output",
+        "temp_directory",
+        "log_directory",
+        "report_directory",
+        "jobs",
+        "timeout_seconds"
+      ],
+      "properties": {
+        "platform": {"$ref": "#/$defs/path"},
+        "target": {"enum": ["hw", "hw_emu"]},
+        "configs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/path"},
+          "uniqueItems": true
+        },
+        "inputs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/path"},
+          "uniqueItems": true
+        },
+        "output": {"$ref": "#/$defs/path"},
+        "temp_directory": {"$ref": "#/$defs/path"},
+        "log_directory": {"$ref": "#/$defs/path"},
+        "report_directory": {"$ref": "#/$defs/path"},
+        "jobs": {"type": "integer", "minimum": 1, "maximum": 256},
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 300,
+          "maximum": 172800
+        }
+      }
+    },
+    "package": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "platform",
+        "target",
+        "input",
+        "output_directory",
+        "boot_mode",
+        "timeout_seconds"
+      ],
+      "properties": {
+        "platform": {"$ref": "#/$defs/path"},
+        "target": {"enum": ["hw", "hw_emu"]},
+        "input": {"$ref": "#/$defs/path"},
+        "output_directory": {"$ref": "#/$defs/path"},
+        "boot_mode": {
+          "type": ["string", "null"],
+          "enum": ["sd", "ospi", "qspi", null]
+        },
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 86400
+        }
+      }
+    },
+    "acceleration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["compile", "link", "package"],
+      "properties": {
+        "compile": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/compile"}
+        },
+        "link": {"$ref": "#/$defs/link"},
+        "package": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/package"}
+          ]
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"flow": {"const": "embedded"}}},
+      "then": {
+        "properties": {
+          "embedded": {"$ref": "#/$defs/embedded"},
+          "acceleration": {"type": "null"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"flow": {"const": "acceleration"}}},
+      "then": {
+        "properties": {
+          "embedded": {"type": "null"},
+          "acceleration": {"$ref": "#/$defs/acceleration"}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"flow": {"const": "embedded_and_acceleration"}}
+      },
+      "then": {
+        "properties": {
+          "embedded": {"$ref": "#/$defs/embedded"},
+          "acceleration": {"$ref": "#/$defs/acceleration"}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "embedded": {
+            "type": "object",
+            "properties": {"os": {"const": "linux"}}
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "embedded": {
+            "properties": {
+              "generate_dtb": {"const": true},
+              "template": {"const": "empty_application"}
+            }
+          }
+        }
+      }
+    }
+  ]
+}

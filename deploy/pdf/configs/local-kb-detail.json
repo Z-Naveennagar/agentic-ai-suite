@@ -1,0 +1,15 @@
+{
+  "title": "Local Knowledge Base — Complete Guide",
+  "subtitle": "Air-gapped documentation retrieval for AMD Embedded tools — Early Access",
+  "tab_name": "Local Knowledge Base",
+  "kicker": "Early Access — RAG Database Guide",
+  "output": "deploy/pdf/output/Local-Knowledge-Base-Guide.pdf",
+  "sources": [
+    "deploy/pdf/sources/local-kb-overview.md",
+    "docs/staging/local-kb/quickstart.md",
+    "docs/staging/local-kb/core.md",
+    "docs/staging/local-kb/operate.md",
+    "docs/staging/local-kb/frontier-model.md",
+    "docs/staging/local-kb/local-llm.md"
+  ]
+}

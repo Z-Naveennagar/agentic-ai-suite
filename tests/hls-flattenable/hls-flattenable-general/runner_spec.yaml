@@ -1,0 +1,80 @@
+# ── Suite runner spec: hls-flattenable ──────────────────────────────
+# Shared invocation + host requirements for EVERY test case listed in
+# test_cases.yaml. One suite = one runner_spec + one grader_spec +
+# one test_cases.yaml.
+#
+# Spec source: inputs/vitis-hls-skills-test.JSON (queries manifest).
+
+skill_name: hls-flattenable
+skill_version: "1.0.0"
+suite_id: hls-flattenable
+
+invocation:
+  coding_agent:
+    - name: opencode
+      model: azure/gpt-5.4
+    # - name: claude_code
+    #   model: sonnet
+    # Cursor CLI (`agent`). `auto` lets Cursor's server pick an available
+    # model — avoids "model not available". Pin a named id (e.g.
+    # claude-sonnet-5-high) once the account's access is confirmed via
+    # `agent --list-models`.
+    - name: cursor
+      model: auto
+
+  # Skill-stage allowlist: ship only the skill(s) under test into the
+  # workspace `.claude/skills/` tree so triggering is measured fairly.
+  skills: [hls-flattenable]
+
+  # Per-attempt wall-clock cap. Static-review case — no synthesis run,
+  # keep default.
+  timeout_seconds: 900
+  # Re-attempts after a timeout. On timeout the harness redoes the run,
+  # reusing the same MCP session, until this count is hit.
+  retries: 2
+  max_tokens_per_run: 60000
+
+  # NOTE: prompts live per-case in test_cases.yaml (prompt /
+  # prompt_without_skill), not here.
+
+# The mandated JSON output contract, appended to EVERY case's prompt (final =
+# shared_prompt_prefix + output_contract + <test_cases.yaml prompt> -- see
+# core/case_loader.py). Defined once here instead of repeated inline in each
+# of the 6 case prompts. Graded by the `output_contract_match` grader in
+# grader_spec.yaml against each case's expected.expected_output.
+# The any-nest-fails => NO rule below exists because several inputs hold more
+# than one loop nest. _04 and _05 pair a non-flattenable kernel nest with
+# testbench init/print nests in main() that pass all 9 rules; read
+# file-level, "does this code contain a flattenable loop nest" is then
+# legitimately YES, and the agent answered YES while diagnosing the kernel
+# nest correctly. Rather than scope each prompt to one nest (fragile — _01-_03
+# keep their compute nest *inside* main(), so "ignore main()" would be wrong),
+# the verdict convention is fixed once here for every case. It reproduces all
+# six goldens: _01/_03/_04/_05 have a failing nest => NO; _02/_06 have only
+# passing nests => YES.
+output_contract: |
+  A file may contain more than one loop nest. Evaluate every loop nest in the
+  file. If ANY loop nest is not flattenable, the overall verdict is "NO" —
+  even when other nests in the same file are flattenable. Answer "YES" only
+  when every loop nest present is flattenable. Your explanation should name
+  the nest that fails and the rule it violates.
+
+  End your response with a JSON object of the form:
+  {"verdict": "YES"|"NO", "explanation": "<your reasoning>"}
+
+requirements:
+  vivado: false              # No Vivado invocation — static code review only
+  vitis: false               # No run/verify step — static code review only
+  hardware: null
+  min_memory_gb: 2
+  min_disk_gb: 1
+  estimated_duration_minutes: 2
+  # Domain + shape + skill name, read from queries-manifest category field:
+  tags: [hls, static-review, hls-flattenable]
+
+cleanup:
+  # Release everything this case leaves behind after grading:
+  - working_dir          # wipe the per-test workspace directory
+  - workspace_processes  # reap any leftover child process (vivado tcl,
+                         # opencode serve, proxy-mode MCP worker) still
+                         # holding the workspace open

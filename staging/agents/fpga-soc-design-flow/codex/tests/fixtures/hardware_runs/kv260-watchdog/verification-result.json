@@ -1,0 +1,643 @@
+{
+  "schema_version": 1,
+  "request_id": "kv260-watchdog-ipcfg-v01-20260730",
+  "spec_revision": 1,
+  "architecture_revision": 1,
+  "source_revision": 2,
+  "revision": 2,
+  "status": "PASS",
+  "backends": [
+    "cocotb-verilator",
+    "vivado-static-instrumentation-review"
+  ],
+  "tool_versions": [
+    {
+      "name": "Verilator",
+      "version": "5.050 2026-07-01"
+    },
+    {
+      "name": "cocotb",
+      "version": "2.0.1"
+    },
+    {
+      "name": "Python",
+      "version": "3.12.4"
+    },
+    {
+      "name": "Vivado",
+      "version": "2025.2"
+    }
+  ],
+  "tests": [
+    {
+      "id": "TEST-SOURCE-CONTRACT",
+      "requirement_ids": [
+        "REQ-RTL-ONLY",
+        "REQ-PUBLIC-INTERFACE"
+      ],
+      "status": "PASS",
+      "command": "python3 verification/hardware-shell/audit_instrumentation.py; sha256sum source-manifest.json design/rtl/kv260_watchdog_irq.sv design/vivado/rtl/kv260_watchdog_hw_test_shell.v",
+      "seed": null,
+      "duration_seconds": 0,
+      "artifacts": [
+        "verification/source-audit.log",
+        "verification/hardware-shell/instrumentation-audit.json"
+      ],
+      "details": "Source-manifest revision 2 matched SHA-256 a05ce3a36ed1e8ec77e86afb54388ff85f062c8447397429dcc80f13b1960a22. The unchanged public DUT matched fb66a2704eebcc751211a456e1713961dc40b32c0618c7cd9f5b2278ea181274 and retained its exact parameter-free seven-port handwritten RTL interface; the separate platform-owned shell matched 16eb745aecd75bc07e7d65ae664c4ad38cb552b1e7f660e8027679ec799ad562."
+    },
+    {
+      "id": "TEST-SUPPLIED-CASE",
+      "requirement_ids": [
+        "REQ-PUBLIC-INTERFACE",
+        "REQ-TIMEOUT",
+        "REQ-COUNTDOWN",
+        "REQ-IRQ",
+        "REQ-STICKY",
+        "REQ-CLEAR",
+        "REQ-REARM",
+        "REQ-RESET"
+      ],
+      "status": "PASS",
+      "command": "python3 scripts/v0_1_runner.py verify --case kv260_watchdog_irq --candidate runs/kv260-watchdog-ipcfg-v01-20260730/design --output runs/kv260-watchdog-ipcfg-v01-20260730/verification/case-regression",
+      "seed": 1785442913,
+      "duration_seconds": 0.0005080699920654297,
+      "artifacts": [
+        "verification/case-regression/results.xml",
+        "verification/case-regression/simulation.log"
+      ],
+      "details": "The untouched evaluation-case cocotb regression passed 1/1 with zero failures, errors, or skips and an explicit cocotb PASS summary."
+    },
+    {
+      "id": "TEST-SYNC-RESET",
+      "requirement_ids": [
+        "REQ-RESET"
+      ],
+      "status": "PASS",
+      "command": "PATH=\"$PWD/.tools/verilator-5.050/bin:$PWD/.venv/bin:$PATH\" make -C runs/kv260-watchdog-ipcfg-v01-20260730/verification/independent SIM_BUILD=sim_build COCOTB_RESULTS_FILE=results.xml",
+      "seed": null,
+      "duration_seconds": 0.00047016143798828125,
+      "artifacts": [
+        "verification/independent/results.xml",
+        "verification/independent/simulation.log"
+      ],
+      "details": "Active-low reset asserted between edges left IRQ/sticky unchanged until the rising edge, then cleared outputs and disarmed despite coincident reload and clear."
+    },
+    {
+      "id": "TEST-EXACT-LATENCY",
+      "requirement_ids": [
+        "REQ-TIMEOUT",
+        "REQ-COUNTDOWN",
+        "REQ-EXPIRY-LATENCY",
+        "REQ-IRQ"
+      ],
+      "status": "PASS",
+      "command": "PATH=\"$PWD/.tools/verilator-5.050/bin:$PWD/.venv/bin:$PATH\" make -C runs/kv260-watchdog-ipcfg-v01-20260730/verification/independent SIM_BUILD=sim_build COCOTB_RESULTS_FILE=results.xml",
+      "seed": null,
+      "duration_seconds": 0.0002219676971435547,
+      "artifacts": [
+        "verification/independent/results.xml",
+        "verification/independent/simulation.log"
+      ],
+      "details": "N=1 and N=2 did not consume a count on the reload edge and first asserted IRQ on exactly the Nth subsequent enabled armed rising edge."
+    },
+    {
+      "id": "TEST-DISABLED-CLEAR",
+      "requirement_ids": [
+        "REQ-COUNTDOWN",
+        "REQ-EXPIRY-LATENCY",
+        "REQ-CLEAR",
+        "REQ-STICKY"
+      ],
+      "status": "PASS",
+      "command": "PATH=\"$PWD/.tools/verilator-5.050/bin:$PWD/.venv/bin:$PATH\" make -C runs/kv260-watchdog-ipcfg-v01-20260730/verification/independent SIM_BUILD=sim_build COCOTB_RESULTS_FILE=results.xml",
+      "seed": null,
+      "duration_seconds": 0.00024580955505371094,
+      "artifacts": [
+        "verification/independent/results.xml",
+        "verification/independent/simulation.log"
+      ],
+      "details": "Seven disabled edges held an armed N=4 interval; sampled clear emitted no IRQ and did not change the countdown or armed state."
+    },
+    {
+      "id": "TEST-IRQ-STICKY-REARM",
+      "requirement_ids": [
+        "REQ-IRQ",
+        "REQ-STICKY",
+        "REQ-CLEAR",
+        "REQ-REARM",
+        "REQ-TIMEOUT"
+      ],
+      "status": "PASS",
+      "command": "PATH=\"$PWD/.tools/verilator-5.050/bin:$PWD/.venv/bin:$PATH\" make -C runs/kv260-watchdog-ipcfg-v01-20260730/verification/independent SIM_BUILD=sim_build COCOTB_RESULTS_FILE=results.xml",
+      "seed": null,
+      "duration_seconds": 0.00023865699768066406,
+      "artifacts": [
+        "verification/independent/results.xml",
+        "verification/independent/simulation.log"
+      ],
+      "details": "IRQ was one cycle, sticky persisted, no retrigger occurred while disarmed, clear removed sticky, and a later N=2 reload produced exactly one new expiry."
+    },
+    {
+      "id": "TEST-MAX-TIMEOUT",
+      "requirement_ids": [
+        "REQ-TIMEOUT",
+        "REQ-COUNTDOWN",
+        "REQ-EXPIRY-LATENCY",
+        "REQ-REARM"
+      ],
+      "status": "PASS",
+      "command": "PATH=\"$PWD/.tools/verilator-5.050/bin:$PWD/.venv/bin:$PATH\" make -C runs/kv260-watchdog-ipcfg-v01-20260730/verification/independent SIM_BUILD=sim_build COCOTB_RESULTS_FILE=results.xml",
+      "seed": null,
+      "duration_seconds": 0.0005719661712646484,
+      "artifacts": [
+        "verification/independent/results.xml",
+        "verification/independent/simulation.log"
+      ],
+      "details": "The maximum 32-bit timeout 0xFFFFFFFF loaded without truncation, produced no premature expiry during 32 enabled plus 8 disabled edges, and was safely replaced by an N=1 rearm."
+    },
+    {
+      "id": "TEST-SEEDED-MODEL",
+      "requirement_ids": [
+        "REQ-TIMEOUT",
+        "REQ-COUNTDOWN",
+        "REQ-EXPIRY-LATENCY",
+        "REQ-IRQ",
+        "REQ-STICKY",
+        "REQ-CLEAR",
+        "REQ-REARM"
+      ],
+      "status": "PASS",
+      "command": "PATH=\"$PWD/.tools/verilator-5.050/bin:$PWD/.venv/bin:$PATH\" make -C runs/kv260-watchdog-ipcfg-v01-20260730/verification/independent SIM_BUILD=sim_build COCOTB_RESULTS_FILE=results.xml",
+      "seed": 2600730,
+      "duration_seconds": 0.01811528205871582,
+      "artifacts": [
+        "verification/independent/results.xml",
+        "verification/independent/simulation.log"
+      ],
+      "details": "An independent 32-bit state model matched all public outputs for 1,000 mixed-control cycles spanning 75 reloads, 28 expiries, 162 disabled armed edges, and timeout values from 1 through 0xFFFFFFFF."
+    },
+    {
+      "id": "TEST-PLATFORM-EVIDENCE",
+      "requirement_ids": [
+        "REQ-TARGET",
+        "REQ-PL-CLOCK",
+        "REQ-AXI-CONTROL",
+        "REQ-PS-IRQ",
+        "REQ-IP-INTEGRATOR"
+      ],
+      "status": "PASS",
+      "command": "Inspect design/vivado/platform-metadata.json, design/evidence/ip-configuration-evidence.json, design/evidence/realized-clock-reset-topology.json, design/vivado/address-map.json, and design/reports/platform/bd-validation.rpt",
+      "seed": null,
+      "duration_seconds": 0,
+      "artifacts": [
+        "design/vivado/platform-metadata.json",
+        "design/evidence/ip-configuration-evidence.json",
+        "design/evidence/realized-clock-reset-topology.json",
+        "design/vivado/address-map.json",
+        "design/reports/platform/bd-validation.rpt",
+        "verification/platform-evidence-review.md"
+      ],
+      "details": "Static Vivado evidence, not functional simulation: Vivado 2025.2 records part xck26-sfvc784-2LV-c and board xilinx.com:kv260_som:part0:1.4; BD validation has zero errors/critical warnings; the requested 100 MHz PL0 clock is realized at 99,999,001 Hz and fans out to all named sinks; 32-bit PS AXI reaches nonoverlapping control/status GPIO windows; and irq_o reaches pl_ps_irq0[0] through a one-input concat with no CDC or pulse stretcher."
+    },
+    {
+      "id": "TEST-CONSTRAINT-PROVENANCE",
+      "requirement_ids": [
+        "REQ-CONSTRAINTS"
+      ],
+      "status": "PASS",
+      "command": "Inspect source-manifest.json revision 2 for constraint/XDC entries and inspect the validated generated board/IP Integrator project",
+      "seed": null,
+      "duration_seconds": 0,
+      "artifacts": [
+        "source-manifest.json",
+        "design/reports/platform/bd-validation.rpt",
+        "verification/platform-evidence-review.md"
+      ],
+      "details": "Static manifest/report inspection, not functional simulation: source-manifest revision 2 contains zero handwritten constraint or XDC entries, and the revision-2 board/IP Integrator project passed block-design validation."
+    },
+    {
+      "id": "TEST-HW-SHELL-SAFE-RESET",
+      "requirement_ids": [
+        "REQ-RESET",
+        "REQ-DELIVERABLES"
+      ],
+      "status": "PASS",
+      "command": "PATH=\"$PWD/.tools/verilator-5.050/bin:$PWD/.venv/bin:$PATH\" make -C runs/kv260-watchdog-ipcfg-v01-20260730/verification/hardware-shell SIM_BUILD=sim_build COCOTB_RESULTS_FILE=results.xml",
+      "seed": 2,
+      "duration_seconds": 0.0008614063262939453,
+      "artifacts": [
+        "verification/hardware-shell/results.xml",
+        "verification/hardware-shell/simulation.log"
+      ],
+      "details": "The safe VIO tuple reset/start/enable=1/0/0 held all shell status outputs at zero. After a successful run, asserting hw_test_reset between edges left status unchanged until the rising edge, then synchronously cleared busy/done/pass/error and held the qualification DUT in reset."
+    },
+    {
+      "id": "TEST-HW-SHELL-START-WITHOUT-ENABLE",
+      "requirement_ids": [
+        "REQ-COUNTDOWN",
+        "REQ-DELIVERABLES"
+      ],
+      "status": "PASS",
+      "command": "PATH=\"$PWD/.tools/verilator-5.050/bin:$PWD/.venv/bin:$PATH\" make -C runs/kv260-watchdog-ipcfg-v01-20260730/verification/hardware-shell SIM_BUILD=sim_build COCOTB_RESULTS_FILE=results.xml",
+      "seed": 2,
+      "duration_seconds": 0.0003018379211425781,
+      "artifacts": [
+        "verification/hardware-shell/results.xml",
+        "verification/hardware-shell/simulation.log"
+      ],
+      "details": "A rising start with enable low was accepted as a bounded command and immediately reported busy=0, done=1, pass=0, error_code=0x0001. Holding start high did not retrigger."
+    },
+    {
+      "id": "TEST-HW-SHELL-BOUNDED-REPLAY",
+      "requirement_ids": [
+        "REQ-TIMEOUT",
+        "REQ-COUNTDOWN",
+        "REQ-EXPIRY-LATENCY",
+        "REQ-IRQ",
+        "REQ-STICKY",
+        "REQ-CLEAR",
+        "REQ-REARM",
+        "REQ-DELIVERABLES"
+      ],
+      "status": "PASS",
+      "command": "PATH=\"$PWD/.tools/verilator-5.050/bin:$PWD/.venv/bin:$PATH\" make -C runs/kv260-watchdog-ipcfg-v01-20260730/verification/hardware-shell SIM_BUILD=sim_build COCOTB_RESULTS_FILE=results.xml",
+      "seed": 2,
+      "duration_seconds": 0.0007002353668212891,
+      "artifacts": [
+        "verification/hardware-shell/results.xml",
+        "verification/hardware-shell/simulation.log",
+        "verification/hardware-shell/instrumentation-audit.json"
+      ],
+      "details": "Two timeout=3 self-test runs produced identical ten-sample status/activity timelines. Each accepted start stayed bounded, showed five activity samples, completed with busy=0, done=1, pass=1, error_code=0x0000, and used the shell's independent checks for no-early-expiry, exact expiry, one-cycle IRQ, sticky set, and sticky clear."
+    },
+    {
+      "id": "TEST-HW-SHELL-ENABLE-DROP",
+      "requirement_ids": [
+        "REQ-COUNTDOWN",
+        "REQ-DELIVERABLES"
+      ],
+      "status": "PASS",
+      "command": "PATH=\"$PWD/.tools/verilator-5.050/bin:$PWD/.venv/bin:$PATH\" make -C runs/kv260-watchdog-ipcfg-v01-20260730/verification/hardware-shell SIM_BUILD=sim_build COCOTB_RESULTS_FILE=results.xml",
+      "seed": 2,
+      "duration_seconds": 0.00031185150146484375,
+      "artifacts": [
+        "verification/hardware-shell/results.xml",
+        "verification/hardware-shell/simulation.log"
+      ],
+      "details": "Dropping hw_test_enable while busy aborted on the next rising edge with busy=0, done=1, pass=0, error_code=0x0002; the terminal error remained stable until reset or a later accepted start."
+    },
+    {
+      "id": "TEST-INSTRUMENTATION-MAP",
+      "requirement_ids": [
+        "REQ-TARGET",
+        "REQ-PL-CLOCK",
+        "REQ-IP-INTEGRATOR",
+        "REQ-DELIVERABLES"
+      ],
+      "status": "PASS",
+      "command": "python3 verification/hardware-shell/audit_instrumentation.py",
+      "seed": null,
+      "duration_seconds": 0,
+      "artifacts": [
+        "hardware-test.json",
+        "debug-map.json",
+        "design/vivado/rtl/kv260_watchdog_hw_test_shell.v",
+        "design/reports/platform/hardware-instrumentation-validation.rpt",
+        "vivado_agentic_ai_reports/bd-vio-insertion/bd_vio_summary.rpt",
+        "vivado_agentic_ai_reports/bd-ila-insertion/bd_debug_summary.rpt",
+        "verification/hardware-shell/instrumentation-audit.json"
+      ],
+      "details": "The logical plan, debug map, generated BD netlist, Tcl, VIO XCI, and ILA XCI agree: VIO has status widths 1/1/1/16 and control widths 1/1/1 with safe values 1/0/0; native ILA has depth 1024 and probe widths 1/1/1/1/16; all share the PS-derived PL clock. The portable functional trigger is a rising accepted-start on probe0 at position 128. No target discovery, ILA capture, programming, VIO drive, or physical hardware validation was performed."
+    }
+  ],
+  "requirement_coverage": [
+    {
+      "requirement_id": "REQ-RTL-ONLY",
+      "test_ids": [
+        "TEST-SOURCE-CONTRACT"
+      ],
+      "status": "COVERED"
+    },
+    {
+      "requirement_id": "REQ-PUBLIC-INTERFACE",
+      "test_ids": [
+        "TEST-SOURCE-CONTRACT",
+        "TEST-SUPPLIED-CASE"
+      ],
+      "status": "COVERED"
+    },
+    {
+      "requirement_id": "REQ-TIMEOUT",
+      "test_ids": [
+        "TEST-SUPPLIED-CASE",
+        "TEST-EXACT-LATENCY",
+        "TEST-IRQ-STICKY-REARM",
+        "TEST-MAX-TIMEOUT",
+        "TEST-SEEDED-MODEL",
+        "TEST-HW-SHELL-BOUNDED-REPLAY"
+      ],
+      "status": "COVERED"
+    },
+    {
+      "requirement_id": "REQ-COUNTDOWN",
+      "test_ids": [
+        "TEST-SUPPLIED-CASE",
+        "TEST-EXACT-LATENCY",
+        "TEST-DISABLED-CLEAR",
+        "TEST-MAX-TIMEOUT",
+        "TEST-SEEDED-MODEL",
+        "TEST-HW-SHELL-START-WITHOUT-ENABLE",
+        "TEST-HW-SHELL-BOUNDED-REPLAY",
+        "TEST-HW-SHELL-ENABLE-DROP"
+      ],
+      "status": "COVERED"
+    },
+    {
+      "requirement_id": "REQ-EXPIRY-LATENCY",
+      "test_ids": [
+        "TEST-EXACT-LATENCY",
+        "TEST-DISABLED-CLEAR",
+        "TEST-MAX-TIMEOUT",
+        "TEST-SEEDED-MODEL",
+        "TEST-HW-SHELL-BOUNDED-REPLAY"
+      ],
+      "status": "COVERED"
+    },
+    {
+      "requirement_id": "REQ-IRQ",
+      "test_ids": [
+        "TEST-SUPPLIED-CASE",
+        "TEST-EXACT-LATENCY",
+        "TEST-IRQ-STICKY-REARM",
+        "TEST-SEEDED-MODEL",
+        "TEST-HW-SHELL-BOUNDED-REPLAY"
+      ],
+      "status": "COVERED"
+    },
+    {
+      "requirement_id": "REQ-STICKY",
+      "test_ids": [
+        "TEST-SUPPLIED-CASE",
+        "TEST-DISABLED-CLEAR",
+        "TEST-IRQ-STICKY-REARM",
+        "TEST-SEEDED-MODEL",
+        "TEST-HW-SHELL-BOUNDED-REPLAY"
+      ],
+      "status": "COVERED"
+    },
+    {
+      "requirement_id": "REQ-CLEAR",
+      "test_ids": [
+        "TEST-SUPPLIED-CASE",
+        "TEST-DISABLED-CLEAR",
+        "TEST-IRQ-STICKY-REARM",
+        "TEST-SEEDED-MODEL",
+        "TEST-HW-SHELL-BOUNDED-REPLAY"
+      ],
+      "status": "COVERED"
+    },
+    {
+      "requirement_id": "REQ-REARM",
+      "test_ids": [
+        "TEST-SUPPLIED-CASE",
+        "TEST-IRQ-STICKY-REARM",
+        "TEST-MAX-TIMEOUT",
+        "TEST-SEEDED-MODEL",
+        "TEST-HW-SHELL-BOUNDED-REPLAY"
+      ],
+      "status": "COVERED"
+    },
+    {
+      "requirement_id": "REQ-RESET",
+      "test_ids": [
+        "TEST-SUPPLIED-CASE",
+        "TEST-SYNC-RESET",
+        "TEST-HW-SHELL-SAFE-RESET"
+      ],
+      "status": "COVERED"
+    },
+    {
+      "requirement_id": "REQ-TARGET",
+      "test_ids": [
+        "TEST-PLATFORM-EVIDENCE",
+        "TEST-INSTRUMENTATION-MAP"
+      ],
+      "status": "COVERED"
+    },
+    {
+      "requirement_id": "REQ-PL-CLOCK",
+      "test_ids": [
+        "TEST-PLATFORM-EVIDENCE",
+        "TEST-INSTRUMENTATION-MAP"
+      ],
+      "status": "COVERED"
+    },
+    {
+      "requirement_id": "REQ-AXI-CONTROL",
+      "test_ids": [
+        "TEST-PLATFORM-EVIDENCE"
+      ],
+      "status": "COVERED"
+    },
+    {
+      "requirement_id": "REQ-PS-IRQ",
+      "test_ids": [
+        "TEST-PLATFORM-EVIDENCE"
+      ],
+      "status": "COVERED"
+    },
+    {
+      "requirement_id": "REQ-IP-INTEGRATOR",
+      "test_ids": [
+        "TEST-PLATFORM-EVIDENCE",
+        "TEST-INSTRUMENTATION-MAP"
+      ],
+      "status": "COVERED"
+    },
+    {
+      "requirement_id": "REQ-CONSTRAINTS",
+      "test_ids": [
+        "TEST-CONSTRAINT-PROVENANCE"
+      ],
+      "status": "COVERED"
+    },
+    {
+      "requirement_id": "REQ-DELIVERABLES",
+      "test_ids": [
+        "TEST-HW-SHELL-SAFE-RESET",
+        "TEST-HW-SHELL-START-WITHOUT-ENABLE",
+        "TEST-HW-SHELL-BOUNDED-REPLAY",
+        "TEST-HW-SHELL-ENABLE-DROP",
+        "TEST-INSTRUMENTATION-MAP"
+      ],
+      "status": "COVERED"
+    }
+  ],
+  "checks": [
+    {
+      "id": "CHECK-SOURCE-INTEGRITY",
+      "kind": "other",
+      "status": "PASS",
+      "details": "Source-manifest revision 2 matched SHA-256 a05ce3a36ed1e8ec77e86afb54388ff85f062c8447397429dcc80f13b1960a22. The unchanged public DUT and added shell matched their manifest hashes before and after regression; no design source was modified."
+    },
+    {
+      "id": "CHECK-COMPILE-ELABORATE",
+      "kind": "elaboration",
+      "status": "PASS",
+      "details": "Verilator 5.050 compiled and elaborated the unchanged kv260_watchdog_irq for the supplied and independent tiers and compiled the shell plus its qualification DUT for the hardware-shell tier; all simulator processes exited 0."
+    },
+    {
+      "id": "CHECK-SUPPLIED-SIMULATION",
+      "kind": "simulation",
+      "status": "PASS",
+      "details": "The prescribed v0_1_runner verify command returned 0; JUnit reports 1 test, 1 pass, 0 failures, 0 errors, and 0 skips."
+    },
+    {
+      "id": "CHECK-INDEPENDENT-SIMULATION",
+      "kind": "simulation",
+      "status": "PASS",
+      "details": "The independent suite emitted an explicit TESTS=6 PASS=6 FAIL=0 SKIP=0 terminal summary with zero checker mismatches or timeouts."
+    },
+    {
+      "id": "CHECK-HARDWARE-SHELL-SIMULATION",
+      "kind": "simulation",
+      "status": "PASS",
+      "details": "The shell suite emitted TESTS=4 PASS=4 FAIL=0 SKIP=0. It checked safe reset/cleanup, start-without-enable error 0x0001, two identical successful bounded timelines ending done/pass/error=1/1/0x0000, and enable-drop abort error 0x0002."
+    },
+    {
+      "id": "CHECK-RESET",
+      "kind": "reset",
+      "status": "PASS",
+      "details": "Synchronous active-low behavior, between-edge stability, reset priority, output clearing, and disarming were directly observed."
+    },
+    {
+      "id": "CHECK-FUNCTIONAL-COVERAGE",
+      "kind": "coverage",
+      "status": "PASS",
+      "details": "The requirement-to-test matrix was reviewed: all ten public-watchdog RTL requirements retain directed or model-based coverage, and the hardware shell adds reset, accepted-start, bounded success, deterministic replay, pass/error, and abort coverage. RTL code coverage was not collected and was not an acceptance requirement."
+    },
+    {
+      "id": "CHECK-PLATFORM-EVIDENCE",
+      "kind": "other",
+      "status": "PASS",
+      "details": "Revision-2 Vivado 2025.2 metadata, replayed topology, address-map, IP-configuration, generated BD connectivity, and zero-error BD-validation artifacts cover target, clock/reset, AXI control, PS IRQ, IP Integrator, and debug-clock connectivity. These are explicitly classified as static platform evidence, not cocotb simulation."
+    },
+    {
+      "id": "CHECK-CONSTRAINT-PROVENANCE",
+      "kind": "other",
+      "status": "PASS",
+      "details": "Aggregate source-manifest revision 2 contains no handwritten XDC or constraint entry; the generated board/IP Integrator project passed revision-2 design validation."
+    },
+    {
+      "id": "CHECK-INSTRUMENTATION-CONTRACT",
+      "kind": "other",
+      "status": "PASS",
+      "details": "hardware-test.json, debug-map.json, generated BD connectivity, Tcl, VIO XCI, and ILA XCI agree on VIO controls/status, widths, safe values, native ILA depth 1024, probe widths 1/1/1/1/16, and accepted-start trigger intent at position 128. Fresh revision-2 synthesis, implementation, bitstream, and LTX remain downstream obligations; no physical hardware validation is claimed."
+    }
+  ],
+  "coverage_reviewed": true,
+  "unverified_boundaries": [],
+  "artifacts": [
+    {
+      "kind": "supplied-junit",
+      "path": "verification/case-regression/results.xml",
+      "exists": true
+    },
+    {
+      "kind": "supplied-log",
+      "path": "verification/case-regression/simulation.log",
+      "exists": true
+    },
+    {
+      "kind": "independent-junit",
+      "path": "verification/independent/results.xml",
+      "exists": true
+    },
+    {
+      "kind": "independent-log",
+      "path": "verification/independent/simulation.log",
+      "exists": true
+    },
+    {
+      "kind": "independent-testbench",
+      "path": "verification/independent/test_watchdog_independent.py",
+      "exists": true
+    },
+    {
+      "kind": "verification-matrix",
+      "path": "verification/verification-matrix.md",
+      "exists": true
+    },
+    {
+      "kind": "source-audit",
+      "path": "verification/source-audit.log",
+      "exists": true
+    },
+    {
+      "kind": "evidence-summary",
+      "path": "verification/evidence-summary.md",
+      "exists": true
+    },
+    {
+      "kind": "platform-evidence-review",
+      "path": "verification/platform-evidence-review.md",
+      "exists": true
+    },
+    {
+      "kind": "platform-metadata",
+      "path": "design/vivado/platform-metadata.json",
+      "exists": true
+    },
+    {
+      "kind": "clock-reset-topology",
+      "path": "design/evidence/realized-clock-reset-topology.json",
+      "exists": true
+    },
+    {
+      "kind": "address-map",
+      "path": "design/vivado/address-map.json",
+      "exists": true
+    },
+    {
+      "kind": "bd-validation",
+      "path": "design/reports/platform/bd-validation.rpt",
+      "exists": true
+    },
+    {
+      "kind": "hardware-shell-junit",
+      "path": "verification/hardware-shell/results.xml",
+      "exists": true
+    },
+    {
+      "kind": "hardware-shell-log",
+      "path": "verification/hardware-shell/simulation.log",
+      "exists": true
+    },
+    {
+      "kind": "hardware-shell-testbench",
+      "path": "verification/hardware-shell/test_watchdog_hw_shell.py",
+      "exists": true
+    },
+    {
+      "kind": "instrumentation-audit",
+      "path": "verification/hardware-shell/instrumentation-audit.json",
+      "exists": true
+    },
+    {
+      "kind": "hardware-test-plan",
+      "path": "hardware-test.json",
+      "exists": true
+    },
+    {
+      "kind": "debug-map",
+      "path": "debug-map.json",
+      "exists": true
+    },
+    {
+      "kind": "hardware-instrumentation-validation",
+      "path": "design/reports/platform/hardware-instrumentation-validation.rpt",
+      "exists": true
+    }
+  ],
+  "feedback": null
+}

@@ -1,0 +1,19 @@
+{
+  "title": "Vivado AI Assistant — Examples Archive (v0.6.8)",
+  "subtitle": "Example designs for vivado-ai-assistant-examples-0.6.8.zip — Vivado 2025.2",
+  "tab_name": "Vivado",
+  "kicker": "Early Access — Legacy Examples (v0.6.8)",
+  "output": "deploy/pdf/output/Vivado-AI-Assistant-Examples-v0.6.8-Guide.pdf",
+  "macros": {"mcp_version": "0.6.8"},
+  "sources": [
+    "deploy/pdf/sources/vivado-legacy-overview.md",
+    "docs/staging/vivado-legacy/getting-started.md",
+    "docs/staging/vivado-legacy/design-creation.md",
+    "docs/staging/vivado-legacy/rtl-lint.md",
+    "docs/staging/vivado-legacy/multi-run-analysis.md",
+    "docs/staging/vivado-legacy/opt-design-analysis.md",
+    "docs/staging/vivado-legacy/timing-closure.md",
+    "docs/staging/vivado-legacy/axi4-debug-simulation.md",
+    "docs/staging/vivado-legacy/ila-insertion-flow.md"
+  ]
+}

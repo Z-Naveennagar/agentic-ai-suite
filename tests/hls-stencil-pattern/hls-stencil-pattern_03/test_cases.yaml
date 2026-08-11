@@ -1,0 +1,99 @@
+# ── Suite: hls-stencil-pattern_03 ───────────────
+# Two cases testing whether stencil pattern optimization can be applied
+# when the output loop trip count is non-constant (`var`). Case 01 is pure
+# static analysis; case 02 adds a fix plus a csynth verification run.
+#
+# Sourced from: inputs/README.md.
+#
+# Placeholders substituted into any prompt:
+#   {input_file}  -> the first entry of a case's input_files
+# {skill_name} / {flow_skill} are internal bookkeeping only (used in
+# expected.skills and in SKILL.md lookups) — they never appear inside
+# a prompt's literal text. No test case, of any shape, ever names a
+# skill in its customer-facing prompt.
+#
+# Per-case fields:
+#   id           unique case id
+#   input_files  files staged into the workspace from ./inputs
+#   prompt       the case's instruction — analysis-only one-liner or fuller
+#                fix+verify workflow, always skill-agnostic, informed by
+#                reading the relevant SKILL.md. The mandated
+#                {"verdict", "explanation"} JSON contract is NOT repeated per
+#                case: it's appended once via runner_spec.yaml's
+#                `output_contract:` (shared_prompt_prefix + output_contract +
+#                this prompt, per core/case_loader.py).
+#   expected     values substituted into grader_spec {tokens}:
+#                  expected_output    -> golden {verdict, explanation} dict,
+#                                        graded whole by output_contract_match:
+#                                        verdict is literal/tolerant-compared
+#                                        (YES/NO, no partial credit), explanation
+#                                        is LLM-judged for substance via
+#                                        grader_spec's semantic_fields intent
+#                  skills             -> every skill this case is expected to invoke
+#                                        (bookkeeping — never shown in the prompt)
+#                  tool_sequence      -> always present: expected tool calls in order
+#                                        (bare tool name, "bash: <command>", or a
+#                                        tool name looked up from that skill's own
+#                                        SKILL.md)
+#                  log_path/substring -> only for cases with a run/verify step.
+#                                        This suite's prompt names an explicit
+#                                        `--work_dir outputs/fix_verify` and
+#                                        redirects stdout+stderr to run.log, so
+#                                        the golden log path does not depend on
+#                                        hls-run-flow inferring a work_dir from
+#                                        hls_config.cfg's syn.top.
+#                  tool_call_observed -> only for cases with a run/verify step
+
+suite_id: hls-stencil-pattern_03
+description: >
+  Two prompts evaluating whether stencil pattern optimization can be
+  applied when the output loop uses a non-constant trip count (`var`).
+  Prompt 1 is analysis-only; prompt 2 adds a conditional fix and csynth
+  verification. The gating check is the output-loop rule: output loops must
+  have a compile-time-constant trip count.
+
+test_cases:
+  - id: hls-stencil-pattern_03_01
+    input_files: [hls-stencil-pattern_03.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can a stencil pattern optimization be
+      applied to this code? Give a static analysis without running HLS.
+      Explain your answer.
+    expected:
+      skills: [hls-stencil-pattern]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: >
+          Cannot be applied — the output loop `for (r=0; r < var; r++)` does
+          not have a constant trip count because `var` is passed as a function
+          argument and is not a compile-time constant, failing the rule that
+          output loops must have a constant trip count.
+
+  - id: hls-stencil-pattern_03_02
+    input_files: [hls-stencil-pattern_03.cpp, hls_config.cfg, vitis-comp.json]
+    prompt: |-
+      Analyze `{input_file}`: can a stencil pattern optimization be
+      applied to this code? If yes, do nothing; if no, fix it and put the
+      fixed copy at `outputs/fix_verify/{input_file}`. Then verify by running
+      C synthesis: run `v++ --compile --mode hls --config hls_config.cfg
+      --work_dir outputs/fix_verify` and redirect stdout+stderr to
+      `outputs/fix_verify/run.log`. The grader reads files from your CWD only.
+      Any other artifacts created should be stored under `outputs/fix_verify/`.
+    expected:
+      skills: [hls-stencil-pattern, hls-run-flow]
+      tool_sequence:
+        - "Read"
+        - "bash: v++ --compile --mode hls --config hls_config.cfg --work_dir outputs/fix_verify"
+      expected_output:
+        verdict: "NO"
+        explanation: >
+          Cannot be applied as-is — the output loop
+          `for (r=0; r < var; r++)` does not have a constant trip count
+          because `var` is a function argument rather than a compile-time
+          constant. The fix replaces `var` with a compile-time constant so the
+          trip count becomes constant, after which csynth reports the
+          array_stencil optimization being applied to variable 'O'.
+      log_path: "outputs/fix_verify/run.log"
+      log_substring: "INFO: [HLS 214-330] Applying 3x3 array stencil optimization to variable 'O'"
+      tool_call_observed: "bash: v++ --compile --mode hls --config hls_config.cfg --work_dir outputs/fix_verify"

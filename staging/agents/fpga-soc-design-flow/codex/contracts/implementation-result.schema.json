@@ -1,0 +1,222 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "implementation-result.schema.json",
+  "title": "Implementation Result v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "request_id",
+    "spec_revision",
+    "architecture_revision",
+    "source_revision",
+    "verification_revision",
+    "revision",
+    "status",
+    "vivado",
+    "diagnostics",
+    "runs",
+    "metrics",
+    "checks",
+    "findings",
+    "artifacts",
+    "feedback"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "request_id": {"type": "string", "minLength": 1},
+    "spec_revision": {"type": "integer", "minimum": 1},
+    "architecture_revision": {"type": "integer", "minimum": 1},
+    "source_revision": {"type": "integer", "minimum": 1},
+    "verification_revision": {"type": "integer", "minimum": 1},
+    "revision": {"type": "integer", "minimum": 1},
+    "status": {"enum": ["PASS", "FAIL", "ERROR", "BLOCKED"]},
+    "vivado": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "part", "session_id", "session_owner", "session_closed", "session_close_result"],
+      "properties": {
+        "version": {"type": "string", "minLength": 1},
+        "part": {"type": "string", "minLength": 1},
+        "board": {"type": ["string", "null"], "minLength": 1},
+        "session_id": {"type": "string", "minLength": 1},
+        "session_owner": {"const": "vivado_impl_closure"},
+        "session_closed": {"type": "boolean"},
+        "session_close_result": {"enum": ["PASS", "FAIL", "HANDED_BACK"]}
+      }
+    },
+    "diagnostics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authoritative_logs", "exploratory_logs", "occurrences", "classified_occurrences", "unclassified_message_ids"],
+      "properties": {
+        "authoritative_logs": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "uniqueItems": true},
+        "exploratory_logs": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "occurrences": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["error", "critical_warning", "warning"],
+          "properties": {
+            "error": {"type": "integer", "minimum": 0},
+            "critical_warning": {"type": "integer", "minimum": 0},
+            "warning": {"type": "integer", "minimum": 0}
+          }
+        },
+        "classified_occurrences": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["error", "critical_warning", "warning"],
+          "properties": {
+            "error": {"type": "integer", "minimum": 0},
+            "critical_warning": {"type": "integer", "minimum": 0},
+            "warning": {"type": "integer", "minimum": 0}
+          }
+        },
+        "unclassified_message_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+      }
+    },
+    "runs": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "status", "strategy", "started", "completed", "log"],
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "status": {"enum": ["PASS", "FAIL", "ERROR", "NOT_RUN"]},
+          "strategy": {"type": "string", "minLength": 1},
+          "started": {"type": "boolean"},
+          "completed": {"type": "boolean"},
+          "log": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["wns_ns", "whs_ns", "tns_ns", "lut", "ff", "bram", "uram", "dsp", "power_w"],
+      "properties": {
+        "wns_ns": {"type": ["number", "null"]},
+        "whs_ns": {"type": ["number", "null"]},
+        "tns_ns": {"type": ["number", "null"]},
+        "lut": {"type": ["integer", "null"], "minimum": 0},
+        "ff": {"type": ["integer", "null"], "minimum": 0},
+        "bram": {"type": ["number", "null"], "minimum": 0},
+        "uram": {"type": ["integer", "null"], "minimum": 0},
+        "dsp": {"type": ["integer", "null"], "minimum": 0},
+        "power_w": {"type": ["number", "null"], "minimum": 0}
+      }
+    },
+    "checks": {"type": "array", "items": {"$ref": "#/$defs/check"}, "minItems": 1},
+    "findings": {"type": "array", "items": {"$ref": "#/$defs/finding"}},
+    "artifacts": {"type": "array", "items": {"$ref": "#/$defs/artifact"}, "minItems": 1},
+    "feedback": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/feedback"}]}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "PASS"}}, "required": ["status"]},
+      "then": {
+        "properties": {
+          "runs": {
+            "items": {
+              "properties": {
+                "status": {"const": "PASS"},
+                "started": {"const": true},
+                "completed": {"const": true}
+              },
+              "required": ["status", "started", "completed"]
+            }
+          },
+          "vivado": {
+            "properties": {
+              "session_closed": {"const": true},
+              "session_close_result": {"enum": ["PASS", "HANDED_BACK"]}
+            },
+            "required": ["session_closed", "session_close_result"]
+          },
+          "metrics": {
+            "properties": {
+              "wns_ns": {"type": "number", "minimum": 0},
+              "whs_ns": {"type": "number", "minimum": 0},
+              "tns_ns": {"type": "number", "minimum": 0}
+            }
+          },
+          "checks": {
+            "items": {
+              "properties": {"status": {"const": "PASS"}},
+              "required": ["status"]
+            }
+          },
+          "findings": {
+            "not": {
+              "contains": {
+                "properties": {"severity": {"const": "critical"}},
+                "required": ["severity"]
+              }
+            }
+          },
+          "artifacts": {
+            "contains": {
+              "properties": {
+                "kind": {"enum": ["bitstream", "pdi"]},
+                "exists": {"const": true}
+              },
+              "required": ["kind", "exists"]
+            },
+            "minContains": 1
+          },
+          "feedback": {"type": "null"}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "status", "report"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["synthesis", "implementation", "timing", "drc", "methodology", "utilization", "congestion", "power", "artifact"]},
+        "status": {"enum": ["PASS", "FAIL", "SKIP", "ERROR"]},
+        "report": {"type": "string", "minLength": 1}
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["severity", "class", "message", "evidence"],
+      "properties": {
+        "severity": {"enum": ["info", "warning", "critical"]},
+        "class": {"type": "string", "minLength": 1},
+        "message": {"type": "string", "minLength": 1},
+        "evidence": {"type": "array", "items": {"type": "string"}, "minItems": 1}
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "path", "exists", "sha256"],
+      "properties": {
+        "kind": {"enum": ["checkpoint", "report", "bitstream", "pdi", "xsa", "ltx", "debug-map", "log", "other"]},
+        "path": {"type": "string", "minLength": 1},
+        "exists": {"type": "boolean"},
+        "sha256": {"type": ["string", "null"], "pattern": "^[a-fA-F0-9]{64}$"}
+      }
+    },
+    "feedback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner", "failure_class", "architecture_element", "requirement_ids", "evidence", "requested_action"],
+      "properties": {
+        "owner": {"type": "string", "minLength": 1},
+        "failure_class": {"type": "string", "minLength": 1},
+        "architecture_element": {"type": ["string", "null"]},
+        "requirement_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "evidence": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        "requested_action": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

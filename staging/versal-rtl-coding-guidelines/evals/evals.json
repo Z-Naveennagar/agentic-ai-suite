@@ -1,0 +1,96 @@
+{
+  "skill": "versal-rtl-coding-guidelines",
+  "notes": "Portable forward-test cases. Generate complete artifacts, run them with the available Vivado and simulation tools, preserve raw reports, and grade only documented objective checks. Do not use transcript wording, tool-brand behavior, or comparison with a deliberately weak baseline as evidence.",
+  "target_part": "xcvc1902-vsva2197-2MP-e-S",
+  "evals": [
+    {
+      "eval_id": 0,
+      "eval_name": "cdc-single-bit-level",
+      "prompt": "Write SystemVerilog to pass a single-bit level from a 100 MHz domain to a 250 MHz domain on Versal, with companion constraints.",
+      "expectations": [
+        "Complete compilable two-stage destination synchronizer with ASYNC_REG",
+        "No unrelated load from the first synchronizer stage",
+        "Constraint choice justified as point-to-point false path or max-delay according to latency intent",
+        "report_cdc, report_exceptions -coverage, and report_methodology reviewed"
+      ]
+    },
+    {
+      "eval_id": 1,
+      "eval_name": "memory-inference-reset-latency",
+      "prompt": "Create a 4Kx72 simple dual-port Versal memory for high Fmax, with defined read-during-write and reset behavior.",
+      "expectations": [
+        "Synchronous supported memory template with explicit collision behavior",
+        "Memory array is not reset",
+        "Output/address reset behavior is compatible with the selected template",
+        "Observed BRAM/URAM subtype and latency match the specification",
+        "Functional collision and reset tests pass"
+      ]
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "safe-fsm",
+      "prompt": "Write a four-state Versal control FSM that must recover from an illegal state.",
+      "expectations": [
+        "Complete latch-free FSM with defined reset and default transition",
+        "FSM_SAFE_STATE applied with a value matching the recovery requirement",
+        "Vivado recognizes the FSM and preserves the requested safe-state behavior",
+        "Illegal-state injection or formal recovery check passes"
+      ]
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "axi-lite-independent-write-channels",
+      "prompt": "Write a one-outstanding AXI4-Lite slave register block for Versal.",
+      "expectations": [
+        "AW and W channels are captured independently",
+        "AW-before-W, W-before-AW, and simultaneous arrival tests pass",
+        "Response payload remains stable during backpressure",
+        "AXI protocol checker passes"
+      ]
+    },
+    {
+      "eval_id": 4,
+      "eval_name": "xpm-cdc-constraint-precedence",
+      "prompt": "Instantiate an XPM asynchronous FIFO between unrelated clocks and provide its timing constraints.",
+      "expectations": [
+        "Complete installed-release XPM instance and simulation model",
+        "XPM scoped constraints are preserved",
+        "No blanket set_clock_groups overrides XPM max-delay constraints",
+        "Exception coverage, CDC, reset, overflow, and underflow checks pass"
+      ]
+    },
+    {
+      "eval_id": 5,
+      "eval_name": "dsp-pattern-detect",
+      "prompt": "Implement a DSP58 accumulator that requires the hardware pattern detector.",
+      "expectations": [
+        "Uses a documented language template or explicit DSP58 configuration",
+        "Pattern, mask, USE_PATTERN_DETECT, register settings, and latency are verified",
+        "No unintended fabric comparator implements the required detection",
+        "Arithmetic and pattern-detect simulation passes"
+      ]
+    },
+    {
+      "eval_id": 6,
+      "eval_name": "tmr-fault-injection",
+      "prompt": "Implement a TMR status function for a Versal safety design and show verification evidence.",
+      "expectations": [
+        "Three distinct logic cones and the intended voter topology survive synthesis",
+        "Preservation attributes are limited and justified",
+        "Physical separation and common-mode risks are reviewed",
+        "Fault injection demonstrates required detection or recovery"
+      ]
+    },
+    {
+      "eval_id": 7,
+      "eval_name": "stream-backpressure",
+      "prompt": "Build a two-entry AXI4-Stream elastic buffer with registered forward and reverse paths.",
+      "expectations": [
+        "Implementation contains the claimed two storage entries",
+        "VALID and payload remain stable while stalled",
+        "Randomized backpressure shows no loss, duplication, reordering, or unintended bubble",
+        "AXI protocol checker passes"
+      ]
+    }
+  ]
+}

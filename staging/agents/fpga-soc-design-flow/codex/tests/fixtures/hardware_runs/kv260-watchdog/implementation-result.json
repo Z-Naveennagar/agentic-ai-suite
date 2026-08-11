@@ -1,0 +1,325 @@
+{
+  "schema_version": 1,
+  "request_id": "kv260-watchdog-ipcfg-v01-20260730",
+  "spec_revision": 1,
+  "architecture_revision": 1,
+  "source_revision": 2,
+  "verification_revision": 2,
+  "revision": 2,
+  "status": "PASS",
+  "vivado": {
+    "version": "2025.2",
+    "part": "xck26-sfvc784-2LV-c",
+    "board": "xilinx.com:kv260_som:part0:1.4",
+    "session_id": "vivado-20260730-142017",
+    "session_owner": "vivado_impl_closure",
+    "session_closed": true,
+    "session_close_result": "PASS"
+  },
+  "runs": [
+    {
+      "name": "synth_1",
+      "status": "PASS",
+      "strategy": "Vivado Synthesis Defaults",
+      "started": true,
+      "completed": true,
+      "log": "vivado/logs/synth_1_rev2.log"
+    },
+    {
+      "name": "impl_1",
+      "status": "PASS",
+      "strategy": "Vivado Implementation Defaults",
+      "started": true,
+      "completed": true,
+      "log": "vivado/logs/impl_1_rev2.log"
+    }
+  ],
+  "metrics": {
+    "wns_ns": 5.955,
+    "whs_ns": 0.015,
+    "tns_ns": 0.0,
+    "lut": 2356,
+    "ff": 3526,
+    "bram": 1,
+    "uram": 0,
+    "dsp": 0,
+    "power_w": 2.73
+  },
+  "checks": [
+    {
+      "id": "CHECK-SYNTHESIS",
+      "kind": "synthesis",
+      "status": "PASS",
+      "report": "vivado/reports/synthesis-utilization.rpt"
+    },
+    {
+      "id": "CHECK-IMPLEMENTATION",
+      "kind": "implementation",
+      "status": "PASS",
+      "report": "vivado/reports/implementation-summary.rpt"
+    },
+    {
+      "id": "CHECK-TIMING",
+      "kind": "timing",
+      "status": "PASS",
+      "report": "vivado/reports/post-route-timing-summary.rpt"
+    },
+    {
+      "id": "CHECK-CONSTRAINTS",
+      "kind": "timing",
+      "status": "PASS",
+      "report": "vivado/reports/post-route-check-timing.rpt"
+    },
+    {
+      "id": "CHECK-BUS-SKEW",
+      "kind": "timing",
+      "status": "PASS",
+      "report": "vivado/reports/post-route-bus-skew.rpt"
+    },
+    {
+      "id": "CHECK-DRC",
+      "kind": "drc",
+      "status": "PASS",
+      "report": "vivado/reports/post-route-drc.rpt"
+    },
+    {
+      "id": "CHECK-METHODOLOGY",
+      "kind": "methodology",
+      "status": "PASS",
+      "report": "vivado/reports/post-route-methodology.rpt"
+    },
+    {
+      "id": "CHECK-CDC",
+      "kind": "methodology",
+      "status": "PASS",
+      "report": "vivado/reports/post-route-cdc.rpt"
+    },
+    {
+      "id": "CHECK-UTILIZATION",
+      "kind": "utilization",
+      "status": "PASS",
+      "report": "vivado/reports/post-route-utilization.rpt"
+    },
+    {
+      "id": "CHECK-CONGESTION",
+      "kind": "congestion",
+      "status": "PASS",
+      "report": "vivado/reports/post-route-congestion.rpt"
+    },
+    {
+      "id": "CHECK-POWER",
+      "kind": "power",
+      "status": "PASS",
+      "report": "vivado/reports/post-route-power.rpt"
+    },
+    {
+      "id": "CHECK-HARDWARE-DEBUG",
+      "kind": "artifact",
+      "status": "PASS",
+      "report": "vivado/reports/hardware-debug-validation.rpt"
+    },
+    {
+      "id": "CHECK-ARTIFACTS",
+      "kind": "artifact",
+      "status": "PASS",
+      "report": "vivado/reports/artifact-validation.rpt"
+    }
+  ],
+  "findings": [
+    {
+      "severity": "warning",
+      "class": "generated_debug_methodology",
+      "message": "Post-route methodology reports five LUTAR-1 and two XDCB-5 warnings confined to generated debug-hub/ILA logic. There are zero methodology errors or critical warnings and each finding reports no related violation.",
+      "evidence": [
+        "vivado/reports/post-route-methodology.rpt",
+        "vivado/reports/implementation-summary.rpt"
+      ]
+    },
+    {
+      "severity": "warning",
+      "class": "generated_ip_drc",
+      "message": "Post-route DRC reports three PDCN-1569 warnings on generated debug-hub LUTs and one RTSTAT-10 warning on generated debug-hub/SmartConnect no-load nets. There are zero DRC errors or critical warnings, no related violations, and all routable nets are fully routed.",
+      "evidence": [
+        "vivado/reports/post-route-drc.rpt",
+        "vivado/reports/post-route-status.rpt",
+        "vivado/logs/impl_1_rev2.log"
+      ]
+    },
+    {
+      "severity": "warning",
+      "class": "generated_debug_cdc",
+      "message": "CDC analysis recognizes nine CDC-3 synchronizers and two CDC-9 reset synchronizers; four CDC-15 warnings are confined to generated debug-hub FIFO RAM paths carrying false-path exceptions. The functional watchdog and self-test logic use the single clk_pl_0 domain.",
+      "evidence": [
+        "vivado/reports/post-route-cdc.rpt",
+        "vivado/reports/post-route-bus-skew.rpt"
+      ]
+    },
+    {
+      "severity": "warning",
+      "class": "bitstream_tool_diagnostic",
+      "message": "The implementation subprocess emits three WARNING::74 messages for the fully qualified XCK26 device name before bit generation; the bitstream precondition DRC has zero errors and write_bitstream reports Bitgen Completed Successfully with zero critical warnings or errors.",
+      "evidence": [
+        "vivado/logs/impl_1_rev2.log",
+        "vivado/reports/artifact-validation.rpt"
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "kind": "bitstream",
+      "path": "design/vivado/kv260_watchdog.bit",
+      "exists": true,
+      "sha256": "db593dd0c53edcef0d57899c947ec49d11834608b2996c5cdf73032d7c81b027"
+    },
+    {
+      "kind": "ltx",
+      "path": "design/vivado/debug_nets.ltx",
+      "exists": true,
+      "sha256": "3884f9a44929942fe4a0cdf5f10daad65fe8fe267a88c86ad854adbfb51cab62"
+    },
+    {
+      "kind": "xsa",
+      "path": "design/vivado/kv260_watchdog.xsa",
+      "exists": true,
+      "sha256": "94147250d8759a4a461047d4b05eb6f6be57b025b46dbd2712de73ba3566d254"
+    },
+    {
+      "kind": "debug-map",
+      "path": "debug-map.json",
+      "exists": true,
+      "sha256": "2cabc69c13ef4e1074889f063e8cd74b9cd8874bcf1e18a351ab95435b5f30f5"
+    },
+    {
+      "kind": "checkpoint",
+      "path": "vivado/checkpoints/kv260_watchdog_post_synth_rev2.dcp",
+      "exists": true,
+      "sha256": "de462fe02c162fe9da0003143a924c5f412781c263c69f6e88f5127a6fb5a032"
+    },
+    {
+      "kind": "checkpoint",
+      "path": "vivado/checkpoints/kv260_watchdog_post_route_rev2.dcp",
+      "exists": true,
+      "sha256": "3a35257f3c7186e548c28349a8c3aed5a57d0d160b7c18fc39fe597db227df59"
+    },
+    {
+      "kind": "report",
+      "path": "vivado/reports/implementation-summary.rpt",
+      "exists": true,
+      "sha256": "8727d6fecf83d68b934682799e1dcb456635f1b036f326a974b48a65903bae10"
+    },
+    {
+      "kind": "report",
+      "path": "vivado/reports/artifact-validation.rpt",
+      "exists": true,
+      "sha256": "3c926e2d7b0ebf8090aa6da08ae8574975b517bce3f7657be76d2ce95efeece8"
+    },
+    {
+      "kind": "report",
+      "path": "vivado/reports/hardware-debug-validation.rpt",
+      "exists": true,
+      "sha256": "538d534a3443ddebf3fa2f3ed0cfa31cd9c8c0c556278524d29007164f0960ed"
+    },
+    {
+      "kind": "report",
+      "path": "vivado/reports/post-route-timing-summary.rpt",
+      "exists": true,
+      "sha256": "0d07294fc28ad3e72534f25ac3590287588cd1d00ad1d10a4671b58ec1f36fa7"
+    },
+    {
+      "kind": "report",
+      "path": "vivado/reports/post-route-check-timing.rpt",
+      "exists": true,
+      "sha256": "d136d7384d6d18e583a71f1115136ee83c2d11387f1bf1f49ea78e78d417c0c1"
+    },
+    {
+      "kind": "report",
+      "path": "vivado/reports/post-route-bus-skew.rpt",
+      "exists": true,
+      "sha256": "f36c49a9eb655d356b2dd0efaa66ea956ea7ccab92d7c376f5af816b4cb50fe1"
+    },
+    {
+      "kind": "report",
+      "path": "vivado/reports/post-route-drc.rpt",
+      "exists": true,
+      "sha256": "602fdd706f559ffc0124bfc5f92fac97c61fd0f3555bd6167c6552c8c1348e5d"
+    },
+    {
+      "kind": "report",
+      "path": "vivado/reports/post-route-methodology.rpt",
+      "exists": true,
+      "sha256": "7dee34a27353f7a2d6ef3b912109f7a11f94bcbf85ddb4dfa922c6540d90b13d"
+    },
+    {
+      "kind": "report",
+      "path": "vivado/reports/post-route-cdc.rpt",
+      "exists": true,
+      "sha256": "07beb22d03d511e65b4ea8a47c2dedb35edd82d4613988c5aa5f8c8352d3d516"
+    },
+    {
+      "kind": "report",
+      "path": "vivado/reports/post-route-utilization.rpt",
+      "exists": true,
+      "sha256": "392d575f118045075496a6c89fce2b8ef73f32450d6f2bf6d6dd7a482fc39d77"
+    },
+    {
+      "kind": "report",
+      "path": "vivado/reports/post-route-congestion.rpt",
+      "exists": true,
+      "sha256": "d0954c2b9d29ddeb36e2b255ac1794218ed1aabfffdc491efe7c9e90f32563d5"
+    },
+    {
+      "kind": "report",
+      "path": "vivado/reports/post-route-power.rpt",
+      "exists": true,
+      "sha256": "87c40d055fc599d2748b3393b90168cffc159b9b356580e8acf9e5e18a90ae77"
+    },
+    {
+      "kind": "report",
+      "path": "vivado/reports/post-route-status.rpt",
+      "exists": true,
+      "sha256": "f6c8e65a072400df58847cfaab74a32cf16a80f5f78c45e58d26dd44c364d1da"
+    },
+    {
+      "kind": "report",
+      "path": "vivado/reports/run-history-rev2.rpt",
+      "exists": true,
+      "sha256": "5eff4040faecfc5c11786254f89fa66013718c25045646973fbab0bd64858c27"
+    },
+    {
+      "kind": "report",
+      "path": "vivado/reports/debug-core-inventory-rev2.rpt",
+      "exists": true,
+      "sha256": "df82f16096f706ab68ecd8d166313453dc35448d1b9428e25cddfeff9b14ee6e"
+    },
+    {
+      "kind": "log",
+      "path": "vivado/logs/synth_1_rev2.log",
+      "exists": true,
+      "sha256": "921ff51da170375f5e9fc895afdeb7043a608b6f4a84f1a68fff5c755e8d7e96"
+    },
+    {
+      "kind": "log",
+      "path": "vivado/logs/impl_1_rev2.log",
+      "exists": true,
+      "sha256": "265c90a72d4600ada9203d22659ae0b9ec9fcb946137add5a51b3699e244bf5e"
+    }
+  ],
+  "feedback": null,
+  "diagnostics": {
+    "authoritative_logs": [
+      "vivado/implementation.log"
+    ],
+    "exploratory_logs": [],
+    "occurrences": {
+      "error": 0,
+      "critical_warning": 0,
+      "warning": 0
+    },
+    "classified_occurrences": {
+      "error": 0,
+      "critical_warning": 0,
+      "warning": 0
+    },
+    "unclassified_message_ids": []
+  }
+}

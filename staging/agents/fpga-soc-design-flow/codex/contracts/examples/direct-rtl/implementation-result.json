@@ -1,0 +1,113 @@
+{
+  "architecture_revision": 1,
+  "artifacts": [
+    {
+      "exists": true,
+      "kind": "bitstream",
+      "path": "vivado/event_counter.bit",
+      "sha256": null
+    }
+  ],
+  "checks": [
+    {
+      "id": "CHECK-SYNTHESIS",
+      "kind": "synthesis",
+      "report": "vivado/reports/synthesis.rpt",
+      "status": "PASS"
+    },
+    {
+      "id": "CHECK-IMPLEMENTATION",
+      "kind": "implementation",
+      "report": "vivado/reports/implementation.rpt",
+      "status": "PASS"
+    },
+    {
+      "id": "CHECK-TIMING",
+      "kind": "timing",
+      "report": "vivado/reports/timing.rpt",
+      "status": "PASS"
+    },
+    {
+      "id": "CHECK-DRC",
+      "kind": "drc",
+      "report": "vivado/reports/drc.rpt",
+      "status": "PASS"
+    },
+    {
+      "id": "CHECK-METHODOLOGY",
+      "kind": "methodology",
+      "report": "vivado/reports/methodology.rpt",
+      "status": "PASS"
+    },
+    {
+      "id": "CHECK-ARTIFACT",
+      "kind": "artifact",
+      "report": "vivado/reports/artifact.rpt",
+      "status": "PASS"
+    }
+  ],
+  "feedback": null,
+  "findings": [],
+  "diagnostics": {
+    "authoritative_logs": [
+      "vivado/logs/synth_1.log",
+      "vivado/logs/impl_1.log"
+    ],
+    "exploratory_logs": [],
+    "occurrences": {
+      "error": 0,
+      "critical_warning": 0,
+      "warning": 0
+    },
+    "classified_occurrences": {
+      "error": 0,
+      "critical_warning": 0,
+      "warning": 0
+    },
+    "unclassified_message_ids": []
+  },
+  "metrics": {
+    "bram": 0,
+    "dsp": 0,
+    "ff": 8,
+    "lut": 8,
+    "power_w": 0.1,
+    "tns_ns": 0,
+    "uram": 0,
+    "whs_ns": 0.1,
+    "wns_ns": 1.0
+  },
+  "request_id": "example-direct-rtl",
+  "revision": 1,
+  "runs": [
+    {
+      "completed": true,
+      "log": "vivado/logs/synth_1.log",
+      "name": "synth_1",
+      "started": true,
+      "status": "PASS",
+      "strategy": "Vivado Defaults"
+    },
+    {
+      "completed": true,
+      "log": "vivado/logs/impl_1.log",
+      "name": "impl_1",
+      "started": true,
+      "status": "PASS",
+      "strategy": "Vivado Defaults"
+    }
+  ],
+  "schema_version": 1,
+  "source_revision": 1,
+  "spec_revision": 1,
+  "status": "PASS",
+  "verification_revision": 1,
+  "vivado": {
+    "part": "xc7a35tcpg236-1",
+    "session_id": "example-session",
+    "session_owner": "vivado_impl_closure",
+    "session_closed": true,
+    "session_close_result": "PASS",
+    "version": "2025.2"
+  }
+}

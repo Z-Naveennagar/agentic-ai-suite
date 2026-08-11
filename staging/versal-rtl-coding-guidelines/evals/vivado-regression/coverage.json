@@ -1,0 +1,34 @@
+{
+  "target_part": "xcvc1902-vsva2197-2MP-e-S",
+  "top": "versal_recommendations_top",
+  "rule_families": [
+    {"family":"reset","rtl":["reset_sync","control/data reset separation"],"evidence":["ASYNC_REG","report_control_sets","behavioral reset test"]},
+    {"family":"clocking","rtl":["two primary clocks","clock enables only"],"evidence":["report_clock_networks","report_methodology"]},
+    {"family":"memory","rtl":["inferred BRAM","inferred UltraRAM","registered reads","explicit read-first XPM"],"evidence":["BRAM/URAM primitive checks","simulation"]},
+    {"family":"dsp","rtl":["registered dual multiply/add pipeline"],"evidence":["DSP primitive count","pipeline simulation"]},
+    {"family":"fsm","rtl":["typed FSM","FSM_SAFE_STATE","default recovery"],"evidence":["synthesis extraction","behavioral progress"]},
+    {"family":"cdc","rtl":["reset synchronizers","XPM_CDC_SINGLE"],"evidence":["report_cdc","exception coverage","ASYNC_REG"]},
+    {"family":"general","rtl":["always_ff/always_comb","explicit widths","no latches"],"evidence":["lint","zero latch primitives"]},
+    {"family":"xpm-macros","rtl":["XPM_CDC_SINGLE","XPM_MEMORY_SDPRAM ECC"],"evidence":["elaboration","XPM scoped constraints","ECC ports"]},
+    {"family":"interfaces","rtl":["two-entry AXI-Stream elastic buffer","independent AXI4-Lite AW/W capture"],"evidence":["randomized backpressure simulation","AW-before-W generator"]},
+    {"family":"timing-driven","rtl":["registered multiplier/add pipeline","registered memory outputs"],"evidence":["logic-level distribution","timing summary"]},
+    {"family":"versal-hardblocks","rtl":["backpressured AXI boundary wrapper"],"evidence":["protocol simulation"],"boundary":"Configured NoC/AIE/DDRMC/GT/PCIe IP is intentionally not fabricated by this generic regression."},
+    {"family":"safety-reliability","rtl":["ECC memory","TMR supervisor","safe FSM","supervisory reset"],"evidence":["ECC synthesis","distinct preserved cones","single-fault detection and correct-vote simulation"],"boundary":"Compliance and physical separation require system-level review."},
+    {"family":"security","rtl":["explicit key load/valid/zeroize"],"evidence":["zeroization simulation"],"boundary":"Synthesis does not prove confidentiality or side-channel resistance."},
+    {"family":"rf-datapath","rtl":["framed elastic stream","matched metadata"],"evidence":["backpressure simulation"],"boundary":"RFdc lane order remains generated-IP specific."},
+    {"family":"streaming-video","rtl":["TUSER/TLAST/TKEEP propagation","elastic stages"],"evidence":["framing simulation"]},
+    {"family":"packet-processing","rtl":["TKEEP/TLAST propagation","pipelined checksum transform"],"evidence":["partial-last-beat simulation"]},
+    {"family":"dsp-datapath","rtl":["balanced registered multiply/add datapath"],"evidence":["DSP count","numeric simulation"],"boundary":"Specialized FIR/FFT/CORDIC IP configurations remain configuration-specific."},
+    {"family":"high-speed-io","rtl":["alignment-gated 32-to-64 gearbox"],"evidence":["behavioral activity","separate user clock"]},
+    {"family":"segment-playbook","rtl":["shared stream and arithmetic blocks map multiple domains"],"evidence":["this coverage matrix"],"boundary":"Market label alone never determines an IP contract."}
+  ],
+  "required_gates": [
+    "skill validation",
+    "SystemVerilog lint/elaboration",
+    "behavioral regression sets a terminal pass flag and prints REGRESSION_PASS",
+    "synthesis completes",
+    "BRAM >= 1, URAM >= 1, DSP >= 2, LATCH == 0, ASYNC_REG >= 4, DONT_TOUCH >= 3",
+    "CDC, exception coverage, methodology, control-set, clock-network, logic-level, and timing reports produced",
+    "no unexplained ERROR or CRITICAL WARNING"
+  ]
+}

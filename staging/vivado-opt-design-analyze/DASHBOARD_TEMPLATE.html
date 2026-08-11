@@ -1,0 +1,326 @@
+<!-- Copyright (C) 2026, Advanced Micro Devices, Inc. All rights reserved. -->
+<!-- SPDX-License-Identifier: MIT -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>opt_design Analysis Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #242836; --border: #2e3347;
+    --text: #e1e4ed; --text-dim: #8b90a0; --accent: #6c9eff; --green: #4ade80;
+    --red: #f87171; --amber: #fbbf24; --purple: #a78bfa; --cyan: #22d3ee;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+         background: var(--bg); color: var(--text); line-height: 1.5; padding: 24px; }
+  h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 4px; }
+  h2 { font-size: 1.15rem; font-weight: 600; margin-bottom: 12px; color: var(--accent); }
+  .subtitle { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 20px; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
+  .header-left { flex: 1; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+  .badge-green { background: rgba(74,222,128,.15); color: var(--green); }
+  .badge-red { background: rgba(248,113,113,.15); color: var(--red); }
+  .badge-amber { background: rgba(251,191,36,.15); color: var(--amber); }
+  .badge-purple { background: rgba(167,139,250,.15); color: var(--purple); }
+  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; }
+  .kpi-label { font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em; }
+  .kpi-value { font-size: 1.8rem; font-weight: 700; margin-top: 4px; }
+  .kpi-sub { font-size: 0.78rem; color: var(--text-dim); margin-top: 2px; }
+  .kpi-value.green { color: var(--green); }
+  .kpi-value.red { color: var(--red); }
+  .kpi-value.amber { color: var(--amber); }
+  .kpi-value.purple { color: var(--purple); }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+  @media (max-width: 1000px) { .grid-2 { grid-template-columns: 1fr; } }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .card-full { margin-bottom: 24px; }
+  .chart-container { position: relative; width: 100%; }
+  .chart-container canvas { max-height: 350px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  th { text-align: left; padding: 8px 10px; color: var(--text-dim); font-weight: 600;
+       border-bottom: 2px solid var(--border); font-size: 0.72rem; text-transform: uppercase; letter-spacing: .03em; }
+  td { padding: 7px 10px; border-bottom: 1px solid var(--border); }
+  tr:hover { background: var(--surface2); }
+  .num { font-variant-numeric: tabular-nums; text-align: right; }
+  .neg { color: var(--red); }
+  .pos { color: var(--green); }
+  .tab-bar { display: flex; gap: 2px; margin-bottom: 16px; border-bottom: 2px solid var(--border); }
+  .tab { padding: 8px 16px; cursor: pointer; font-size: 0.82rem; font-weight: 500; color: var(--text-dim);
+         border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all .15s; user-select: none; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .rec-item { padding: 12px 16px; border-left: 3px solid var(--amber); background: var(--surface2);
+              border-radius: 0 8px 8px 0; margin-bottom: 10px; font-size: 0.85rem; }
+  .rec-item.critical { border-left-color: var(--red); }
+  .rec-item.info { border-left-color: var(--accent); }
+  .rec-item .rec-title { font-weight: 600; margin-bottom: 4px; }
+  .rec-item .rec-detail { color: var(--text-dim); font-size: 0.8rem; margin-bottom: 6px; }
+  .rec-item .rec-action { font-family: 'Menlo', 'Consolas', monospace; font-size: 0.78rem; background: var(--bg);
+                           padding: 4px 10px; border-radius: 4px; display: inline-block; color: var(--cyan); }
+  .rec-item .rec-file { font-size: 0.75rem; color: var(--purple); margin-top: 4px; }
+  .phase-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .phase-bar .phase-name { width: 200px; font-size: 0.8rem; text-align: right; color: var(--text-dim); flex-shrink: 0; }
+  .phase-bar .bar-track { flex: 1; height: 24px; background: var(--surface2); border-radius: 6px; position: relative; overflow: hidden; }
+  .phase-bar .bar-fill { height: 100%; border-radius: 6px; display: flex; align-items: center; padding-left: 8px;
+                          font-size: 0.72rem; font-weight: 600; min-width: 24px; }
+  .phase-bar .bar-fill.blocked { background: rgba(248,113,113,.3); color: var(--red); }
+  .phase-bar .bar-fill.clean { background: rgba(74,222,128,.2); color: var(--green); }
+  .donut-container { display: flex; align-items: center; justify-content: center; gap: 24px; }
+  .donut-legend { font-size: 0.82rem; }
+  .donut-legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .donut-legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .impact-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--surface2);
+                border-radius: 8px; margin-bottom: 8px; }
+  .impact-row .impact-bar-wrap { flex: 1; height: 20px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+  .impact-row .impact-bar { height: 100%; border-radius: 4px; }
+  .impact-row .impact-label { width: 180px; font-size: 0.8rem; font-family: monospace; flex-shrink: 0; }
+  .impact-row .impact-pct { width: 60px; text-align: right; font-size: 0.82rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .impact-row .impact-type { width: 120px; font-size: 0.72rem; color: var(--text-dim); flex-shrink: 0; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-left">
+    <h1>opt_design Analysis</h1>
+    <div class="subtitle" id="subtitle">Loading...</div>
+  </div>
+  <div id="header-badge"></div>
+</div>
+
+<div class="kpi-row" id="kpis"></div>
+
+<div class="tab-bar" id="tabBar">
+  <div class="tab active" data-tab="summary">Optimization Summary</div>
+  <div class="tab" data-tab="impact">DONT_TOUCH Impact</div>
+  <div class="tab" data-tab="phases">Phase Details</div>
+  <div class="tab" data-tab="recommendations">Recommendations</div>
+</div>
+
+<!-- TAB 1: Summary -->
+<div class="tab-content active" id="tab-summary">
+  <div class="grid-2">
+    <div class="card">
+      <h2>Constrained Objects by Phase</h2>
+      <div class="chart-container"><canvas id="chartConstrained"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>Constraint Census</h2>
+      <div class="donut-container">
+        <div class="chart-container" style="max-width:220px"><canvas id="chartDonut"></canvas></div>
+        <div class="donut-legend" id="donutLegend"></div>
+      </div>
+    </div>
+  </div>
+  <div class="card card-full">
+    <h2>Change Summary Table</h2>
+    <table id="summaryTable">
+      <thead><tr><th>Phase</th><th class="num">Cells Created</th><th class="num">Cells Removed</th><th class="num">Constrained</th><th>Key Action</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- TAB 2: DONT_TOUCH Impact -->
+<div class="tab-content" id="tab-impact">
+  <div class="card card-full">
+    <h2>Optimization Blocked by Constraint (%)</h2>
+    <div id="impactBars"></div>
+  </div>
+  <div class="card card-full">
+    <h2>Constraint Detail</h2>
+    <table id="impactTable">
+      <thead><tr><th>Object</th><th>Type</th><th>Source</th><th class="num">Count</th><th>Phases Blocked</th><th class="num">Impact %</th><th>Severity</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- TAB 3: Phase Details -->
+<div class="tab-content" id="tab-phases">
+  <div class="card card-full">
+    <h2>Blocked vs. Clean Phases</h2>
+    <div id="phaseBars"></div>
+  </div>
+  <div class="card card-full">
+    <h2>Phase Actions</h2>
+    <table id="phaseTable">
+      <thead><tr><th>Phase</th><th class="num">Created</th><th class="num">Removed</th><th class="num">Constrained</th><th class="num">Inverters Pushed</th><th class="num">Load Pins</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- TAB 4: Recommendations -->
+<div class="tab-content" id="tab-recommendations">
+  <div class="card card-full">
+    <h2>Actionable Recommendations</h2>
+    <div id="recList"></div>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('tab-' + t.dataset.tab).classList.add('active');
+  });
+});
+
+fetch('report_data.json').then(r => r.json()).then(data => {
+  const m = data.metadata;
+  document.getElementById('subtitle').textContent =
+    `${m.device} \u00b7 ${m.command} \u00b7 ${m.runtime_seconds}s runtime \u00b7 ${m.analysis_date.split('T')[0]}`;
+
+  const totalConstrained = data.phases.reduce((s, p) => s + p.constrained_objects, 0);
+  const hasBlockers = totalConstrained > 0;
+  document.getElementById('header-badge').innerHTML = hasBlockers
+    ? '<span class="badge badge-red">Optimizations Blocked</span>'
+    : '<span class="badge badge-green">Fully Optimized</span>';
+
+  // KPIs
+  const kpiData = [
+    { label: 'Total Cells', value: data.design_stats.total_cells, cls: '' },
+    { label: 'DONT_TOUCH Cells', value: data.constraint_census.dont_touch_cells, cls: data.constraint_census.dont_touch_cells > 0 ? 'red' : 'green' },
+    { label: 'MARK_DEBUG Nets', value: data.constraint_census.mark_debug_nets, cls: data.constraint_census.mark_debug_nets > 0 ? 'amber' : 'green' },
+    { label: 'Phases Blocked', value: data.phases.filter(p => p.constrained_objects > 0).length + '/' + data.phases.length, cls: 'red' },
+    { label: 'Constrained Objects', value: data.constraint_census.total_constrained, cls: 'red',
+      sub: `${data.constraint_census.pct_cells_constrained}% of cells, ${data.constraint_census.pct_nets_constrained}% of nets` },
+    { label: 'LUTs / FFs / SRLs', value: `${data.design_stats.luts} / ${data.design_stats.ffs} / ${data.design_stats.srl}`, cls: '', sub: `${data.design_stats.bram} BRAM, ${data.design_stats.carry} CARRY` }
+  ];
+  const kpiRow = document.getElementById('kpis');
+  kpiData.forEach(k => {
+    kpiRow.innerHTML += `<div class="kpi"><div class="kpi-label">${k.label}</div><div class="kpi-value ${k.cls}">${k.value}</div>${k.sub ? '<div class="kpi-sub">'+k.sub+'</div>' : ''}</div>`;
+  });
+
+  // TAB 1: Constrained Objects bar chart
+  new Chart(document.getElementById('chartConstrained'), {
+    type: 'bar',
+    data: {
+      labels: data.phases.map(p => p.name),
+      datasets: [{
+        label: 'Constrained Objects',
+        data: data.phases.map(p => p.constrained_objects),
+        backgroundColor: data.phases.map(p => p.constrained_objects > 0 ? 'rgba(248,113,113,0.7)' : 'rgba(74,222,128,0.5)'),
+        borderColor: data.phases.map(p => p.constrained_objects > 0 ? '#f87171' : '#4ade80'),
+        borderWidth: 1, borderRadius: 6
+      }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: '#2e3347' }, ticks: { color: '#8b90a0' }, title: { display: true, text: 'Constrained Objects', color: '#8b90a0' } },
+        y: { grid: { display: false }, ticks: { color: '#e1e4ed', font: { size: 11 } } }
+      }
+    }
+  });
+
+  // TAB 1: Donut chart
+  const census = data.constraint_census;
+  const donutData = [census.dont_touch_cells, census.dont_touch_nets - census.mark_debug_nets, census.mark_debug_nets];
+  const donutLabels = ['DONT_TOUCH Cells', 'DONT_TOUCH Nets', 'MARK_DEBUG Nets'];
+  const donutColors = ['#f87171', '#fbbf24', '#a78bfa'];
+  new Chart(document.getElementById('chartDonut'), {
+    type: 'doughnut',
+    data: { labels: donutLabels, datasets: [{ data: donutData, backgroundColor: donutColors, borderWidth: 0, cutout: '65%' }] },
+    options: { responsive: true, plugins: { legend: { display: false } } }
+  });
+  const legendEl = document.getElementById('donutLegend');
+  donutLabels.forEach((l, i) => {
+    legendEl.innerHTML += `<div class="donut-legend-item"><div class="donut-legend-dot" style="background:${donutColors[i]}"></div><span>${l}: <strong>${donutData[i]}</strong></span></div>`;
+  });
+
+  // TAB 1: Summary table
+  const tbody = document.querySelector('#summaryTable tbody');
+  data.phases.forEach(p => {
+    const cls = p.constrained_objects > 0 ? 'neg' : '';
+    tbody.innerHTML += `<tr><td>${p.name}</td><td class="num">${p.cells_created}</td><td class="num">${p.cells_removed}</td><td class="num ${cls}">${p.constrained_objects}</td><td style="font-size:0.78rem;color:var(--text-dim)">${p.key_actions[0]}</td></tr>`;
+  });
+
+  // TAB 2: Impact bars
+  const impactDiv = document.getElementById('impactBars');
+  if (data.dont_touch_impact && data.dont_touch_impact.length > 0) {
+    const maxPct = Math.max(...data.dont_touch_impact.map(d => d.total_pct));
+    data.dont_touch_impact.forEach(d => {
+      const barColor = d.severity === 'critical' ? '#f87171' : d.severity === 'warning' ? '#fbbf24' : '#6c9eff';
+      const pctW = (d.total_pct / maxPct * 100).toFixed(0);
+      impactDiv.innerHTML += `<div class="impact-row">
+        <div class="impact-label">${d.object}</div>
+        <div class="impact-type">${d.type}</div>
+        <div class="impact-bar-wrap"><div class="impact-bar" style="width:${pctW}%;background:${barColor}"></div></div>
+        <div class="impact-pct" style="color:${barColor}">${d.total_pct.toFixed(1)}%</div>
+      </div>`;
+    });
+  } else {
+    impactDiv.innerHTML = '<p style="color:var(--green);padding:16px">No DONT_TOUCH/MARK_DEBUG constraints detected — all optimizations ran unblocked.</p>';
+  }
+
+  // TAB 2: Impact table
+  const itbody = document.querySelector('#impactTable tbody');
+  if (data.dont_touch_impact) {
+    data.dont_touch_impact.forEach(d => {
+      const sevBadge = d.severity === 'critical' ? '<span class="badge badge-red">Critical</span>'
+                     : d.severity === 'warning' ? '<span class="badge badge-amber">Warning</span>'
+                     : '<span class="badge badge-purple">Info</span>';
+      itbody.innerHTML += `<tr>
+        <td style="font-family:monospace;font-size:0.78rem">${d.object}</td>
+        <td>${d.type}</td><td>${d.source}</td><td class="num">${d.count}</td>
+        <td style="font-size:0.75rem">${d.phases_blocked.join(', ')}</td>
+        <td class="num neg">${d.total_pct.toFixed(1)}%</td><td>${sevBadge}</td></tr>`;
+    });
+  }
+
+  // TAB 3: Phase bars
+  const phaseDiv = document.getElementById('phaseBars');
+  const maxC = Math.max(...data.phases.map(p => p.constrained_objects), 1);
+  data.phases.forEach(p => {
+    const w = p.constrained_objects > 0 ? (p.constrained_objects / maxC * 100).toFixed(0) : 100;
+    const cls = p.constrained_objects > 0 ? 'blocked' : 'clean';
+    const label = p.constrained_objects > 0 ? p.constrained_objects + ' blocked' : 'Clean';
+    phaseDiv.innerHTML += `<div class="phase-bar">
+      <div class="phase-name">${p.name}</div>
+      <div class="bar-track"><div class="bar-fill ${cls}" style="width:${w}%">${label}</div></div>
+    </div>`;
+  });
+
+  // TAB 3: Phase table
+  const ptbody = document.querySelector('#phaseTable tbody');
+  data.phases.forEach(p => {
+    ptbody.innerHTML += `<tr><td>${p.name}</td><td class="num">${p.cells_created}</td><td class="num">${p.cells_removed}</td><td class="num ${p.constrained_objects > 0 ? 'neg' : ''}">${p.constrained_objects}</td><td class="num">${p.inverters_pushed}</td><td class="num">${p.inverter_loads}</td></tr>`;
+  });
+
+  // TAB 4: Recommendations
+  const recDiv = document.getElementById('recList');
+  if (data.recommendations && data.recommendations.length > 0) {
+    data.recommendations.forEach((r, i) => {
+      const cls = r.severity === 'critical' ? 'critical' : r.severity === 'info' ? 'info' : '';
+      const fileInfo = r.file ? `<div class="rec-file">\ud83d\udcc4 ${r.file}${r.line ? ':' + r.line : ''}</div>` : '';
+      const badges = [];
+      if (r.phases_unblocked > 0) badges.push(`<span class="badge badge-green">${r.phases_unblocked} phases unblocked</span>`);
+      if (r.estimated_cells_freed > 0) badges.push(`<span class="badge badge-amber">${r.estimated_cells_freed} cells freed</span>`);
+      recDiv.innerHTML += `<div class="rec-item ${cls}">
+        <div class="rec-title">#${i + 1} \u2014 ${r.title} ${badges.join(' ')}</div>
+        <div class="rec-detail">${r.detail}</div>
+        <div class="rec-action">${r.action}</div>
+        ${fileInfo}
+      </div>`;
+    });
+  } else {
+    recDiv.innerHTML = '<p style="color:var(--green);padding:16px">No recommendations — optimization ran without blockers.</p>';
+  }
+
+}).catch(err => {
+  document.getElementById('subtitle').textContent = 'Error loading report_data.json: ' + err.message;
+});
+</script>
+</body>
+</html>

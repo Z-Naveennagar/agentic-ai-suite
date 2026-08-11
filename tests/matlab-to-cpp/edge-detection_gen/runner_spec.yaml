@@ -1,0 +1,63 @@
+# ── Suite runner spec: edge-detection_gen — RGB edge detection pipeline ──
+# FULL end-to-end test exercising the complete skill chain:
+#   matlab-to-cpp → hls-architect → hls-optimize → hls-run-flow
+# The design must be taken all the way to a synthesized HLS kernel that
+# MEETS 4400 FPS @ 3.3 ns on xczu9eg-ffvb1156-2-e, verified against the
+# MATLAB golden. Shared invocation + host requirements for EVERY case in
+# test_cases.yaml.
+#
+# HOST PREREQUISITE — MATLAB (not gated automatically):
+#   matlab-to-cpp Step 0 runs the .m testbench via $MATLAB_BIN to capture the
+#   golden I/O. The requirements block below has no `matlab` field (the probe
+#   doesn't support one), so `doctor` will NOT warn if MATLAB is missing — the
+#   run will fail at Step 0. Ensure MATLAB is on PATH / $MATLAB_BIN is set
+#   before running this suite.
+
+skill_name: matlab-to-cpp
+skill_version: "1.0.0"
+suite_id: edge-detection_gen
+
+invocation:
+  coding_agent:
+    - name: opencode
+      model: azure/gpt-5.4
+
+  # Full chain under test. hls-run-flow must be present because hls-optimize
+  # has to actually run C synthesis (and cosim/impl) to measure achieved
+  # throughput/clock against the 4400 FPS @ 3.3 ns target.
+  skills: [matlab-to-cpp, hls-architect, hls-optimize, hls-run-flow]
+
+  # Full acceleration = MATLAB sim + two C++ ports + architecture + an
+  # ITERATIVE optimize loop that re-runs synthesis (and cosim/impl) many
+  # times. This is far heavier than a single csynth verification, so both the
+  # time and token budgets are large. Even 1 hour may be tight for a design
+  # that runs to implementation on a slow host — raise timeout_seconds if
+  # legitimate runs are being killed mid-optimization.
+  timeout_seconds: 3600
+  retries: 1
+  max_tokens_per_run: 500000
+
+  # NOTE: prompts live per-case in test_cases.yaml (prompt /
+  # prompt_without_skill), not here.
+
+# The mandated JSON output contract, appended to EVERY case's prompt (final =
+# shared_prompt_prefix + output_contract + <test_cases.yaml prompt> -- see
+# core/case_loader.py). Defined once here instead of repeated inline in each
+# case's prompt. Graded by the `output_contract_match` grader in
+# grader_spec.yaml against each case's expected.expected_output.
+output_contract: |
+  End your response with a JSON object of the form:
+  {"verdict": "YES"|"NO", "explanation": "<your reasoning>"}
+
+requirements:
+  vivado: false            # driven through Vitis (v++), not vivado directly
+  vitis: true              # C synthesis / cosim / impl require Vitis HLS
+  hardware: null
+  min_memory_gb: 6         # synthesis + impl of a 256x256 stencil pipeline
+  min_disk_gb: 6           # Vitis HLS project + impl artifacts
+  estimated_duration_minutes: 90
+  tags: [hls, pipeline, end-to-end, synthesis-verification, matlab-to-cpp]
+
+cleanup:
+  - working_dir
+  - workspace_processes

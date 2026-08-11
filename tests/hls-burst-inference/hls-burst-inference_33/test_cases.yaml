@@ -1,0 +1,109 @@
+# ── Suite: hls-burst-inference_33 ──────────────────────────────────
+# Evaluates the hls-burst-inference skill against a kernel where a
+# reverse (decrementing) loop prevents burst inference. Prompt 1 is
+# analysis-only; Prompt 2 asks the agent to fix the code and verify
+# with C synthesis. Sourced from inputs/README.md.
+#
+# Placeholders substituted into any prompt:
+#   {input_file}  -> the first entry of a case's input_files
+# {skill_name} / {flow_skill} are internal bookkeeping only (used in
+# expected.skills and in SKILL.md lookups) — they never appear inside
+# a prompt's literal text. No test case, of any shape, ever names a
+# skill in its customer-facing prompt.
+#
+# Per-case fields:
+#   id           unique case id
+#   input_files  files staged into the workspace from ./inputs
+#   prompt       the case's instruction — analysis-only one-liner, fuller
+#                fix+verify workflow, or a config-match request — always
+#                skill-agnostic, informed by reading the relevant SKILL.md.
+#                The mandated {"verdict", "explanation"} JSON contract is NOT
+#                repeated per case: it's appended once via runner_spec.yaml's
+#                `output_contract:` (shared_prompt_prefix + output_contract +
+#                this prompt, per core/case_loader.py).
+#   expected     values substituted into grader_spec {tokens}:
+#                  expected_output    -> golden {verdict, explanation} dict,
+#                                        graded whole by output_contract_match:
+#                                        verdict is literal/tolerant-compared
+#                                        (YES/NO, no partial credit), explanation
+#                                        is LLM-judged for substance via
+#                                        grader_spec's semantic_fields intent
+#                  skills             -> every skill this case is expected to invoke
+#                                        (bookkeeping — never shown in the prompt)
+#                  tool_sequence      -> always present: expected tool calls in order
+#                                        (bare tool name, "bash: <command>", or a
+#                                        tool name looked up from that skill's own
+#                                        SKILL.md)
+#                  log_path/substring -> only for cases with a run/verify step
+#                                        (framework-recognized conditional
+#                                        placeholder names -- see case_loader.py
+#                                        _CONDITIONAL_PLACEHOLDER_NAMES; do not
+#                                        rename). log_path is the real
+#                                        csynth.rpt Vitis writes to disk
+#                                        (<work_dir>/hls/syn/report/csynth.rpt),
+#                                        not a redirected console log --
+#                                        matches the README's "How to check"
+#                                        section
+#                  tool_call_observed -> only for cases with a run/verify step
+
+suite_id: hls-burst-inference_33
+description: >
+  Evaluates the hls-burst-inference skill against a kernel where a
+  reverse (decrementing) loop prevents burst inference on both M-AXI
+  ports. Prompt 1 is analysis-only; Prompt 2 asks the agent to fix
+  the code and verify with C synthesis (csynth).
+
+test_cases:
+  - id: hls-burst-inference_33_01
+    input_files:
+      - hls-burst-inference_33.cpp
+      - hls_config.cfg
+      - vitis-comp.json
+    prompt: |-
+      Analyze `inputs/{input_file}`: can burst inference be applied to the
+      M-AXI variables in this kernel? Give a static analysis without running HLS.
+    expected:
+      skills:
+        - hls-burst-inference
+      tool_sequence:
+        - Read
+      expected_output:
+        verdict: "NO"
+        explanation: >
+          No — the loop iterates in reverse (decrementing `i` from `size` down
+          to 2), so memory accesses to both `in` and `out` are not in
+          monotonically increasing order, violating the consecutive
+          forward-access precondition for burst inference.
+
+  - id: hls-burst-inference_33_02
+    input_files:
+      - hls-burst-inference_33.cpp
+      - hls_config.cfg
+      - vitis-comp.json
+    prompt: |-
+      Analyze `inputs/{input_file}`: can burst inference be applied to the
+      M-AXI variables in this kernel? If yes, do nothing. If no, fix the code
+      and put the fixed copy at `outputs/hls-burst-inference_33_02/{input_file}`.
+
+      Then verify by running C synthesis: first save a corrected copy of
+      `hls_config.cfg` as `outputs/hls-burst-inference_33_02/hls_config.cfg` with `syn.file` and
+      `tb.file` pointing to `outputs/hls-burst-inference_33_02/{input_file}`, then run `v++
+      --compile --mode hls --config outputs/hls-burst-inference_33_02/hls_config.cfg --work_dir
+      outputs/hls-burst-inference_33_02` and redirect stdout+stderr to `outputs/hls-burst-inference_33_02/run.log`. The
+      grader reads files from your CWD only.
+    expected:
+      skills:
+        - hls-burst-inference
+        - hls-run-flow
+      tool_sequence:
+        - Read
+        - "bash: v++ --compile --mode hls --config outputs/hls-burst-inference_33_02/hls_config.cfg --work_dir outputs/hls-burst-inference_33_02"
+      expected_output:
+        verdict: "NO"
+        explanation: >
+          No — the reverse (decrementing) loop prevents burst inference on both
+          M-AXI ports. Reversing the loop to iterate forward (increasing index
+          order) enables burst, which the follow-up C synthesis verifies.
+      log_path: outputs/hls-burst-inference_33_02/hls/syn/report/csynth.rpt
+      log_substring: "Inferred Burst Summary"
+      tool_call_observed: "bash: v++ --compile --mode hls --config outputs/hls-burst-inference_33_02/hls_config.cfg --work_dir outputs/hls-burst-inference_33_02"

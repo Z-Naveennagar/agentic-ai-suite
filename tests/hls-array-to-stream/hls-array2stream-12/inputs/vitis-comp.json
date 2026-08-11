@@ -1,0 +1,14 @@
+{
+  "name": "hls-array2strem",
+  "type": "HLS",
+  "configuration": {
+    "componentType": "HLS",
+    "configFiles": [
+      "hls_config.cfg"
+    ],
+    "work_dir": "loop_perfect"
+  },
+  "useSysrootToolchain": false,
+  "template": "vitis_hls_examples/Pipelining/Loops/perfect_loop",
+  "templateFlow": "VITIS"
+}

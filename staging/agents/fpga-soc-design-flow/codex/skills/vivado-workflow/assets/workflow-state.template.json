@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "request_id": "replace-me",
+  "mode": "interactive",
+  "state": "INTAKE",
+  "active_agent": "amd_soc_orchestrator",
+  "session_id": null,
+  "iterations": {},
+  "artifacts": {},
+  "history": []
+}

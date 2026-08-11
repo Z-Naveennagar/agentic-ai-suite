@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "case_id": "kv260_audio_fir_equalizer",
+  "revision": 1,
+  "status": "READY",
+  "owner": "amd_soc_hardware_validator",
+  "standard_profile": "portable-vio-ila-v1",
+  "target": {"part": "xck26-sfvc784-2LV-c", "board_part": "xilinx.com:kv260_som:part0:1.4"},
+  "required_capabilities": ["jtag", "vivado_hw_manager", "ila", "vio"],
+  "programming": {"accepted_backends": ["vivado_hw_manager", "linux_fpga_manager"], "require_matching_ltx": true, "requires_xsa": true},
+  "stimulus": {"adapter": "vio_native", "control_plane": "vio", "data_plane": "vio", "seed": 26, "description": "VIO starts an impulse and signed-vector sequence; ILA captures the five-tap response and handshakes."},
+  "instrumentation": {
+    "debug_map_required": true,
+    "vio_cores": [{
+      "id": "VIO-HW-TEST-0", "clock_domain": "clk",
+      "controls": [
+        {"name": "hw_test_reset", "width": 1, "source": "hardware test shell", "purpose": "Hold reset.", "safe_initial_value": "0x1"},
+        {"name": "hw_test_start", "width": 1, "source": "hardware test shell", "purpose": "Start FIR vectors.", "safe_initial_value": "0x0"},
+        {"name": "hw_test_enable", "width": 1, "source": "hardware test shell", "purpose": "Enable vectors.", "safe_initial_value": "0x0"}
+      ],
+      "status": [
+        {"name": "hw_test_busy", "width": 1, "source": "hardware test shell", "purpose": "Report active test."},
+        {"name": "hw_test_done", "width": 1, "source": "hardware test shell", "purpose": "Report completion."},
+        {"name": "hw_test_pass", "width": 1, "source": "hardware test shell", "purpose": "Report pass."},
+        {"name": "hw_test_error_code", "width": 16, "source": "hardware test shell", "purpose": "Report first failure."}
+      ]
+    }],
+    "ila_cores": [{
+      "id": "ILA-HW-TEST-0", "clock_domain": "clk", "kind": "ila", "depth": 1024,
+      "probes": [
+        {"name": "hw_test_start", "width": 1, "source": "hardware test shell", "purpose": "Trigger start.", "role": "trigger"},
+        {"name": "fir_input", "width": 16, "source": "kv260_audio_fir_equalizer", "purpose": "Capture accepted input.", "role": "data"},
+        {"name": "fir_output", "width": 20, "source": "kv260_audio_fir_equalizer", "purpose": "Capture exact convolution.", "role": "data"},
+        {"name": "hw_test_pass", "width": 1, "source": "hardware test shell", "purpose": "Capture result.", "role": "status"}
+      ],
+      "trigger": {"probe": "hw_test_start", "condition": "eq1'bR", "position": 128}
+    }]
+  },
+  "test_sequence": [
+    {"id": "HW-ACT-PRECHECK", "action": "precheck_target", "timeout_seconds": 30, "description": "Verify target and hashes."},
+    {"id": "HW-ACT-QUIESCE", "action": "quiesce", "timeout_seconds": 30, "description": "Quiesce clients."},
+    {"id": "HW-ACT-PROGRAM", "action": "program", "timeout_seconds": 120, "description": "Program image."},
+    {"id": "HW-ACT-REFRESH", "action": "refresh_debug", "timeout_seconds": 30, "description": "Associate LTX."},
+    {"id": "HW-ACT-RESET", "action": "reset_vio", "timeout_seconds": 10, "description": "Apply safe controls."},
+    {"id": "HW-ACT-CAPTURE", "action": "capture_immediate", "timeout_seconds": 60, "description": "Confirm ILA."},
+    {"id": "HW-ACT-CONFIGURE", "action": "configure_stimulus", "timeout_seconds": 30, "description": "Load impulse and signed vectors."},
+    {"id": "HW-ACT-ARM", "action": "arm_ila", "timeout_seconds": 30, "description": "Arm ILA."},
+    {"id": "HW-ACT-START", "action": "start", "timeout_seconds": 10, "description": "Start test."},
+    {"id": "HW-ACT-WAIT", "action": "wait_done", "timeout_seconds": 120, "description": "Wait completion."},
+    {"id": "HW-ACT-EVALUATE", "action": "evaluate", "timeout_seconds": 30, "description": "Check exact response."},
+    {"id": "HW-ACT-CLEANUP", "action": "cleanup", "timeout_seconds": 30, "description": "Restore safe state."}
+  ],
+  "pass_criteria": [
+    {"id": "HW-CRIT-TARGET", "mandatory": true, "measurement": "target.part_matches", "operator": "equals", "expected": true},
+    {"id": "HW-CRIT-DEBUG", "mandatory": true, "measurement": "debug.required_cores_present", "operator": "equals", "expected": true},
+    {"id": "HW-CRIT-DONE", "mandatory": true, "measurement": "vio.hw_test_done", "operator": "equals", "expected": 1},
+    {"id": "HW-CRIT-PASS", "mandatory": true, "measurement": "vio.hw_test_pass", "operator": "equals", "expected": 1},
+    {"id": "HW-CRIT-ERROR", "mandatory": true, "measurement": "vio.hw_test_error_code", "operator": "equals", "expected": 0},
+    {"id": "HW-CRIT-CAPTURE", "mandatory": true, "measurement": "ila.functional_capture", "operator": "exists", "expected": true}
+  ],
+  "cleanup": {"required": true, "actions": ["reset_vio_outputs", "restore_safe_state"]},
+  "external_equipment": []
+}

@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "handoff.schema.json",
+  "title": "Agent Handoff v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "request_id",
+    "from_agent",
+    "to_agent",
+    "reason",
+    "status",
+    "iteration",
+    "input_artifacts",
+    "required_output",
+    "evidence",
+    "requires_user_approval"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "request_id": {"type": "string", "minLength": 1},
+    "from_agent": {"$ref": "#/$defs/participant"},
+    "to_agent": {"$ref": "#/$defs/participant"},
+    "reason": {"type": "string", "minLength": 1},
+    "status": {"enum": ["READY", "PASS", "FAIL", "ERROR", "BLOCKED", "NEEDS_USER_INPUT"]},
+    "iteration": {"type": "integer", "minimum": 0},
+    "input_artifacts": {"type": "array", "items": {"$ref": "#/$defs/artifact"}, "uniqueItems": true},
+    "required_output": {"type": "string", "minLength": 1},
+    "evidence": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "requires_user_approval": {"type": "boolean"}
+  },
+  "$defs": {
+    "participant": {
+      "enum": [
+        "user",
+        "amd_soc_orchestrator",
+        "amd_soc_intent_to_spec",
+        "amd_soc_architect",
+        "vivado_rtl_engineer",
+        "amd_soc_verifier",
+        "vivado_impl_closure",
+        "amd_soc_platform_integrator",
+        "vitis_hls_engineer",
+        "vitis_aie_engineer",
+        "vitis_sw_engineer",
+        "amd_soc_hardware_validator"
+      ]
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "path", "revision"],
+      "properties": {
+        "kind": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "minLength": 1},
+        "revision": {"type": ["integer", "null"], "minimum": 1}
+      }
+    }
+  }
+}

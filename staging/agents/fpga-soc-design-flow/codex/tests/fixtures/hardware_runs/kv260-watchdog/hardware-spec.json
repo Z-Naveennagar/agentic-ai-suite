@@ -1,0 +1,620 @@
+{
+  "schema_version": 1,
+  "request_id": "kv260-watchdog-ipcfg-v01-20260730",
+  "revision": 1,
+  "status": "READY",
+  "entry_type": "regression",
+  "intent": {
+    "original_request": "# KV260 Watchdog Interrupt\n\nCreate a handwritten SystemVerilog reloadable watchdog kernel. While enabled and armed, it counts down from a runtime 32-bit timeout. Expiry emits exactly one interrupt clock and sets a sticky expiry flag. Reload restarts and rearms the watchdog; a separate clear removes the sticky flag. Reset is active-low and synchronous.\n\nIntegrate the kernel in Vivado IP Integrator using the Zynq UltraScale+ MPSoC KV260 board preset. Supply a 100 MHz PL clock and synchronized active-low reset from the PS. Expose timeout, enable, reload, and clear through an AXI-controlled interface and connect the interrupt to a PS PL-to-PS IRQ input. Produce a validated block design, bitstream, and XSA.\n\nUse handwritten RTL only; do not use HLS. Verify reload, disabled hold, exact expiry latency, one-cycle IRQ, sticky behavior, clear, and rearming. Target `xck26-sfvc784-2LV-c`, board part `xilinx.com:kv260_som:part0:1.4`, with Vivado 2025.2.\n\n## Regression public interface (required)\n\nPlace generated candidate files under `design/`. Preserve these public module names, source paths, parameters, and ports exactly so the independent regression harness can bind without design-specific adaptation.\n\n- Module `kv260_watchdog_irq` in `rtl/kv260_watchdog_irq.sv` (roles: simulation_top, required_component)\n  - input `clk` width `1`\n  - input `resetn` width `1`\n  - input `enable` width `1`\n  - input `reload` width `1`\n  - input `clear_expired` width `1`\n  - input `timeout_cycles` width `32`\n  - output `irq_o` width `1`\n  - output `expired_sticky_o` width `1`\n\nRequired constraint files:\n- None; use board-flow/IP-integrator generated constraints.\n\nRequired integration mode: `ip_integrator`.\nInternal decomposition may add modules and files, but it must not change this public regression interface.\n",
+    "goal": "Implement and integrate a reloadable 32-bit watchdog on the KV260 so software can control it through AXI and receive a one-clock PL-to-PS interrupt on expiry, while preserving the fixed regression-facing RTL interface.",
+    "deliverables": [
+      "Handwritten SystemVerilog watchdog candidate under design/rtl/kv260_watchdog_irq.sv",
+      "Validated Vivado IP Integrator block design",
+      "Verification evidence for all required watchdog behaviors",
+      "Implemented bitstream",
+      "Exported XSA"
+    ],
+    "allowed_changes": [
+      "Create generated candidate and integration artifacts under the active run's design/ directory.",
+      "Add internal modules and files when they do not change the required public regression interface.",
+      "Create an AXI-controlled integration layer and Vivado IP Integrator design for the watchdog."
+    ],
+    "prohibited_changes": [
+      "Do not change the required kv260_watchdog_irq module name, source path, public ports, widths, or directions.",
+      "Do not use HLS or HLS-generated logic for the watchdog.",
+      "Do not add handwritten constraint files; use board-flow and IP-Integrator-generated constraints.",
+      "Do not place generated candidate files outside design/."
+    ]
+  },
+  "target": {
+    "part": "xck26-sfvc784-2LV-c",
+    "board": "xilinx.com:kv260_som:part0:1.4",
+    "vivado_version": "2025.2"
+  },
+  "requirements": [
+    {
+      "id": "REQ-TARGET",
+      "category": "tool",
+      "statement": "The Vivado design shall target part xck26-sfvc784-2LV-c and board part xilinx.com:kv260_som:part0:1.4 using Vivado 2025.2.",
+      "priority": "must",
+      "value": "xck26-sfvc784-2LV-c; xilinx.com:kv260_som:part0:1.4; Vivado 2025.2",
+      "units": null
+    },
+    {
+      "id": "REQ-RTL-ONLY",
+      "category": "constraint",
+      "statement": "The watchdog kernel shall be implemented as handwritten SystemVerilog and shall not use HLS or HLS-generated RTL.",
+      "priority": "must",
+      "value": true,
+      "units": null
+    },
+    {
+      "id": "REQ-PUBLIC-INTERFACE",
+      "category": "interface",
+      "statement": "The required component shall be module kv260_watchdog_irq at design/rtl/kv260_watchdog_irq.sv, with no required public parameters and exactly these public ports: 1-bit inputs clk, resetn, enable, reload, clear_expired; 32-bit input timeout_cycles; and 1-bit outputs irq_o and expired_sticky_o.",
+      "priority": "must",
+      "value": "kv260_watchdog_irq",
+      "units": null
+    },
+    {
+      "id": "REQ-TIMEOUT",
+      "category": "functional",
+      "statement": "A reload sampled on a rising clk edge shall load timeout_cycles and arm or rearm the watchdog without consuming a countdown cycle on that reload edge; required timeout values are 1 through 4294967295 inclusive.",
+      "priority": "must",
+      "value": 32,
+      "units": "bits"
+    },
+    {
+      "id": "REQ-COUNTDOWN",
+      "category": "functional",
+      "statement": "While armed and enable is high, the watchdog shall consume exactly one countdown cycle per rising clk edge; while enable is low it shall hold its remaining count and armed state and shall not expire.",
+      "priority": "must",
+      "value": 1,
+      "units": "count per enabled rising clock edge"
+    },
+    {
+      "id": "REQ-EXPIRY-LATENCY",
+      "category": "performance",
+      "statement": "For a reload of timeout_cycles=N, where N is in the required nonzero range, expiry shall occur on exactly the Nth subsequent rising clk edge for which the watchdog is armed and enable is high; disabled clock edges do not contribute to N.",
+      "priority": "must",
+      "value": "N eligible rising clock edges after reload",
+      "units": "clock cycles"
+    },
+    {
+      "id": "REQ-IRQ",
+      "category": "functional",
+      "statement": "Each expiry shall assert irq_o for exactly one complete clk cycle and shall not retrigger until a later reload rearms the watchdog.",
+      "priority": "must",
+      "value": 1,
+      "units": "clock cycles"
+    },
+    {
+      "id": "REQ-STICKY",
+      "category": "functional",
+      "statement": "Each expiry shall set expired_sticky_o, which shall remain asserted until sampled clear_expired or synchronous reset clears it.",
+      "priority": "must",
+      "value": true,
+      "units": null
+    },
+    {
+      "id": "REQ-CLEAR",
+      "category": "functional",
+      "statement": "A clear_expired assertion sampled on a rising clk edge shall clear expired_sticky_o without itself reloading, arming, or disarming the watchdog.",
+      "priority": "must",
+      "value": true,
+      "units": null
+    },
+    {
+      "id": "REQ-REARM",
+      "category": "functional",
+      "statement": "After expiry the watchdog shall remain disarmed with irq_o low after its one-cycle pulse until a later sampled reload loads a new timeout and rearms it.",
+      "priority": "must",
+      "value": true,
+      "units": null
+    },
+    {
+      "id": "REQ-RESET",
+      "category": "reset",
+      "statement": "resetn shall be active-low and sampled synchronously on rising clk; when sampled low it shall take priority and leave the watchdog disarmed with irq_o low and expired_sticky_o low.",
+      "priority": "must",
+      "value": "active-low synchronous",
+      "units": null
+    },
+    {
+      "id": "REQ-PL-CLOCK",
+      "category": "clock",
+      "statement": "The integrated watchdog and its AXI control interface shall operate in a 100 MHz PL clock domain supplied by the Zynq UltraScale+ MPSoC processing system, with an active-low reset synchronized to that domain and derived from the PS.",
+      "priority": "must",
+      "value": 100,
+      "units": "MHz"
+    },
+    {
+      "id": "REQ-AXI-CONTROL",
+      "category": "interface",
+      "statement": "The IP Integrator design shall provide a PS-accessible AXI-controlled interface for the 32-bit timeout_cycles value and the enable, reload, and clear_expired controls.",
+      "priority": "must",
+      "value": "timeout_cycles[31:0], enable, reload, clear_expired",
+      "units": null
+    },
+    {
+      "id": "REQ-PS-IRQ",
+      "category": "interface",
+      "statement": "The watchdog irq_o signal shall connect to a Zynq UltraScale+ MPSoC PL-to-PS interrupt input in the block design.",
+      "priority": "must",
+      "value": "PL-to-PS IRQ",
+      "units": null
+    },
+    {
+      "id": "REQ-IP-INTEGRATOR",
+      "category": "tool",
+      "statement": "Integration shall use Vivado IP Integrator and the KV260 Zynq UltraScale+ MPSoC board preset, and the resulting block design shall pass Vivado design validation.",
+      "priority": "must",
+      "value": "ip_integrator",
+      "units": null
+    },
+    {
+      "id": "REQ-CONSTRAINTS",
+      "category": "constraint",
+      "statement": "No handwritten constraint file is required or permitted for the regression interface; implementation shall use constraints generated by the selected board flow and IP Integrator design.",
+      "priority": "must",
+      "value": 0,
+      "units": "handwritten constraint files"
+    },
+    {
+      "id": "REQ-DELIVERABLES",
+      "category": "deliverable",
+      "statement": "The completed design shall provide the fixed-interface RTL, behavioral verification evidence, a validated block design, a successfully generated bitstream, and an exported XSA.",
+      "priority": "must",
+      "value": "RTL; verification evidence; validated block design; bitstream; XSA",
+      "units": null
+    }
+  ],
+  "acceptance": [
+    {
+      "id": "ACC-TARGET",
+      "requirement_ids": [
+        "REQ-TARGET"
+      ],
+      "method": "inspection",
+      "pass_condition": "The opened Vivado project reports PART=xck26-sfvc784-2LV-c and BOARD_PART=xilinx.com:kv260_som:part0:1.4, and the build evidence reports Vivado 2025.2."
+    },
+    {
+      "id": "ACC-PUBLIC-INTERFACE",
+      "requirement_ids": [
+        "REQ-PUBLIC-INTERFACE"
+      ],
+      "method": "inspection",
+      "pass_condition": "design/rtl/kv260_watchdog_irq.sv exists and declares module kv260_watchdog_irq with exactly the required port names, directions, and widths; the module is usable as the simulation top and required component without harness adaptation."
+    },
+    {
+      "id": "ACC-RTL-ONLY",
+      "requirement_ids": [
+        "REQ-RTL-ONLY"
+      ],
+      "method": "inspection",
+      "pass_condition": "Source and project inspection finds handwritten SystemVerilog for the watchdog and no HLS source, HLS project, or HLS-generated watchdog IP."
+    },
+    {
+      "id": "ACC-SIM-RESET",
+      "requirement_ids": [
+        "REQ-RESET"
+      ],
+      "method": "simulation",
+      "pass_condition": "Driving resetn low between rising edges does not change outputs asynchronously; the first rising edge with resetn low leaves irq_o=0 and expired_sticky_o=0 and disarms the watchdog."
+    },
+    {
+      "id": "ACC-SIM-RELOAD-LATENCY",
+      "requirement_ids": [
+        "REQ-TIMEOUT",
+        "REQ-COUNTDOWN",
+        "REQ-EXPIRY-LATENCY"
+      ],
+      "method": "simulation",
+      "pass_condition": "For representative nonzero N values including N=1 and at least one N>1, a sampled reload starts a fresh interval and irq_o first asserts on exactly the Nth subsequent enabled, armed rising edge, never earlier."
+    },
+    {
+      "id": "ACC-SIM-DISABLED-HOLD",
+      "requirement_ids": [
+        "REQ-COUNTDOWN",
+        "REQ-EXPIRY-LATENCY"
+      ],
+      "method": "simulation",
+      "pass_condition": "After reload, one or more cycles with enable=0 preserve the remaining interval and produce no irq_o; after re-enabling, expiry occurs after exactly the remaining number of enabled rising edges."
+    },
+    {
+      "id": "ACC-SIM-IRQ-STICKY",
+      "requirement_ids": [
+        "REQ-IRQ",
+        "REQ-STICKY"
+      ],
+      "method": "simulation",
+      "pass_condition": "At expiry irq_o is high for exactly one clk period, returns low on the following cycle, and remains low without reload, while expired_sticky_o remains high."
+    },
+    {
+      "id": "ACC-SIM-CLEAR",
+      "requirement_ids": [
+        "REQ-CLEAR",
+        "REQ-STICKY"
+      ],
+      "method": "simulation",
+      "pass_condition": "After expiry, a sampled clear_expired assertion clears expired_sticky_o on that rising edge and does not produce irq_o or rearm the expired watchdog."
+    },
+    {
+      "id": "ACC-SIM-REARM",
+      "requirement_ids": [
+        "REQ-REARM",
+        "REQ-TIMEOUT",
+        "REQ-IRQ"
+      ],
+      "method": "simulation",
+      "pass_condition": "After a completed expiry, no second interrupt occurs without reload; a later reload starts a new full timeout interval and permits exactly one new one-cycle interrupt."
+    },
+    {
+      "id": "ACC-IP-INTEGRATOR",
+      "requirement_ids": [
+        "REQ-IP-INTEGRATOR",
+        "REQ-PL-CLOCK",
+        "REQ-AXI-CONTROL",
+        "REQ-PS-IRQ"
+      ],
+      "method": "inspection",
+      "pass_condition": "Vivado validate_bd_design completes without error, the watchdog and AXI control logic use the PS-derived 100 MHz PL clock and synchronized active-low reset, all four requested controls are PS-accessible through AXI, and irq_o is connected to a PS PL-to-PS IRQ input."
+    },
+    {
+      "id": "ACC-CONSTRAINTS",
+      "requirement_ids": [
+        "REQ-CONSTRAINTS"
+      ],
+      "method": "inspection",
+      "pass_condition": "No required handwritten XDC is present for the regression component, and the implementation uses the constraints generated by board flow and IP Integrator."
+    },
+    {
+      "id": "ACC-SYNTHESIS",
+      "requirement_ids": [
+        "REQ-PUBLIC-INTERFACE",
+        "REQ-RTL-ONLY",
+        "REQ-IP-INTEGRATOR"
+      ],
+      "method": "synthesis",
+      "pass_condition": "Vivado synthesis completes successfully with no errors and retains the required watchdog logic and integration connectivity."
+    },
+    {
+      "id": "ACC-TIMING",
+      "requirement_ids": [
+        "REQ-PL-CLOCK",
+        "REQ-DELIVERABLES"
+      ],
+      "method": "timing",
+      "pass_condition": "After routing, all setup and hold timing constraints are met for the implemented design, including the 100 MHz PL clock domain, with WNS >= 0 ns, TNS = 0 ns, WHS >= 0 ns, and THS = 0 ns."
+    },
+    {
+      "id": "ACC-DRC",
+      "requirement_ids": [
+        "REQ-IP-INTEGRATOR",
+        "REQ-DELIVERABLES"
+      ],
+      "method": "drc",
+      "pass_condition": "Post-route Vivado DRC reports zero errors and zero critical warnings that invalidate bitstream generation or platform export."
+    },
+    {
+      "id": "ACC-ARTIFACTS",
+      "requirement_ids": [
+        "REQ-DELIVERABLES"
+      ],
+      "method": "artifact",
+      "pass_condition": "Non-empty generated .bit and .xsa artifacts exist under the active run, and the XSA was exported from the implemented hardware design."
+    }
+  ],
+  "provenance": [
+    {
+      "field": "entry_type",
+      "source": "DERIVED",
+      "confidence": "HIGH",
+      "evidence": [
+        "runs/kv260-watchdog-ipcfg-v01-20260730/user-request.md labels a fixed Regression public interface and requires compatibility with an independent regression harness."
+      ]
+    },
+    {
+      "field": "intent",
+      "source": "USER",
+      "confidence": "HIGH",
+      "evidence": [
+        "Verbatim preserved request: runs/kv260-watchdog-ipcfg-v01-20260730/user-request.md."
+      ]
+    },
+    {
+      "field": "target",
+      "source": "USER",
+      "confidence": "HIGH",
+      "evidence": [
+        "user-request.md explicitly specifies xck26-sfvc784-2LV-c, xilinx.com:kv260_som:part0:1.4, and Vivado 2025.2."
+      ]
+    },
+    {
+      "field": "target.part_feasibility",
+      "source": "AMD_DOC",
+      "confidence": "HIGH",
+      "evidence": [
+        "AMD DS987 documents the K26 SOM as using XCK26-SFVC784-2LV-C/I: https://docs.amd.com/r/en-US/ds987-k26-som/Functional-Overview-and-Block-Diagram."
+      ]
+    },
+    {
+      "field": "target.board_flow_feasibility",
+      "source": "AMD_DOC",
+      "confidence": "HIGH",
+      "evidence": [
+        "AMD UG1089 documents Vivado Board Flow support for the KV260 starter kit: https://docs.amd.com/r/en-US/ug1089-kv260-starter-kit/Vivado-Board-Flow."
+      ]
+    },
+    {
+      "field": "target.vivado_version_availability",
+      "source": "VIVADO_OBSERVED",
+      "confidence": "HIGH",
+      "evidence": [
+        "A read-only query in dedicated Vivado MCP session vivado-20260730-123614 returned version 2025.2 and no current project."
+      ]
+    },
+    {
+      "field": "requirements.REQ-TARGET",
+      "source": "USER",
+      "confidence": "HIGH",
+      "evidence": [
+        "user-request.md explicitly fixes the part, board part, and Vivado version."
+      ]
+    },
+    {
+      "field": "requirements.REQ-RTL-ONLY",
+      "source": "USER",
+      "confidence": "HIGH",
+      "evidence": [
+        "user-request.md states handwritten SystemVerilog only and prohibits HLS."
+      ]
+    },
+    {
+      "field": "requirements.REQ-PUBLIC-INTERFACE",
+      "source": "USER",
+      "confidence": "HIGH",
+      "evidence": [
+        "user-request.md gives the exact module name, source path, port names, directions, widths, and regression roles."
+      ]
+    },
+    {
+      "field": "requirements.REQ-TIMEOUT",
+      "source": "DERIVED",
+      "confidence": "HIGH",
+      "evidence": [
+        "Derived from the requested runtime 32-bit timeout and the statement that reload restarts and rearms the countdown; a positive timeout is required for an exact cycle-count interval."
+      ]
+    },
+    {
+      "field": "requirements.REQ-COUNTDOWN",
+      "source": "USER",
+      "confidence": "HIGH",
+      "evidence": [
+        "user-request.md requires countdown while enabled and armed and explicitly requires verification of disabled hold."
+      ]
+    },
+    {
+      "field": "requirements.REQ-EXPIRY-LATENCY",
+      "source": "DERIVED",
+      "confidence": "HIGH",
+      "evidence": [
+        "Normalized measurable form of user-request.md requirements to count down from a cycle timeout and verify exact expiry latency."
+      ]
+    },
+    {
+      "field": "requirements.REQ-IRQ",
+      "source": "USER",
+      "confidence": "HIGH",
+      "evidence": [
+        "user-request.md requires expiry to emit exactly one interrupt clock and requires one-cycle IRQ verification."
+      ]
+    },
+    {
+      "field": "requirements.REQ-STICKY",
+      "source": "USER",
+      "confidence": "HIGH",
+      "evidence": [
+        "user-request.md requires expiry to set a sticky expiry flag."
+      ]
+    },
+    {
+      "field": "requirements.REQ-CLEAR",
+      "source": "USER",
+      "confidence": "HIGH",
+      "evidence": [
+        "user-request.md requires a separate clear to remove the sticky flag."
+      ]
+    },
+    {
+      "field": "requirements.REQ-REARM",
+      "source": "DERIVED",
+      "confidence": "HIGH",
+      "evidence": [
+        "Derived from the explicit statements that reload rearms the watchdog, expiry emits exactly one interrupt, and rearming must be verified."
+      ]
+    },
+    {
+      "field": "requirements.REQ-RESET",
+      "source": "USER",
+      "confidence": "HIGH",
+      "evidence": [
+        "user-request.md explicitly requires active-low synchronous reset."
+      ]
+    },
+    {
+      "field": "requirements.REQ-PL-CLOCK",
+      "source": "USER",
+      "confidence": "HIGH",
+      "evidence": [
+        "user-request.md explicitly requires a 100 MHz PL clock and synchronized active-low reset from the PS."
+      ]
+    },
+    {
+      "field": "requirements.REQ-AXI-CONTROL",
+      "source": "USER",
+      "confidence": "HIGH",
+      "evidence": [
+        "user-request.md explicitly requires timeout, enable, reload, and clear through an AXI-controlled interface."
+      ]
+    },
+    {
+      "field": "requirements.REQ-PS-IRQ",
+      "source": "USER",
+      "confidence": "HIGH",
+      "evidence": [
+        "user-request.md explicitly requires connection to a PS PL-to-PS IRQ input."
+      ]
+    },
+    {
+      "field": "requirements.REQ-IP-INTEGRATOR",
+      "source": "USER",
+      "confidence": "HIGH",
+      "evidence": [
+        "user-request.md requires the KV260 board preset, a validated block design, and integration mode ip_integrator."
+      ]
+    },
+    {
+      "field": "requirements.REQ-CONSTRAINTS",
+      "source": "USER",
+      "confidence": "HIGH",
+      "evidence": [
+        "user-request.md states that no constraint files are required and board-flow/IP-Integrator-generated constraints shall be used."
+      ]
+    },
+    {
+      "field": "requirements.REQ-DELIVERABLES",
+      "source": "USER",
+      "confidence": "HIGH",
+      "evidence": [
+        "user-request.md explicitly requests handwritten RTL, verification, a validated block design, bitstream, and XSA."
+      ]
+    },
+    {
+      "field": "acceptance.ACC-TARGET",
+      "source": "DERIVED",
+      "confidence": "HIGH",
+      "evidence": [
+        "Inspection criterion directly checks REQ-TARGET values stated by the user."
+      ]
+    },
+    {
+      "field": "acceptance.ACC-PUBLIC-INTERFACE",
+      "source": "USER",
+      "confidence": "HIGH",
+      "evidence": [
+        "The user requires the independent regression harness to bind without design-specific adaptation."
+      ]
+    },
+    {
+      "field": "acceptance.ACC-RTL-ONLY",
+      "source": "DERIVED",
+      "confidence": "HIGH",
+      "evidence": [
+        "Inspection makes the user's handwritten-RTL-only and no-HLS constraint objectively checkable."
+      ]
+    },
+    {
+      "field": "acceptance.ACC-SIM-RESET",
+      "source": "DERIVED",
+      "confidence": "HIGH",
+      "evidence": [
+        "Simulation criterion makes the user-required synchronous active-low reset observable."
+      ]
+    },
+    {
+      "field": "acceptance.ACC-SIM-RELOAD-LATENCY",
+      "source": "USER",
+      "confidence": "HIGH",
+      "evidence": [
+        "user-request.md explicitly requires verification of reload and exact expiry latency."
+      ]
+    },
+    {
+      "field": "acceptance.ACC-SIM-DISABLED-HOLD",
+      "source": "USER",
+      "confidence": "HIGH",
+      "evidence": [
+        "user-request.md explicitly requires verification of disabled hold."
+      ]
+    },
+    {
+      "field": "acceptance.ACC-SIM-IRQ-STICKY",
+      "source": "USER",
+      "confidence": "HIGH",
+      "evidence": [
+        "user-request.md explicitly requires verification of one-cycle IRQ and sticky behavior."
+      ]
+    },
+    {
+      "field": "acceptance.ACC-SIM-CLEAR",
+      "source": "USER",
+      "confidence": "HIGH",
+      "evidence": [
+        "user-request.md explicitly requires verification of clear behavior."
+      ]
+    },
+    {
+      "field": "acceptance.ACC-SIM-REARM",
+      "source": "USER",
+      "confidence": "HIGH",
+      "evidence": [
+        "user-request.md explicitly requires verification of rearming."
+      ]
+    },
+    {
+      "field": "acceptance.ACC-IP-INTEGRATOR",
+      "source": "DERIVED",
+      "confidence": "HIGH",
+      "evidence": [
+        "Criterion directly inspects and validates the user-required board preset, clock/reset, AXI controls, IRQ connection, and block design."
+      ]
+    },
+    {
+      "field": "acceptance.ACC-CONSTRAINTS",
+      "source": "USER",
+      "confidence": "HIGH",
+      "evidence": [
+        "user-request.md requires no constraint files and use of board-flow/IP-Integrator-generated constraints."
+      ]
+    },
+    {
+      "field": "acceptance.ACC-SYNTHESIS",
+      "source": "DERIVED",
+      "confidence": "HIGH",
+      "evidence": [
+        "Successful synthesis is required to establish that the fixed-interface RTL and IP Integrator design are implementable."
+      ]
+    },
+    {
+      "field": "acceptance.ACC-TIMING",
+      "source": "DERIVED",
+      "confidence": "HIGH",
+      "evidence": [
+        "Nonnegative routed setup and hold slack makes the user-required 100 MHz clock requirement measurable."
+      ]
+    },
+    {
+      "field": "acceptance.ACC-DRC",
+      "source": "DERIVED",
+      "confidence": "HIGH",
+      "evidence": [
+        "Post-route DRC cleanliness is required for defensible bitstream and XSA signoff."
+      ]
+    },
+    {
+      "field": "acceptance.ACC-ARTIFACTS",
+      "source": "USER",
+      "confidence": "HIGH",
+      "evidence": [
+        "user-request.md explicitly requires a bitstream and XSA."
+      ]
+    }
+  ],
+  "assumptions": [
+    "timeout_cycles=0 is outside the required operating range; required exact-latency behavior covers values 1 through 4294967295.",
+    "The verification environment does not require defined precedence for simultaneous reload, clear_expired, and expiry events; reset priority is defined, and each requested control behavior is verified independently.",
+    "No resource, power, or throughput optimization objective was specified; functional correctness, interface preservation, and Vivado signoff are the completion priorities."
+  ],
+  "unresolved_questions": []
+}

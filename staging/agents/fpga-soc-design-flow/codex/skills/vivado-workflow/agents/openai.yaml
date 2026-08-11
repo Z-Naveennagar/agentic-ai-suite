@@ -1,0 +1,14 @@
+# Copyright (C) 2026, Advanced Micro Devices, Inc. All rights reserved.
+# SPDX-License-Identifier: MIT
+
+interface:
+  display_name: "Vivado Multi-Agent Workflow"
+  short_description: "Coordinate the Vivado design agent workflow"
+  default_prompt: "Use $vivado-workflow to coordinate this FPGA design request from intent through implementation."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "vivado-mcp-server"
+      description: "Vivado project, run, report, documentation, and session tools"
+policy:
+  allow_implicit_invocation: true

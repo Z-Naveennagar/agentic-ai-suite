@@ -1,0 +1,204 @@
+# Copyright (C) 2026, Advanced Micro Devices, Inc. All rights reserved.
+# SPDX-License-Identifier: MIT
+
+name: "Feature Request"
+description: "Request a new skill or major new capability for an existing skill"
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### ⚠️ Title (required)
+        Enter a one-line summary of your request in the **Title** field above.
+
+  - type: dropdown
+    id: issue_type
+    attributes:
+      label: Issue Type
+      options:
+        - Feature Request
+    validations:
+      required: true
+
+  - type: dropdown
+    id: request_type
+    attributes:
+      label: Request Type
+      description: Is this a new skill or an enhancement to an existing one?
+      options:
+        - New Skill
+        - Major New Capability for Existing Skill
+    validations:
+      required: true
+
+  - type: dropdown
+    id: skill
+    attributes:
+      label: Skill (if existing)
+      description: Select the skill this applies to, or "New Skill" if proposing a new one
+      options:
+        - New Skill
+        - axi4-debug-sim
+        - config-qor-helper
+        - congestion-analysis
+        - convert-aie-to-test-harness
+        - create-dsplib
+        - create-dsplib-graph
+        - create-dsplib-makefile
+        - create-dsplib-readme
+        - create-dsplib-stimuli
+        - create-kernel
+        - create-kernel-aiecst
+        - create-kernel-app
+        - create-kernel-cfg
+        - create-kernel-cpp
+        - create-kernel-graph
+        - create-kernel-hpp
+        - create-kernel-makefile
+        - device-floorplan
+        - embedded-software-app-skill
+        - extract-aie-latency
+        - extract-aie-loop-ii
+        - extract-aie-resources
+        - extract-aie-throughput
+        - hls-architect
+        - hls-array-to-stream
+        - hls-burst-inference
+        - hls-component-basic-info
+        - hls-cosim-report
+        - hls-dataflow
+        - hls-dataflow-infos
+        - hls-flattenable
+        - hls-impl-report
+        - hls-line-buffer
+        - hls-matlab-to-cpp
+        - hls-optimize
+        - hls-perf-pragma
+        - hls-pragma-scope
+        - hls-run-flow
+        - hls-stencil-pattern
+        - hls-synth-report
+        - hls-synthesizable
+        - hw-ddrmc-debug
+        - hw-ibert-gt-debug
+        - hw-ila-debug
+        - hw-noc-debug
+        - hw-noc-perfmon
+        - hw-pcie-link-debug
+        - hw-sysmon
+        - hw-vio-debug
+        - matlab-to-aie
+        - matlab-to-aie-analyze
+        - matlab-to-aie-graph
+        - matlab-to-aie-kernel
+        - matlab-to-aie-ml
+        - matlab-to-aie-ml-v2
+        - matlab-to-aie-validate
+        - matlab-to-aie-vectorize
+        - opt-design-analysis
+        - optimize-aie-buffers-to-parameters
+        - optimize-aie-diagonal-matrix-extract
+        - optimize-aie-diagonal-matrix-init
+        - optimize-aie-memory-access
+        - optimize-aie-scalar-divide
+        - optimize-aie-split-accumulator
+        - phys-opt-design-analysis
+        - rtl-elaboration-analysis
+        - rtl-lint
+        - segcfg-build-images
+        - segcfg-debug-guide
+        - segcfg-design-check
+        - segcfg-firmware-build
+        - segcfg-overview
+        - segcfg-pl-reload
+        - segcfg-programming
+        - segcfg-project-setup
+        - timing-methodology-checks
+        - versal-rtl-coding-guidelines
+        - versal-rtl-design-advisories
+        - versal-timing-closure
+        - vhls-opt
+        - vitis_application_creation_skill
+        - vitis-functional-sim
+        - vitis-hw-emu-solution
+        - vivado-bd-ila-insert
+        - vivado-bd-vio-insert
+        - vivado-opt-design-analyze
+        - vivado-post-route-analyze
+        - vivado-revision-control
+        - vivado-skill-creator
+        - vivado-timing-closure
+        - workload-partition-advisor
+        - xsct-to-python-converter
+    validations:
+      required: true
+
+  - type: input
+    id: proposed_name
+    attributes:
+      label: Proposed Skill Name
+      description: For new skills only — suggest a name
+      placeholder: "e.g. power-analysis, clock-tree-debug"
+    validations:
+      required: false
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: Why is this feature needed? What problem does it solve?
+      placeholder: "Today, users have to..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: Requested priority level
+      options:
+        - "0"
+        - "1"
+        - "2"
+        - "3"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: source
+    attributes:
+      label: Source
+      description: Where did this request originate?
+      options:
+        - Internal
+        - Internal - Verification
+        - Internal - Verification Testbench
+        - Internal - Code Review
+        - Internal - Code Coverage Report
+        - Cust-Critical
+        - Cust-NotCritical
+        - Cust-Has Workaround
+        - intCust-Critical
+        - intCust-Has Workaround
+        - intCust - TRD Critical
+        - AE Testing Bash
+    validations:
+      required: true
+
+  - type: input
+    id: salesforce_id
+    attributes:
+      label: Salesforce Case ID
+      description: WTS integration — link to customer case
+      placeholder: "e.g. 5001234567"
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      description: Links, screenshots, API specs, related issues
+      placeholder: "Any additional context, links, or references..."
+    validations:
+      required: false

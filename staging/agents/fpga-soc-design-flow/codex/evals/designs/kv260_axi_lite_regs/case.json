@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "id": "kv260_axi_lite_regs",
+  "title": "KV260 AXI4-Lite Register Bank",
+  "prompt_file": "prompt.md",
+  "target": {
+    "part": "xck26-sfvc784-2LV-c",
+    "board_part": "xilinx.com:kv260_som:part0:1.4",
+    "vivado_version": "2025.2"
+  },
+  "expected_route": [
+    "amd_soc_orchestrator",
+    "amd_soc_intent_to_spec",
+    "amd_soc_architect",
+    "vivado_rtl_engineer",
+    "amd_soc_platform_integrator",
+    "amd_soc_verifier",
+    "vivado_impl_closure"
+  ],
+  "candidate": {
+    "integration_mode": "ip_integrator",
+    "top": "kv260_system_wrapper",
+    "simulation_top": "kv260_axi_lite_regs",
+    "rtl_sources": ["rtl/kv260_axi_lite_regs.sv"],
+    "constraint_sources": []
+  },
+  "public_interface": {
+    "design_root": "design",
+    "modules": [{
+      "name": "kv260_axi_lite_regs",
+      "source": "rtl/kv260_axi_lite_regs.sv",
+      "roles": ["simulation_top", "required_component"],
+      "parameters": [{"name": "ADDR_WIDTH", "type": "int unsigned", "default": 6}],
+      "ports": [
+        {"name": "s_axi_aclk", "direction": "input", "width": 1},
+        {"name": "s_axi_aresetn", "direction": "input", "width": 1},
+        {"name": "s_axi_awaddr", "direction": "input", "width": "ADDR_WIDTH"},
+        {"name": "s_axi_awvalid", "direction": "input", "width": 1},
+        {"name": "s_axi_awready", "direction": "output", "width": 1},
+        {"name": "s_axi_wdata", "direction": "input", "width": 32},
+        {"name": "s_axi_wstrb", "direction": "input", "width": 4},
+        {"name": "s_axi_wvalid", "direction": "input", "width": 1},
+        {"name": "s_axi_wready", "direction": "output", "width": 1},
+        {"name": "s_axi_bresp", "direction": "output", "width": 2},
+        {"name": "s_axi_bvalid", "direction": "output", "width": 1},
+        {"name": "s_axi_bready", "direction": "input", "width": 1},
+        {"name": "s_axi_araddr", "direction": "input", "width": "ADDR_WIDTH"},
+        {"name": "s_axi_arvalid", "direction": "input", "width": 1},
+        {"name": "s_axi_arready", "direction": "output", "width": 1},
+        {"name": "s_axi_rdata", "direction": "output", "width": 32},
+        {"name": "s_axi_rresp", "direction": "output", "width": 2},
+        {"name": "s_axi_rvalid", "direction": "output", "width": 1},
+        {"name": "s_axi_rready", "direction": "input", "width": 1}
+      ]
+    }],
+    "constraints": []
+  },
+  "simulation": {"make_directory": "testbench", "toplevel": "kv260_axi_lite_regs"},
+  "semantic_rubric": [
+    {"id": "RTL_FILE", "weight": 4, "artifact": "source-manifest.json", "collection": "files", "match": {"path": "design/rtl/kv260_axi_lite_regs.sv"}, "field": "kind", "operator": "equals", "expected": "rtl"},
+    {"id": "RTL_OWNER", "weight": 3, "artifact": "architecture-plan.json", "collection": "modules", "match": {"name": "kv260_axi_lite_regs"}, "field": "owner", "operator": "equals", "expected": "vivado_rtl_engineer"},
+    {"id": "PLATFORM_INTEGRATION", "weight": 2, "artifact": "architecture-plan.json", "collection": "work_packages", "match": {"agent": "amd_soc_platform_integrator"}, "field": "agent", "operator": "equals", "expected": "amd_soc_platform_integrator"},
+    {"id": "NO_HLS", "weight": 1, "artifact": "architecture-plan.json", "collection": "modules", "field": "implementation", "operator": "not_contains", "expected": "hls"}
+  ],
+  "score_weights": {"contracts": 20, "semantics": 20, "simulation": 30, "vivado": 30}
+}

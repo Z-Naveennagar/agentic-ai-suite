@@ -1,0 +1,18 @@
+{
+  "inputs": {
+    "xsa_path": "C:/designs/zynqmp_base/system_wrapper.xsa",
+    "srs_path": "C:/designs/zynqmp_base/srs.md",
+    "execution_mode": "apply",
+    "vitis_reference_doc": "C:/AMD/Vitis/2026.1/docs/python_api_reference.pdf",
+    "preferred_os": "freertos",
+    "preferred_cpu": {
+      "family": "rpu",
+      "core_index": 0
+    },
+    "preferred_domain_name": "freertos_r5_0",
+    "workspace_path": "C:/workspaces/embedded_generator_run_001",
+    "max_retries": 5,
+    "build_profile": "debug",
+    "optimization": "O2"
+  }
+}

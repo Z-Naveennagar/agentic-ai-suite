@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "request_id": "replace-me",
+  "spec_revision": 1,
+  "status": "ERROR",
+  "modules": [],
+  "interfaces": [],
+  "clock_domains": [],
+  "reset_domains": [],
+  "cdc_crossings": [],
+  "source_plan": [],
+  "verification_obligations": [],
+  "decisions": [],
+  "risks": []
+}

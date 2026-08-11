@@ -1,0 +1,19 @@
+{
+  "title": "AMD Embedded Agentic AI Suite — Installation Guide",
+  "subtitle": "Setup guides for Vivado AI Assistant, Vitis HLS AI Assistant, and CLI tools — Early Access",
+  "tab_name": "Agentic AI Suite",
+  "kicker": "Early Access — Installation Guide",
+  "output": "deploy/pdf/output/Installation-Guide.pdf",
+  "macros": {
+    "mcp_version": "0.6.9"
+  },
+  "sources": [
+    "deploy/pdf/sources/installation-overview.md",
+    "docs/getting-started/README.md",
+    "docs/getting-started/install-skills.md",
+    "docs/getting-started/vivado-mcp.md",
+    "docs/getting-started/chipscope-mcp.md",
+    "docs/getting-started/hls-quickstart.md",
+    "docs/getting-started/preflight-checklist.md"
+  ]
+}

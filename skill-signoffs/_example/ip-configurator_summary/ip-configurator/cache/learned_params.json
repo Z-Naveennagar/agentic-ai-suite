@@ -1,0 +1,52 @@
+{
+  "axi_bram_ctrl|single port": {
+    "doc": "DS777/PG078: C_SINGLE_PORT_BRAM selects BRAM port utilization 0=dual 1=single; in BD mode param is CONFIG.SINGLE_PORT_BRAM",
+    "enabler": null,
+    "feature": "single port",
+    "ip": "axi_bram_ctrl",
+    "ip_version": "4.1",
+    "param": "CONFIG.SINGLE_PORT_BRAM",
+    "shape": "scalar",
+    "value_src": "user"
+  },
+  "axi_gpio|all outputs": {
+    "doc": "PG144 Table1: All Outputs C_ALL_OUTPUTS 0/1",
+    "enabler": null,
+    "feature": "all outputs",
+    "ip": "axi_gpio",
+    "ip_version": "2.0",
+    "param": "CONFIG.C_ALL_OUTPUTS",
+    "shape": "scalar",
+    "value_src": "user"
+  },
+  "axi_gpio|default output value": {
+    "doc": "PG144 Table1: Default Output Value C_DOUT_DEFAULT 0x00000000-0xFFFFFFFF",
+    "enabler": null,
+    "feature": "default output value",
+    "ip": "axi_gpio",
+    "ip_version": "2.0",
+    "param": "CONFIG.C_DOUT_DEFAULT",
+    "shape": "scalar",
+    "value_src": "user"
+  },
+  "axi_gpio|gpio width": {
+    "doc": "PG144 Table1: GPIO Width C_GPIO_WIDTH 1-32",
+    "enabler": null,
+    "feature": "gpio width",
+    "ip": "axi_gpio",
+    "ip_version": "2.0",
+    "param": "CONFIG.C_GPIO_WIDTH",
+    "shape": "scalar",
+    "value_src": "user"
+  },
+  "xlconcat|num_ports": {
+    "doc": "xlconcat NUM_PORTS controls number of input ports (2-32)",
+    "enabler": null,
+    "feature": "num_ports",
+    "ip": "xlconcat",
+    "ip_version": "2.1",
+    "param": "CONFIG.NUM_PORTS",
+    "shape": "scalar",
+    "value_src": "user"
+  }
+}

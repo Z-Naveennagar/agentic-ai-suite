@@ -1,0 +1,60 @@
+{
+  "acceptance": [
+    {
+      "id": "ACC-COUNTER-SIM",
+      "method": "simulation",
+      "pass_condition": "The count increments once per rising event edge and wraps after 255.",
+      "requirement_ids": [
+        "REQ-COUNTER"
+      ]
+    }
+  ],
+  "assumptions": [],
+  "entry_type": "greenfield",
+  "intent": {
+    "allowed_changes": [
+      "Create new files under the run artifact directory."
+    ],
+    "deliverables": [
+      "RTL",
+      "constraints",
+      "verification evidence",
+      "bitstream"
+    ],
+    "goal": "Implement an eight-bit event counter in direct RTL.",
+    "original_request": "Create an eight-bit event counter and a bitstream.",
+    "prohibited_changes": [
+      "Do not use HLS."
+    ]
+  },
+  "provenance": [
+    {
+      "confidence": "HIGH",
+      "evidence": [
+        "Explicitly stated in the user request."
+      ],
+      "field": "requirements.REQ-COUNTER",
+      "source": "USER"
+    }
+  ],
+  "request_id": "example-direct-rtl",
+  "requirements": [
+    {
+      "category": "functional",
+      "id": "REQ-COUNTER",
+      "priority": "must",
+      "statement": "Count each rising event edge with an eight-bit wrapping counter.",
+      "units": "bits",
+      "value": 8
+    }
+  ],
+  "revision": 1,
+  "schema_version": 1,
+  "status": "READY",
+  "target": {
+    "board": "Basys 3",
+    "part": "xc7a35tcpg236-1",
+    "vivado_version": "2025.2"
+  },
+  "unresolved_questions": []
+}

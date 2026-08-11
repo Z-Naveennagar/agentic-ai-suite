@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "base": "prototype-root",
+  "resolution": {
+    "roots": [
+      {
+        "path": "skills",
+        "source": "prototype",
+        "read_only": false,
+        "precedence": 1
+      },
+      {
+        "path": "../../../../skills",
+        "source": "suite-published",
+        "read_only": true,
+        "precedence": 2
+      },
+      {
+        "path": "../../../../staging",
+        "source": "suite-staging",
+        "read_only": true,
+        "precedence": 3
+      }
+    ],
+    "name_source": "SKILL.md frontmatter",
+    "require_unique_effective_name": true
+  },
+  "skills": {
+    "vivado-workflow": {
+      "path": "skills/vivado-workflow",
+      "source": "prototype",
+      "maturity": "prototype",
+      "owner": "amd_soc_orchestrator",
+      "enabled_by_default": true
+    },
+    "vivado-intent-to-spec": {
+      "path": "skills/vivado-intent-to-spec",
+      "source": "prototype",
+      "maturity": "prototype",
+      "owner": "amd_soc_intent_to_spec",
+      "enabled_by_default": true
+    },
+    "vivado-design-architecture": {
+      "path": "skills/vivado-design-architecture",
+      "source": "prototype",
+      "maturity": "prototype",
+      "owner": "amd_soc_architect",
+      "enabled_by_default": true
+    },
+    "vivado-source-authoring": {
+      "path": "skills/vivado-source-authoring",
+      "source": "prototype",
+      "maturity": "prototype",
+      "owner": "vivado_rtl_engineer",
+      "enabled_by_default": true
+    },
+    "vivado-implementation-closure": {
+      "path": "skills/vivado-implementation-closure",
+      "source": "prototype",
+      "maturity": "prototype",
+      "owner": "vivado_impl_closure",
+      "enabled_by_default": true
+    },
+    "hardware-validation": {
+      "path": "skills/hardware-validation",
+      "source": "prototype",
+      "maturity": "prototype",
+      "owner": "amd_soc_hardware_validator",
+      "enabled_by_default": true
+    }
+  }
+}

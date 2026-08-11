@@ -1,0 +1,13 @@
+{
+  "part": "xcvc1902-vsva2197-2MP-e-S",
+  "bram": 3,
+  "uram": 1,
+  "dsp": 2,
+  "latches": 0,
+  "async_regs": 6,
+  "dont_touch_cells": 24,
+  "reports_present": true,
+  "report_error_or_critical": false,
+  "structural_gate": "PASS",
+  "failures": ""
+}

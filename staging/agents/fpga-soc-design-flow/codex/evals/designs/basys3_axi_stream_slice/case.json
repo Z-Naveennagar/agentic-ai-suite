@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "id": "basys3_axi_stream_slice",
+  "title": "AXI4-Stream elastic register slice with on-board self-test",
+  "prompt_file": "prompt.md",
+  "target": {
+    "part": "xc7a35tcpg236-1",
+    "vivado_version": "2025.2"
+  },
+  "expected_route": [
+    "amd_soc_orchestrator",
+    "amd_soc_intent_to_spec",
+    "amd_soc_architect",
+    "vivado_rtl_engineer",
+    "amd_soc_verifier",
+    "vivado_impl_closure"
+  ],
+  "candidate": {
+    "integration_mode": "rtl_top",
+    "top": "axis_selftest_top",
+    "simulation_top": "axis_register_slice",
+    "rtl_sources": ["rtl/axis_register_slice.sv", "rtl/axis_selftest_top.sv"],
+    "constraint_sources": ["constraints/basys3.xdc"]
+  },
+  "public_interface": {
+    "design_root": "design",
+    "modules": [
+      {
+        "name": "axis_register_slice",
+        "source": "rtl/axis_register_slice.sv",
+        "roles": ["simulation_top", "required_component"],
+        "parameters": [
+          {"name": "DATA_WIDTH", "type": "integer", "default": 32}
+        ],
+        "ports": [
+          {"name": "clk", "direction": "input", "width": 1},
+          {"name": "rst", "direction": "input", "width": 1},
+          {"name": "s_axis_tvalid", "direction": "input", "width": 1},
+          {"name": "s_axis_tready", "direction": "output", "width": 1},
+          {"name": "s_axis_tdata", "direction": "input", "width": "DATA_WIDTH"},
+          {"name": "s_axis_tlast", "direction": "input", "width": 1},
+          {"name": "m_axis_tvalid", "direction": "output", "width": 1},
+          {"name": "m_axis_tready", "direction": "input", "width": 1},
+          {"name": "m_axis_tdata", "direction": "output", "width": "DATA_WIDTH"},
+          {"name": "m_axis_tlast", "direction": "output", "width": 1}
+        ]
+      },
+      {
+        "name": "axis_selftest_top",
+        "source": "rtl/axis_selftest_top.sv",
+        "roles": ["implementation_top"],
+        "parameters": [],
+        "ports": [
+          {"name": "clk", "direction": "input", "width": 1},
+          {"name": "rst", "direction": "input", "width": 1},
+          {"name": "pass_o", "direction": "output", "width": 1},
+          {"name": "fail_o", "direction": "output", "width": 1}
+        ]
+      }
+    ],
+    "constraints": ["constraints/basys3.xdc"]
+  },
+  "simulation": {
+    "make_directory": "testbench",
+    "toplevel": "axis_register_slice"
+  },
+  "semantic_rubric": [
+    {
+      "id": "SEM-DIRECT-RTL",
+      "weight": 10,
+      "artifact": "architecture-plan.json",
+      "collection": "modules",
+      "match": {"name": "axis_register_slice"},
+      "field": "implementation",
+      "operator": "equals",
+      "expected": "rtl"
+    },
+    {
+      "id": "SEM-AXIS-WIDTH",
+      "weight": 10,
+      "artifact": "architecture-plan.json",
+      "collection": "interfaces",
+      "match": {"protocol": "AXI4-Stream"},
+      "field": "data_width",
+      "operator": "equals",
+      "expected": 32
+    },
+    {
+      "id": "SEM-FULL-THROUGHPUT",
+      "weight": 10,
+      "artifact": "architecture-plan.json",
+      "collection": "modules",
+      "match": {"name": "axis_register_slice"},
+      "field": "performance.initiation_interval_max",
+      "operator": "equals",
+      "expected": 1
+    },
+    {
+      "id": "SEM-NO-HLS",
+      "weight": 10,
+      "artifact": "architecture-plan.json",
+      "collection": "work_packages",
+      "field": "agent",
+      "operator": "not_contains",
+      "expected": "vitis_hls_engineer"
+    }
+  ],
+  "score_weights": {
+    "contracts": 10,
+    "semantics": 40,
+    "simulation": 30,
+    "vivado": 20
+  }
+}

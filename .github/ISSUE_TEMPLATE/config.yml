@@ -1,0 +1,8 @@
+# Copyright (C) 2026, Advanced Micro Devices, Inc. All rights reserved.
+# SPDX-License-Identifier: MIT
+
+blank_issues_enabled: true
+contact_links:
+  - name: "⚠️ Blank issues are for developers only"
+    url: https://amd.atlassian.net/wiki/spaces/XSW/pages/1720743673
+    about: "Do not use blank issues unless you are a developer. Use Change Request or Feature Request templates above."

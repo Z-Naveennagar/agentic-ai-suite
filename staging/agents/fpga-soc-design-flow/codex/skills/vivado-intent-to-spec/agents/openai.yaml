@@ -1,0 +1,14 @@
+# Copyright (C) 2026, Advanced Micro Devices, Inc. All rights reserved.
+# SPDX-License-Identifier: MIT
+
+interface:
+  display_name: "Vivado Intent to Specification"
+  short_description: "Translate user goals into hardware specifications"
+  default_prompt: "Use $vivado-intent-to-spec to turn this FPGA request into a validated hardware specification."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "vivado-mcp-server"
+      description: "Vivado discovery and official AMD documentation search"
+policy:
+  allow_implicit_invocation: true

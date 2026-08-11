@@ -1,0 +1,100 @@
+# ── Suite: hls-burst-inference_08 ───────────────────────────────
+# Evaluates whether the hls-burst-inference skill correctly identifies
+# that burst inference cannot be applied when the M-AXI data type width
+# (96 bits via MyType) is not a power of 2 — and whether the agent can
+# fix it.
+#
+# Placeholders substituted into any prompt:
+#   {input_file}  -> the first entry of a case's input_files
+# {skill_name} / {flow_skill} are internal bookkeeping only (used in
+# expected.skills and in SKILL.md lookups) — they never appear inside
+# a prompt's literal text. No test case, of any shape, ever names a
+# skill in its customer-facing prompt.
+#
+# Per-case fields:
+#   id           unique case id
+#   input_files  files staged into the workspace from ./inputs
+#   prompt       the case's instruction — analysis-only one-liner, fuller
+#                fix+verify workflow, or a config-match request — always
+#                skill-agnostic, informed by reading the relevant SKILL.md.
+#                The mandated {"verdict", "explanation"} JSON contract is NOT
+#                repeated per case: it's appended once via runner_spec.yaml's
+#                `output_contract:` (shared_prompt_prefix + output_contract +
+#                this prompt, per core/case_loader.py).
+#   expected     values substituted into grader_spec {tokens}:
+#                  expected_output    -> golden {verdict, explanation} dict,
+#                                        graded whole by output_contract_match:
+#                                        verdict is literal/tolerant-compared
+#                                        (YES/NO, no partial credit), explanation
+#                                        is LLM-judged for substance via
+#                                        grader_spec's semantic_fields intent
+#                  skills             -> every skill this case is expected to invoke
+#                                        (bookkeeping — never shown in the prompt)
+#                  tool_sequence      -> always present: expected tool calls in order
+#                                        (bare tool name, "bash: <command>", or a
+#                                        tool name looked up from that skill's own
+#                                        SKILL.md)
+#                  log_path/substring -> only for cases with a run/verify step.
+#                                        log_path is the real csynth.rpt Vitis
+#                                        writes to disk under whatever
+#                                        --work_dir the agent actually used
+#                                        (verified empirically: hls-run-flow's
+#                                        SKILL.md resolves an unstated
+#                                        --work_dir from hls_config.cfg's
+#                                        syn.top=example, so the agent
+#                                        consistently lands output under
+#                                        example/hls/syn/report/csynth.rpt
+#                                        rather than a caller-chosen path --
+#                                        this suite's golden values follow
+#                                        that real behavior instead of
+#                                        fighting it)
+#                  tool_call_observed -> only for cases with a run/verify step
+
+suite_id: hls-burst-inference_08
+description: >
+  Two-case suite testing burst inference analysis on a kernel whose
+  M-AXI port data type (MyType, 96 bits) is not a power of 2. Case 01
+  is pure static analysis; case 02 requires a fix (widen to power-of-2
+  width) followed by a csynth verification run that confirms burst
+  inference is now applied. Sourced from inputs/README.md.
+
+test_cases:
+  - id: hls-burst-inference_08_01
+    input_files: [hls-burst-inference_08.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference be applied?
+      Please make a static analysis without running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: >
+          Burst inference cannot be applied because the accessed data type on
+          the M-AXI ports is MyType (96 bits = 3×32-bit int), and 96 is not a
+          power of 2 — failing Precondition 3 (Data Type Width Check) of the
+          burst inference rules.
+
+  - id: hls-burst-inference_08_02
+    input_files: [hls-burst-inference_08.cpp, hls_config.cfg, vitis-comp.json]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference be applied?
+      If the answer is yes, do nothing; if the answer is no, fix it and put the
+      fixed copy at `outputs/burst_inference_08_02/{input_file}`. Then verify
+      by running C synthesis.
+    expected:
+      skills: [hls-burst-inference, hls-run-flow]
+      tool_sequence:
+        ["Read",
+         "bash: v++ --compile --mode hls --config hls_config.cfg --work_dir example"]
+      expected_output:
+        verdict: "NO"
+        explanation: >
+          Burst inference cannot be applied as-is because MyType is 96 bits
+          (not a power of 2). The fix must widen the struct to a power-of-2
+          width (e.g., add a padding field to make it 128 bits) so that
+          Precondition 3 is satisfied. After the fix, csynth confirms burst
+          reads and writes are inferred on bundle 'gmem'.
+      log_path: "example/hls/syn/report/csynth.rpt"
+      log_substring: "Inferred Burst Summary"
+      tool_call_observed: "bash: v++ --compile --mode hls --config hls_config.cfg --work_dir example"

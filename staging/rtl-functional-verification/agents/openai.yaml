@@ -1,0 +1,4 @@
+interface:
+  display_name: "RTL Functional Verification"
+  short_description: "Plan and run self-checking RTL verification"
+  default_prompt: "Use $rtl-functional-verification to build and run a self-checking verification environment for this RTL design."

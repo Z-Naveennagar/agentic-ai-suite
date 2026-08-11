@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "id": "kv260_bram_scratchpad",
+  "title": "KV260 dual-port byte-write BRAM scratchpad",
+  "prompt_file": "prompt.md",
+  "target": {"part": "xck26-sfvc784-2LV-c", "board_part": "xilinx.com:kv260_som:part0:1.4", "vivado_version": "2025.2"},
+  "expected_route": ["amd_soc_orchestrator", "amd_soc_intent_to_spec", "amd_soc_architect", "vivado_rtl_engineer", "amd_soc_platform_integrator", "amd_soc_verifier", "vivado_impl_closure"],
+  "candidate": {"integration_mode": "ip_integrator", "top": "kv260_bram_scratchpad", "simulation_top": "kv260_bram_scratchpad", "rtl_sources": ["rtl/kv260_bram_scratchpad.sv"], "constraint_sources": []},
+  "public_interface": {
+    "design_root": "design",
+    "modules": [{
+      "name": "kv260_bram_scratchpad",
+      "source": "rtl/kv260_bram_scratchpad.sv",
+      "roles": ["simulation_top", "required_component"],
+      "parameters": [],
+      "ports": [
+        {"name": "clk", "direction": "input", "width": 1},
+        {"name": "rst", "direction": "input", "width": 1},
+        {"name": "a_en", "direction": "input", "width": 1},
+        {"name": "a_we", "direction": "input", "width": 4},
+        {"name": "a_addr", "direction": "input", "width": 8},
+        {"name": "a_wdata", "direction": "input", "width": 32},
+        {"name": "a_rdata", "direction": "output", "width": 32},
+        {"name": "b_en", "direction": "input", "width": 1},
+        {"name": "b_we", "direction": "input", "width": 4},
+        {"name": "b_addr", "direction": "input", "width": 8},
+        {"name": "b_wdata", "direction": "input", "width": 32},
+        {"name": "b_rdata", "direction": "output", "width": 32}
+      ]
+    }],
+    "constraints": []
+  },
+  "simulation": {"make_directory": "testbench", "toplevel": "kv260_bram_scratchpad"},
+  "semantic_rubric": [
+    {"id": "SEM-DIRECT-RTL", "weight": 10, "artifact": "architecture-plan.json", "collection": "modules", "match": {"name": "kv260_bram_scratchpad"}, "field": "implementation", "operator": "equals", "expected": "rtl"},
+    {"id": "SEM-RTL-OWNER", "weight": 10, "artifact": "architecture-plan.json", "collection": "modules", "match": {"name": "kv260_bram_scratchpad"}, "field": "owner", "operator": "equals", "expected": "vivado_rtl_engineer"},
+    {"id": "SEM-BRAM", "weight": 10, "artifact": "architecture-plan.json", "collection": "modules", "match": {"name": "kv260_bram_scratchpad"}, "field": "requirement_ids", "operator": "contains", "expected": "REQ-BRAM-INFERENCE"},
+    {"id": "SEM-NO-HLS", "weight": 10, "artifact": "architecture-plan.json", "collection": "work_packages", "field": "agent", "operator": "not_contains", "expected": "vitis_hls_engineer"}
+  ],
+  "score_weights": {"contracts": 10, "semantics": 40, "simulation": 30, "vivado": 20}
+}

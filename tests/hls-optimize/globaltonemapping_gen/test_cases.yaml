@@ -1,0 +1,132 @@
+# ── Suite: globaltonemapping_gen ──────────────────────────────
+# Optimize-an-existing-HLS-design test. The input is a complete, WORKING
+# Vitis Vision L1 Global Tone Mapping kernel (xf_gtm_accel.cpp) at the
+# unoptimized NPPC=1 baseline. The task is to reduce its TRUE latency by 2x
+# while using no more than 1.5x the resources, keeping the OpenCV testbench
+# passing (xf_gtm_tb.cpp prints "Test Passed").
+#
+# Chain under test: hls-optimize -> hls-run-flow.
+#
+# "True latency" = cosim latency (cycles) x post-route clock period, so this
+# design must run the FULL flow (csim, csynth, cosim, impl) to measure both
+# the baseline and the optimized true latency and the resource usage.
+#
+# Design targets come from the design's own hls_config.tmpl:
+#   part = xcvc1902-vsva2197-2MP-e-S (Versal), clock = 2 ns.
+#
+# HOST PREREQUISITE — OpenCV: the testbench uses cv::imread + xf::cv::analyzeDiff,
+# so csim/cosim require OpenCV (gen_config.sh needs $OPENCV_INCLUDE/$OPENCV_LIB).
+
+suite_id: globaltonemapping_gen
+description: >
+  Optimize the Vitis Vision L1 Global Tone Mapping kernel (xf_gtm_accel.cpp,
+  NPPC=1 baseline) to reduce true latency (cosim cycles x post-route clock) by
+  >= 2x while using <= 1.5x the baseline resources, on
+  xcvc1902-vsva2197-2MP-e-S at a 2 ns clock, keeping xf_gtm_tb.cpp's OpenCV
+  comparison passing. Chain: hls-optimize -> hls-run-flow.
+
+test_cases:
+  - id: globaltonemapping_gen_01
+    input_files:
+      - xf_gtm_accel.cpp
+      - xf_gtm_tb.cpp
+      - xf_config_params.h
+      - xf_gtm_accel_config.h
+      - xf_gtm_tb_config.h
+      - hls_config.tmpl
+      - gen_config.sh
+      - ltm_input_s.png
+      - include/xf_channel_combine.hpp
+      - include/xf_channel_extract.hpp
+      - include/xf_common.hpp
+      - include/xf_cvt_color.hpp
+      - include/xf_cvt_color_1.hpp
+      - include/xf_cvt_color_utils.hpp
+      - include/xf_duplicateimage.hpp
+      - include/xf_gtm.hpp
+      - include/xf_headers.hpp
+      - include/xf_params.hpp
+      - include/xf_structs.hpp
+      - include/xf_sw_utils.hpp
+      - include/xf_types.hpp
+      - include/xf_utility.hpp
+      - include/xf_video_mem.hpp
+    prompt: |-
+      I have a working Vitis HLS design that does Global Tone Mapping (HDR ->
+      LDR): the top-level kernel is `gtm_accel` in `xf_gtm_accel.cpp`,
+      currently at the unoptimized single-pixel-per-clock (NPPC=1) baseline.
+      `xf_gtm_tb.cpp` is the OpenCV testbench (reads
+      `ltm_input_s.png`, compares my output against a software reference,
+      and prints "Test Passed"). Build config lives in `hls_config.tmpl`
+      (generate `hls_config.cfg` with `gen_config.sh` after setting your
+      OpenCV paths). The Vitis Vision headers are under `include/`.
+
+      I need this design made faster without blowing up area. Please optimize it
+      and iterate until the reports show:
+      - **>= 2x lower true latency** (true latency = cosim latency in cycles x
+        post-route clock period) than the current baseline, and
+      - **<= 1.5x the baseline resource usage** (LUT/FF/DSP/BRAM/URAM),
+      while the testbench still prints "Test Passed".
+
+      Design targets (from the design's own config):
+      - FPGA part: xcvc1902-vsva2197-2MP-e-S
+      - Clock period: 2 ns
+
+      When you are done, save the following at these EXACT paths (create the
+      `outputs/globaltonemapping_gen_01/` directory):
+
+      - `outputs/globaltonemapping_gen_01/results.json` — a JSON object with
+        exactly these keys (plain numbers, no units in the numeric fields):
+          {
+            "test_passed": true | false,
+            "baseline_true_latency_ns": <number>,
+            "optimized_true_latency_ns": <number>,
+            "latency_speedup": <number, baseline_true_latency / optimized_true_latency>,
+            "resource_ratio": <number, optimized_resources / baseline_resources (worst-case across LUT/FF/DSP/BRAM/URAM)>
+          }
+      - `outputs/globaltonemapping_gen_01/final_impl.rpt` — a copy of the final
+        implementation report for your optimized design (post-route timing +
+        resource summary).
+      - `outputs/globaltonemapping_gen_01/baseline_impl.rpt` — a copy of the
+        BASELINE (NPPC=1) implementation report (post-route timing + resource
+        summary), so the speedup and resource ratio can be corroborated against
+        REAL reports rather than only your results.json.
+      - `outputs/globaltonemapping_gen_01/csim.log` — the RAW, unedited console
+        output of your FINAL C-simulation / co-simulation run. It MUST contain
+        the testbench's own verdict line exactly as `xf_gtm_tb.cpp` prints it
+        ("Test Passed" on success, or "ERROR: Test Failed." on failure). Do not
+        summarize, paraphrase, or hand-write this — capture the real stdout so
+        correctness can be verified independently of results.json.
+
+      Then tell me, in your reply, the baseline vs optimized true latency, the
+      achieved speedup, the resource ratio, and how you confirmed the testbench
+      still passes.
+    expected:
+      skills:
+        - hls-optimize
+        - hls-run-flow
+      tool_sequence:
+        - Read
+        - bash
+      tool_call_observed: "bash: v++ --mode hls"
+      target_speedup: "2"
+      max_resource_ratio: "1.5"
+      artifact_path: outputs/globaltonemapping_gen_01/results.json
+      csim_log_path: outputs/globaltonemapping_gen_01/csim.log
+      baseline_report_path: outputs/globaltonemapping_gen_01/baseline_impl.rpt
+      final_report_path: outputs/globaltonemapping_gen_01/final_impl.rpt
+      expected_output:
+        verdict: "YES"
+        explanation: >
+          A successful run (judge the flow, not exact directory names):
+          (1) establish the NPPC=1 baseline by running the full flow (csim, csynth,
+          cosim, impl) and recording true latency = cosim cycles x post-route
+          clock plus the resource summary; (2) apply optimizations — the primary
+          lever is increasing parallelism (NPPC=2 or 4) plus pragma/dataflow
+          tuning — and re-run the flow; (3) iterate until the optimized design's
+          true latency is <= 1/2 of the baseline AND its resources are <= 1.5x the
+          baseline, on xcvc1902-vsva2197-2MP-e-S at 2 ns; (4) keep it correct —
+          xf_gtm_tb.cpp must still print "Test Passed". The reply reports baseline
+          vs optimized true latency, the >= 2x speedup, the <= 1.5x resource ratio,
+          and writes results.json + final_impl.rpt under
+          outputs/globaltonemapping_gen_01/.

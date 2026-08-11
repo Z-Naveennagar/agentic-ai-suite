@@ -1,0 +1,404 @@
+{
+  "schema_version": 1,
+  "version": "0.1",
+  "name": "amd-adaptive-soc-multi-agent",
+  "entry_agent": "amd_soc_orchestrator",
+  "modes": ["interactive", "analyze", "repair", "regression"],
+  "artifact_root_pattern": "runs/{request_id}",
+  "mcp": {
+    "server": "vivado-mcp-server",
+    "default_start_mode": "tcl",
+    "general_session_type": "general",
+    "block_design_session_type": "ipi",
+    "session_lock": "one-writer-per-session",
+    "serialize_tool": "vivado_execute",
+    "documentation_tool": "vivado_doc_search",
+    "require_launch_wait_pair": true,
+    "poll_interval_seconds": 30
+  },
+  "vitis": {
+    "environment": "environment.json",
+    "plan_contract": "contracts/vitis-execution-plan.schema.json",
+    "result_contract": "contracts/vitis-result.schema.json",
+    "runner": "python3 scripts/v0_1_runner.py vitis --run {run_dir}",
+    "execution_order": [
+      "v++ compile selected HLS/AIE components",
+      "v++ link the extensible platform when acceleration is selected",
+      "v++ package when a deployable acceleration package is required",
+      "vitis -s generated Python for platform and embedded application build"
+    ],
+    "command_policy": "structured-fields-only",
+    "allow_arbitrary_shell": false
+  },
+  "verification": {
+    "default_backend": "cocotb-verilator",
+    "vendor_backend": "vivado-mcp-xsim",
+    "environment": "environment.json",
+    "activation": "source env.sh",
+    "escalate_to_vendor_backend_for": [
+      "AMD primitives or IP",
+      "block designs",
+      "encrypted simulation models",
+      "post-synthesis or post-route simulation"
+    ]
+  },
+  "budgets": {
+    "max_stage_iterations": 3,
+    "max_repeated_failure_without_new_evidence": 2
+  },
+  "assurance": {
+    "required_for_new_runs": true,
+    "default_mode": "exception_approval",
+    "supported_modes": [
+      "transparent_automatic",
+      "exception_approval",
+      "approve_every_gate"
+    ],
+    "contract": "contracts/gate-receipt.schema.json",
+    "runner": "python3 scripts/gate_runner.py",
+    "evaluator": "deterministic-not-producer",
+    "receipt_directory": "runs/{request_id}/gates",
+    "user_report_format": "generated-markdown",
+    "input_integrity": "sha256",
+    "output_integrity": "sha256-for-pinned-artifacts",
+    "require_prework_snapshot": true,
+    "block_transition_unless": "latest required gate verdict == PASS"
+  },
+  "concurrency": {
+    "policy": "parallel-across-runs-bounded-within-run",
+    "configurable_defaults": {
+      "frontend_runs": 16,
+      "simulation_runs": 8,
+      "vivado_implementation_runs": 1,
+      "hardware_runs_per_target": 1
+    },
+    "within_run_parallel_after_architecture": [
+      "RTL authoring",
+      "platform skeleton construction when selected",
+      "verification planning"
+    ],
+    "convergence_gate": "aggregate source-manifest READY before integrated verification",
+    "locks": [
+      "one writer per artifact",
+      "one writer per Vivado session",
+      "one hardware validator per target profile and JTAG cable"
+    ]
+  },
+  "artifact_ownership": {
+    "policy": "single-writer-multiple-readers",
+    "policy_document": "ARTIFACT_OWNERSHIP_v0.1.md",
+    "whole_run_validation_owner": "amd_soc_orchestrator",
+    "finalizer": "python3 scripts/v0_1_runner.py finalize --run {run_dir} --stage {stage} --write",
+    "writers": {
+      "hardware-spec": "amd_soc_intent_to_spec",
+      "architecture-plan": "amd_soc_architect",
+      "source-manifest": "integration owner",
+      "platform-design-and-insertion-reports": "amd_soc_platform_integrator",
+      "vitis-execution-plan": "amd_soc_platform_integrator",
+      "vitis-result-and-generated-build-outputs": "deterministic Vitis runner",
+      "verification-result": "amd_soc_verifier",
+      "implementation-result-and-final-programming-set": "vivado_impl_closure",
+      "hardware-validation-result-and-evidence": "amd_soc_hardware_validator",
+      "gate-receipts-and-user-reports": "deterministic gate runner",
+      "handoffs-and-final-result": "amd_soc_orchestrator"
+    },
+    "source_manifest_excludes": [
+      ".xpr",
+      ".bit",
+      ".pdi",
+      ".ltx",
+      ".xsa",
+      "debug-map.json",
+      "implementation checkpoints and reports",
+      "hardware captures and logs"
+    ]
+  },
+  "completion": {
+    "required_status": "PASS",
+    "required_artifact_kind": "programming-image",
+    "accepted_extensions": [".bit", ".pdi"],
+    "require_artifact_exists": true,
+    "require_functional_verification_pass": true,
+    "require_implementation_signoff": true,
+    "profiles": {
+      "design_complete": {
+        "require_hardware_validation": false
+      },
+      "hardware_ready": {
+        "require_hardware_validation": false,
+        "require_hardware_test": true,
+        "require_implementation_artifacts": ["programming-image", "ltx", "debug-map"]
+      },
+      "hardware_qualified": {
+        "require_hardware_validation": true,
+        "required_hardware_status": "PASS"
+      }
+    }
+  },
+  "agents": [
+    {
+      "id": "amd_soc_orchestrator",
+      "prompt": ".codex/agents/amd_soc_orchestrator.toml",
+      "use": "core",
+      "primary_skill": "vivado-workflow",
+      "inputs": ["user-request"],
+      "outputs": ["handoff", "final-result"],
+      "skills": ["vivado-workflow", "soc-orchestration", "vivado-revision-control"]
+    },
+    {
+      "id": "amd_soc_intent_to_spec",
+      "prompt": ".codex/agents/amd_soc_intent_to_spec.toml",
+      "use": "core",
+      "primary_skill": "vivado-intent-to-spec",
+      "inputs": ["handoff", "user-request", "project-context"],
+      "outputs": ["hardware-spec"],
+      "skills": ["vivado-intent-to-spec"]
+    },
+    {
+      "id": "amd_soc_architect",
+      "prompt": ".codex/agents/amd_soc_architect.toml",
+      "use": "core",
+      "primary_skill": "vivado-design-architecture",
+      "inputs": ["hardware-spec"],
+      "outputs": ["architecture-plan"],
+      "skills": ["vivado-design-architecture", "workload-partition-advisor", "soc-orchestration/partitioning", "soc-orchestration/estimation"]
+    },
+    {
+      "id": "vivado_rtl_engineer",
+      "prompt": ".codex/agents/vivado_rtl_engineer.toml",
+      "use": "core",
+      "primary_skill": "vivado-source-authoring",
+      "inputs": ["hardware-spec", "architecture-plan", "component-manifests"],
+      "outputs": ["source-manifest"],
+      "skills": ["vivado-source-authoring", "rtl-elaboration-analysis", "versal-rtl-coding-guidelines", "versal-rtl-design-advisories"]
+    },
+    {
+      "id": "amd_soc_verifier",
+      "prompt": ".codex/agents/amd_soc_verifier.toml",
+      "use": "core",
+      "primary_skill": "rtl-functional-verification",
+      "inputs": ["hardware-spec", "architecture-plan", "source-manifest"],
+      "outputs": ["verification-result"],
+      "skills": ["rtl-functional-verification", "rtl-lint", "axi4-debug-sim", "vitis-functional-sim", "vitis-hw-emu-solution"]
+    },
+    {
+      "id": "vivado_impl_closure",
+      "prompt": ".codex/agents/vivado_impl_closure.toml",
+      "use": "core",
+      "primary_skill": "vivado-implementation-closure",
+      "inputs": ["hardware-spec", "architecture-plan", "source-manifest", "verification-result", "vitis-result"],
+      "outputs": ["implementation-result", "programming-image", "fixed-xsa", "ltx", "debug-map"],
+      "skills": ["vivado-implementation-closure", "timing-methodology-checks", "opt-design-analysis", "phys-opt-design-analysis", "congestion-analysis", "device-floorplan", "vivado-post-route-analyze", "vivado-timing-closure"]
+    },
+    {
+      "id": "amd_soc_hardware_validator",
+      "prompt": ".codex/agents/amd_soc_hardware_validator.toml",
+      "use": "core-hardware-profile",
+      "activation": ["hardware_validation", "hardware_qualified"],
+      "primary_skill": "hardware-validation",
+      "inputs": ["hardware-spec", "architecture-plan", "source-manifest", "verification-result", "implementation-result", "vitis-result", "hardware-test", "hardware-target"],
+      "outputs": ["hardware-validation-result", "ila-capture", "vio-snapshot", "hardware-log"],
+      "skills": ["hardware-validation", "hw-ila-debug", "hw-vio-debug"]
+    },
+    {
+      "id": "amd_soc_platform_integrator",
+      "prompt": ".codex/agents/amd_soc_platform_integrator.toml",
+      "use": "conditional",
+      "activation": ["platform", "ps", "cips", "block_design", "noc", "vitis_system"],
+      "primary_skill": "soc-orchestration/vitis-platform",
+      "inputs": ["hardware-spec", "architecture-plan", "component-manifests"],
+      "outputs": ["source-manifest", "preimplementation-platform-export", "hwh", "address-map", "hardware-instrumentation-report", "vitis-execution-plan"],
+      "skills": ["soc-orchestration/vitis-platform", "ip-configurator", "soc-orchestration/vitis-acceleration", "segcfg-project-setup", "vivado-bd-ila-insert", "vivado-bd-vio-insert"]
+    },
+    {
+      "id": "vitis_hls_engineer",
+      "prompt": ".codex/agents/vitis_hls_engineer.toml",
+      "use": "conditional",
+      "activation": ["hls"],
+      "primary_skill": "hls-architect",
+      "inputs": ["hardware-spec", "architecture-plan", "hls-work-package"],
+      "outputs": ["component-manifest", "vitis-compile-plan-fragment"],
+      "skills": ["hls-architect", "hls-run-flow", "hls-synthesizable", "hls-dataflow", "hls-optimize"]
+    },
+    {
+      "id": "vitis_aie_engineer",
+      "prompt": ".codex/agents/vitis_aie_engineer.toml",
+      "use": "conditional",
+      "activation": ["aie", "aie_ml"],
+      "primary_skill": "create-kernel",
+      "inputs": ["hardware-spec", "architecture-plan", "aie-work-package"],
+      "outputs": ["component-manifest", "vitis-compile-plan-fragment"],
+      "skills": ["create-kernel", "create-dsplib", "extract-aie-latency", "extract-aie-throughput", "extract-aie-resources"]
+    },
+    {
+      "id": "vitis_sw_engineer",
+      "prompt": ".codex/agents/vitis_sw_engineer.toml",
+      "use": "conditional",
+      "activation": ["ps_software"],
+      "primary_skill": "ps-software",
+      "inputs": ["hardware-spec", "architecture-plan", "implementation-result", "xsa", "hwh", "address-map"],
+      "outputs": ["component-manifest", "vitis-embedded-plan-fragment", "software-source"],
+      "skills": ["ps-software", "vitis-embedded-app-generator", "vitis-xsa-app", "xsct-to-python-converter"]
+    }
+  ],
+  "routing": {
+    "default_path": [
+      "amd_soc_orchestrator",
+      "amd_soc_intent_to_spec",
+      "amd_soc_architect",
+      "vivado_rtl_engineer",
+      "amd_soc_verifier",
+      "vivado_impl_closure"
+    ],
+    "conditional_agents": {
+      "platform": "amd_soc_platform_integrator",
+      "hls": "vitis_hls_engineer",
+      "aie": "vitis_aie_engineer",
+      "ps_software": "vitis_sw_engineer",
+      "hardware_validation": "amd_soc_hardware_validator"
+    },
+    "hardware_qualified_suffix": [
+      "amd_soc_hardware_validator",
+      "amd_soc_orchestrator"
+    ],
+    "integration_owner": {
+      "pl_only": "vivado_rtl_engineer",
+      "ps_cips_block_design_aie_or_vitis": "amd_soc_platform_integrator"
+    },
+    "rules": [
+      {
+        "from": "amd_soc_intent_to_spec",
+        "to": "amd_soc_architect",
+        "artifact": "hardware-spec",
+        "gate_id": "GATE-G1-SPECIFICATION",
+        "gate_stage": "spec",
+        "gate": "status == READY"
+      },
+      {
+        "from": "amd_soc_architect",
+        "to": "selected implementation agents",
+        "artifact": "architecture-plan",
+        "gate_id": "GATE-G2-ARCHITECTURE",
+        "gate_stage": "architecture",
+        "gate": "status == READY"
+      },
+      {
+        "from": "integration owner",
+        "to": "amd_soc_verifier",
+        "artifact": "source-manifest",
+        "gate_id": "GATE-G3-SOURCE-INTEGRATION",
+        "gate_stage": "source",
+        "gate": "status == READY and elaboration.status == PASS"
+      },
+      {
+        "from": "amd_soc_verifier",
+        "to": "vivado_impl_closure",
+        "artifact": "verification-result",
+        "gate_id": "GATE-G4-VERIFICATION",
+        "gate_stage": "verification",
+        "gate": "status == PASS and Vitis acceleration is not selected"
+      },
+      {
+        "from": "amd_soc_verifier",
+        "to": "amd_soc_platform_integrator",
+        "artifact": "verification-result plus vitis-execution-plan",
+        "gate_id": "GATE-G4-VERIFICATION",
+        "gate_stage": "verification",
+        "gate": "status == PASS and Vitis acceleration is selected"
+      },
+      {
+        "from": "amd_soc_platform_integrator",
+        "to": "vivado_impl_closure",
+        "artifact": "vitis-result and linked implementation evidence",
+        "gate_id": "GATE-G4V-VITIS",
+        "gate_stage": "vitis",
+        "gate": "Vitis acceleration result == PASS"
+      },
+      {
+        "from": "vivado_impl_closure",
+        "to": "vitis_sw_engineer",
+        "artifact": "implementation-result plus fixed XSA",
+        "gate_id": "GATE-G5-IMPLEMENTATION",
+        "gate_stage": "implementation",
+        "gate": "PS software selected, not already built by the acceleration plan, status == PASS, and fixed XSA exists"
+      },
+      {
+        "from": "vivado_impl_closure",
+        "to": "amd_soc_orchestrator",
+        "artifact": "implementation-result",
+        "gate_id": "GATE-G5-IMPLEMENTATION",
+        "gate_stage": "implementation",
+        "gate": "status == PASS, programming image exists, and no post-implementation PS software build is required"
+      },
+      {
+        "from": "vitis_sw_engineer",
+        "to": "amd_soc_orchestrator",
+        "artifact": "vitis-result plus implementation-result",
+        "gate_id": "GATE-G4V-VITIS",
+        "gate_stage": "vitis",
+        "gate": "design-complete profile and status == PASS and required XPFM/ELF artifacts exist"
+      },
+      {
+        "from": "vivado_impl_closure",
+        "to": "amd_soc_hardware_validator",
+        "artifact": "implementation-result",
+        "gate_id": "GATE-G5-IMPLEMENTATION",
+        "gate_stage": "implementation",
+        "gate": "hardware-qualified profile, no post-implementation PS software build is required, status == PASS, and programming image plus matching probes file exist"
+      },
+      {
+        "from": "vitis_sw_engineer",
+        "to": "amd_soc_hardware_validator",
+        "artifact": "vitis-result plus implementation-result",
+        "gate_id": "GATE-G4V-VITIS",
+        "gate_stage": "vitis",
+        "gate": "hardware-qualified profile, both results == PASS, and programming image plus matching probes file plus required software artifacts exist"
+      },
+      {
+        "from": "amd_soc_hardware_validator",
+        "to": "amd_soc_orchestrator",
+        "artifact": "hardware-validation-result",
+        "gate_id": "GATE-G7-HARDWARE-QUALIFICATION",
+        "gate_stage": "hardware",
+        "gate": "status == PASS"
+      }
+    ]
+  },
+  "feedback_routes": {
+    "requirement": "amd_soc_intent_to_spec",
+    "architecture": "amd_soc_architect",
+    "rtl_source": "vivado_rtl_engineer",
+    "hls": "vitis_hls_engineer",
+    "aie": "vitis_aie_engineer",
+    "platform": "amd_soc_platform_integrator",
+    "software": "vitis_sw_engineer",
+    "verification": "amd_soc_verifier",
+    "implementation": "vivado_impl_closure",
+    "hardware_access": "amd_soc_hardware_validator",
+    "hardware_functional": "amd_soc_verifier",
+    "hardware_instrumentation": "amd_soc_platform_integrator"
+  },
+  "approval_gates": [
+    "unresolved consequential requirement",
+    "implementation technology change",
+    "external interface change",
+    "observable latency change",
+    "clock requirement relaxation",
+    "signoff waiver",
+    "hardware programming or probe drive"
+  ],
+  "contracts": {
+    "gate-receipt": "contracts/gate-receipt.schema.json",
+    "handoff": "contracts/handoff.schema.json",
+    "hardware-spec": "contracts/hardware-spec.schema.json",
+    "architecture-plan": "contracts/architecture-plan.schema.json",
+    "source-manifest": "contracts/source-manifest.schema.json",
+    "verification-result": "contracts/verification-result.schema.json",
+    "implementation-result": "contracts/implementation-result.schema.json",
+    "hardware-test": "contracts/hardware-test.schema.json",
+    "hardware-target": "contracts/hardware-target.schema.json",
+    "hardware-validation-result": "contracts/hardware-validation-result.schema.json",
+    "vitis-execution-plan": "contracts/vitis-execution-plan.schema.json",
+    "vitis-result": "contracts/vitis-result.schema.json"
+  }
+}

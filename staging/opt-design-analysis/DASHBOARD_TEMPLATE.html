@@ -1,0 +1,365 @@
+<!-- Copyright (C) 2026, Advanced Micro Devices, Inc. All rights reserved. -->
+<!-- SPDX-License-Identifier: MIT -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>opt_design Analysis Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+  :root{--bg:#0f1117;--card:#1a1d27;--border:#2a2d3a;--text:#e0e0e0;--muted:#888;--green:#4ade80;--yellow:#facc15;--red:#f87171;--blue:#60a5fa;--purple:#c084fc}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);padding:20px}
+  h1{font-size:1.5rem;margin-bottom:4px}
+  .subtitle{color:var(--muted);font-size:.85rem;margin-bottom:20px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px;margin-bottom:16px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px}
+  .card h2{font-size:1rem;margin-bottom:12px;color:var(--blue)}
+  .score-row{display:flex;gap:16px;align-items:center;margin-bottom:16px}
+  .score-badge{font-size:2rem;font-weight:700;padding:8px 20px;border-radius:8px;text-align:center}
+  .score-badge.green{background:#166534;color:var(--green)}
+  .score-badge.yellow{background:#854d0e;color:var(--yellow)}
+  .score-badge.red{background:#991b1b;color:var(--red)}
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+  .kpi{background:var(--bg);border-radius:6px;padding:10px;text-align:center}
+  .kpi .val{font-size:1.3rem;font-weight:700}
+  .kpi .lbl{font-size:.7rem;color:var(--muted);margin-top:2px}
+  table{width:100%;border-collapse:collapse;font-size:.82rem}
+  th,td{padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)}
+  th{color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase}
+  .sev-error{color:var(--red)}.sev-crit{color:var(--yellow)}.sev-warn{color:var(--muted)}
+  .sev-critical{color:var(--red)}.sev-high{color:#fb923c}.sev-medium{color:var(--yellow)}.sev-info{color:var(--blue)}
+  .rec-cmd{background:var(--bg);padding:6px 8px;border-radius:4px;font-family:'Cascadia Code',monospace;font-size:.78rem;margin-top:4px;white-space:pre-wrap;word-break:break-all;cursor:pointer}
+  .rec-cmd:hover{background:#252833}
+  .rec-cmd:active::after{content:' ✓ copied';color:var(--green)}
+  .badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:.7rem;font-weight:600}
+  .badge-constraint{background:#1e3a5f;color:var(--blue)}
+  .badge-directive{background:#3b1f5e;color:var(--purple)}
+  .badge-rerun{background:#1e3a2f;color:var(--green)}
+  .badge-rtl{background:#5f3a1e;color:#fb923c}
+  .empty{color:var(--muted);font-style:italic;padding:20px;text-align:center}
+  #error-banner{display:none;background:#991b1b;color:#fff;padding:12px;border-radius:8px;margin-bottom:16px}
+  #context-banner{display:none;background:#3b1f5e;border:1px solid #6d28d9;color:#e9d5ff;padding:10px 14px;border-radius:8px;margin-bottom:16px;font-size:.85rem}
+  #context-banner b{color:#fff}
+  .badge-mode{background:#1e3a5f;color:var(--blue)}
+  .badge-ok{background:#166534;color:var(--green)}
+  .badge-noeffect{background:#854d0e;color:var(--yellow)}
+  .badge-absent{background:#7f1d1d;color:var(--red)}
+  .badge-blocked{background:#7f1d1d;color:var(--red)}
+  .chip{display:inline-block;padding:2px 8px;border-radius:12px;font-size:.72rem;font-family:'Cascadia Code',monospace;background:var(--bg);border:1px solid var(--border);margin:2px 4px 2px 0}
+  .flag{color:var(--yellow);font-weight:600}
+  canvas{max-height:280px}
+</style>
+</head>
+<body>
+<h1>opt_design Analysis Dashboard</h1>
+<div class="subtitle" id="subtitle">Loading report_data.json...</div>
+<div id="error-banner"></div>
+<div id="context-banner"></div>
+
+<div class="score-row" id="score-row" style="display:none">
+  <div class="score-badge" id="score-badge"></div>
+  <div>
+    <div id="score-label" style="font-weight:600"></div>
+    <div id="score-notes" style="color:var(--muted);font-size:.82rem"></div>
+  </div>
+</div>
+
+<div class="kpi-grid" id="kpi-grid" style="display:none"></div>
+
+<div class="grid" style="margin-top:16px">
+  <div class="card" id="switches-card" style="display:none">
+    <h2>Switches &amp; Directive</h2>
+    <div id="switches-content"></div>
+  </div>
+  <div class="card" id="recon-card" style="display:none">
+    <h2>Switch / Phase Reconciliation</h2>
+    <div id="recon-content"></div>
+  </div>
+</div>
+
+<div class="grid" style="margin-top:16px">
+  <div class="card">
+    <h2>Per-Phase Cell Changes</h2>
+    <canvas id="phaseChart"></canvas>
+  </div>
+  <div class="card">
+    <h2>Phase Details</h2>
+    <canvas id="detailChart"></canvas>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="card" id="util-card" style="display:none">
+    <h2>Utilization &amp; Control-Set QoR</h2>
+    <canvas id="utilChart"></canvas>
+    <div id="util-content"></div>
+  </div>
+  <div class="card" id="increase-card" style="display:none">
+    <h2>Resource-Increase Root-Cause</h2>
+    <div id="increase-content"></div>
+  </div>
+</div>
+
+<div class="card" id="blocked-card" style="margin-top:16px;display:none">
+  <h2>Blocked / Skipped Optimizations</h2>
+  <div id="blocked-content"></div>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <h2>Blocking Properties</h2>
+    <div id="blocking-content"></div>
+  </div>
+  <div class="card">
+    <h2>Errors &amp; Warnings</h2>
+    <div id="ew-content"></div>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px">
+  <h2>Recommendations</h2>
+  <div id="rec-content"></div>
+</div>
+
+<script>
+const COLORS={green:'#4ade80',yellow:'#facc15',red:'#f87171',blue:'#60a5fa',purple:'#c084fc',muted:'#888'};
+const SEV_CLS={ERROR:'sev-error',CRIT_WARN:'sev-crit',WARNING:'sev-warn',CRITICAL:'sev-critical',HIGH:'sev-high',MEDIUM:'sev-medium',INFO:'sev-info'};
+const CAT_BADGE={constraint:'badge-constraint',directive:'badge-directive',rerun:'badge-rerun',rtl:'badge-rtl'};
+
+function el(id){return document.getElementById(id)}
+function show(id){el(id).style.display=''}
+
+function copyCmd(e){
+  const t=e.currentTarget.textContent.trim();
+  navigator.clipboard.writeText(t).catch(()=>{});
+}
+
+async function main(){
+  let data;
+  try{
+    const r=await fetch('report_data.json');
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    data=await r.json();
+  }catch(e){
+    el('error-banner').style.display='block';
+    el('error-banner').textContent='Failed to load report_data.json: '+e.message;
+    el('subtitle').textContent='Error loading data';
+    return;
+  }
+  const m=data.metadata||{};
+  el('subtitle').textContent=[m.design,m.device,m.command,m.date].filter(Boolean).join(' · ');
+
+  // Timing context banner (orchestrator-provided; opt_design does NOT optimize timing)
+  const ctx=data.context||{};
+  if(ctx.impl_wns!=null||ctx.user_goal){
+    const parts=[];
+    if(ctx.impl_wns!=null) parts.push(`Impl WNS <b>${ctx.impl_wns} ns</b>`);
+    if(ctx.impl_tns!=null) parts.push(`TNS <b>${ctx.impl_tns} ns</b>`);
+    if(ctx.failing_clock) parts.push(`failing clock <b>${ctx.failing_clock}</b>`);
+    if(ctx.user_goal) parts.push(`goal <b>${ctx.user_goal}</b>`);
+    el('context-banner').innerHTML='⏱ Post-timing-failure QoR review — '+parts.join(' · ')+
+      '. <i>opt_design optimizes logic/area/control-sets, not timing; recommendations below target those levers.</i>';
+    el('context-banner').style.display='block';
+  }
+
+  // Score
+  const a=data.assessment||{};
+  if(a.optimization_score!=null){
+    show('score-row');
+    const b=el('score-badge');
+    b.textContent=a.optimization_score+'/5';
+    const cls=a.overall_status==='RED'?'red':a.overall_status==='YELLOW'?'yellow':'green';
+    b.className='score-badge '+cls;
+    el('score-label').textContent={GREEN:'Optimization Healthy',YELLOW:'Review Recommended',RED:'Issues Found'}[a.overall_status]||'';
+    el('score-notes').textContent=a.notes||'';
+  }
+
+  // KPIs
+  const os=data.optimization_stats||{};
+  const bp=data.blocking_properties||{};
+  const ew=data.errors_warnings||[];
+  const kpis=[
+    {v:os.total_cells_created||0,l:'Cells Created'},
+    {v:os.total_cells_removed||0,l:'Cells Removed'},
+    {v:(os.net_cell_change>0?'+':'')+String(os.net_cell_change||0),l:'Net Change'},
+    {v:os.total_constrained_objects||0,l:'Constrained'},
+    {v:bp.dont_touch_cells||0,l:'DONT_TOUCH'},
+    {v:bp.mark_debug_nets||0,l:'MARK_DEBUG'},
+    {v:ew.filter(x=>x.severity==='ERROR').length,l:'Errors'},
+    {v:ew.filter(x=>x.severity==='CRIT_WARN').length,l:'Crit Warnings'}
+  ];
+  const kg=el('kpi-grid');
+  kg.innerHTML=kpis.map(k=>`<div class="kpi"><div class="val">${k.v}</div><div class="lbl">${k.l}</div></div>`).join('');
+  show('kpi-grid');
+
+  // Phase chart
+  const phases=(os.phases||[]).filter(p=>p.cells_created||p.cells_removed);
+  if(phases.length){
+    new Chart(el('phaseChart'),{type:'bar',data:{
+      labels:phases.map(p=>p.name),
+      datasets:[
+        {label:'Created',data:phases.map(p=>p.cells_created),backgroundColor:'#60a5fa'},
+        {label:'Removed',data:phases.map(p=>-p.cells_removed),backgroundColor:'#f87171'},
+        {label:'Constrained',data:phases.map(p=>p.constrained_objects),backgroundColor:'#facc15'}
+      ]},options:{responsive:true,plugins:{legend:{labels:{color:'#e0e0e0'}}},scales:{
+        x:{ticks:{color:'#888',maxRotation:45},grid:{color:'#2a2d3a'}},
+        y:{ticks:{color:'#888'},grid:{color:'#2a2d3a'}}}}});
+  }
+
+  // Detail chart
+  const pd=data.phase_details||{};
+  const dItems=[
+    {l:'Retarget',v:pd.retarget_count},
+    {l:'Sweep',v:pd.sweep_removed},
+    {l:'PropConst',v:pd.propconst_removed},
+    {l:'BUFG Insert',v:pd.bufg_inserted},
+    {l:'Inv Pushed',v:pd.inverter_pushed},
+    {l:'Inv Pulled',v:pd.inverter_pulled},
+    {l:'Carry Xform',v:pd.carry_transforms},
+    {l:'MUXF Created',v:pd.muxf_created},
+    {l:'SRL Remap',v:pd.srl_remap_count},
+    {l:'LUT Decomp',v:pd.lut_decomposition_count},
+    {l:'Resynth',v:pd.resynth_remap_count},
+    {l:'BRAM PwrOpt',v:pd.bram_power_opt_count}
+  ].filter(d=>d.v>0);
+  if(dItems.length){
+    new Chart(el('detailChart'),{type:'bar',data:{
+      labels:dItems.map(d=>d.l),
+      datasets:[{label:'Count',data:dItems.map(d=>d.v),backgroundColor:'#c084fc'}]
+    },options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false}},scales:{
+      x:{ticks:{color:'#888'},grid:{color:'#2a2d3a'}},
+      y:{ticks:{color:'#888'},grid:{color:'#2a2d3a'}}}}});
+  }else{el('detailChart').parentElement.innerHTML+='<div class="empty">No phase details available</div>'}
+
+  // Blocking properties
+  const cb=bp.critical_blocked||[];
+  if(cb.length){
+    let h='<table><tr><th>Cell</th><th>Property</th><th>Slack (ns)</th></tr>';
+    cb.forEach(c=>{h+=`<tr><td style="font-family:monospace;font-size:.78rem">${c.cell}</td><td>${c.property}</td><td style="color:${c.slack<0?COLORS.red:COLORS.green}">${c.slack}</td></tr>`});
+    h+='</table>';
+    el('blocking-content').innerHTML=h;
+  }else{
+    const tots=[bp.dont_touch_cells,bp.dont_touch_nets,bp.mark_debug_nets].reduce((a,b)=>a+(b||0),0);
+    el('blocking-content').innerHTML=tots?`<div style="padding:12px">${bp.dont_touch_cells||0} DONT_TOUCH cells, ${bp.dont_touch_nets||0} DONT_TOUCH nets, ${bp.mark_debug_nets||0} MARK_DEBUG nets — none on critical paths</div>`:'<div class="empty">No blocking properties detected</div>';
+  }
+
+  // Errors & warnings
+  if(ew.length){
+    let h='<table><tr><th>ID</th><th>Sev</th><th>#</th><th>Fix</th><th>Message</th></tr>';
+    ew.forEach(e=>{h+=`<tr><td>${e.id}</td><td class="${SEV_CLS[e.severity]||''}">${e.severity}</td><td>${e.count||1}</td><td>${e.fix_type||''}</td><td style="font-size:.78rem">${e.message||''}</td></tr>`});
+    h+='</table>';
+    el('ew-content').innerHTML=h;
+  }else{el('ew-content').innerHTML='<div class="empty">No errors or warnings</div>'}
+
+  // Recommendations
+  const recs=data.recommendations||[];
+  if(recs.length){
+    let h='';
+    recs.sort((a,b)=>(a.priority||99)-(b.priority||99));
+    recs.forEach(r=>{
+      const sev=r.severity||'INFO';
+      const cat=r.category||'';
+      h+=`<div style="margin-bottom:14px;padding:10px;background:var(--bg);border-radius:6px">`;
+      h+=`<span class="${SEV_CLS[sev]||''}" style="font-weight:600">${sev}</span> `;
+      if(cat) h+=`<span class="badge ${CAT_BADGE[cat]||''}">${cat}</span> `;
+      h+=`<span style="font-weight:500">${r.finding||''}</span>`;
+      if(r.action) h+=`<div style="margin-top:4px;font-size:.82rem">${r.action}</div>`;
+      if(r.tcl_commands&&r.tcl_commands.length){
+        r.tcl_commands.forEach(c=>{h+=`<div class="rec-cmd" onclick="copyCmd(event)" title="Click to copy">${c}</div>`});
+      }
+      if(r.expected_impact) h+=`<div style="margin-top:4px;font-size:.78rem;color:var(--muted)">Impact: ${r.expected_impact}</div>`;
+      h+=`</div>`;
+    });
+    el('rec-content').innerHTML=h;
+  }else{el('rec-content').innerHTML='<div class="empty">No recommendations — all phases completed successfully</div>'}
+
+  // Switches & Directive
+  const switches=m.switches||[];
+  const directive=m.directive||'Default';
+  const mode=m.analysis_mode||'log_only';
+  {
+    let h=`<div style="margin-bottom:8px"><span class="badge badge-directive">${directive}</span> `+
+          `<span class="badge badge-mode" title="analysis source">${mode}</span></div>`;
+    h+=switches.length?('<div>'+switches.map(s=>`<span class="chip">${s}</span>`).join('')+'</div>')
+                      :'<div class="empty" style="padding:8px">No explicit switches</div>';
+    el('switches-content').innerHTML=h;
+    el('switches-card').style.display='';
+  }
+
+  // Switch / Phase Reconciliation
+  const recon=data.switch_reconciliation||[];
+  if(recon.length){
+    const OBS={ran_effective:'badge-ok',ran_no_effect:'badge-noeffect',expected_but_absent:'badge-absent',blocked:'badge-blocked'};
+    let h='<table><tr><th>Optimization</th><th>From</th><th>Observed</th><th>Cells</th><th>Note</th></tr>';
+    recon.forEach(r=>{
+      h+=`<tr><td>${r.optimization||''}</td><td>${r.expected_from||''}</td>`+
+         `<td><span class="badge ${OBS[r.observed]||''}">${r.observed||''}</span></td>`+
+         `<td>${r.cells_changed||0}</td><td style="font-size:.78rem;color:var(--muted)">${r.note||''}</td></tr>`;
+    });
+    h+='</table>';
+    el('recon-content').innerHTML=h;
+    el('recon-card').style.display='';
+  }
+
+  // Utilization & Control-Set QoR
+  const util=data.utilization||{};
+  const cs=data.control_sets||{};
+  const ps=util.post_synth||{},po=util.post_opt||{};
+  const resKeys=['lut','ff','carry','muxf','bram','uram','dsp','srl'];
+  const haveUtil=resKeys.some(k=>po[k]!=null||ps[k]!=null);
+  if(haveUtil||cs.post_opt_count!=null){
+    const labels=[],preD=[],postD=[];
+    resKeys.forEach(k=>{ if(po[k]!=null||ps[k]!=null){labels.push(k.toUpperCase());preD.push(ps[k]||0);postD.push(po[k]||0);} });
+    if(cs.post_opt_count!=null){labels.push('CTRL SETS');preD.push(cs.post_synth_count||0);postD.push(cs.post_opt_count||0);}
+    if(labels.length){
+      new Chart(el('utilChart'),{type:'bar',data:{labels,datasets:[
+        {label:'Post-Synth',data:preD,backgroundColor:'#888'},
+        {label:'Post-Opt',data:postD,backgroundColor:'#60a5fa'}
+      ]},options:{responsive:true,plugins:{legend:{labels:{color:'#e0e0e0'}}},scales:{
+        x:{ticks:{color:'#888'},grid:{color:'#2a2d3a'}},
+        y:{ticks:{color:'#888'},grid:{color:'#2a2d3a'}}}}});
+    }
+    const sig=(util.significant_changes||[]);
+    let note='';
+    if(cs.exceeds_threshold) note+=`<div class="flag">⚠ Control sets exceed threshold (${cs.post_opt_count}${cs.delta_pct!=null?', Δ '+cs.delta_pct+'%':''})</div>`;
+    if(sig.length) note+='<div class="flag">⚠ Significant changes: '+sig.join(', ')+'</div>';
+    if(mode==='log_only') note='<div class="empty" style="padding:8px">Absolute utilization not captured — log-only mode</div>';
+    el('util-content').innerHTML=note;
+    el('util-card').style.display='';
+  }
+
+  // Resource-Increase Root-Cause
+  const inc=data.resource_increase_attribution||{};
+  if((inc.net_cell_change||0)>0&&(inc.sources||[]).length){
+    let h=`<div style="margin-bottom:8px">Net cell increase: <b>+${inc.net_cell_change}</b></div>`;
+    h+='<table><tr><th>Source</th><th>Cells</th><th>Adds Logic Level?</th></tr>';
+    inc.sources.forEach(s=>{
+      h+=`<tr><td>${s.source||''}</td><td>+${s.cells||0}</td>`+
+         `<td class="${s.adds_logic_level?'flag':''}">${s.adds_logic_level?'⚠ yes':'no'}</td></tr>`;
+    });
+    h+='</table>';
+    el('increase-content').innerHTML=h;
+    el('increase-card').style.display='';
+  }
+
+  // Blocked / Skipped Optimizations
+  const blocked=data.blocked_ledger||[];
+  if(blocked.length){
+    let h='<table><tr><th>Optimization</th><th>Blocked By</th><th>Object</th><th>Msg</th><th>Recoverable</th><th>Suggested Fix</th></tr>';
+    blocked.forEach(b=>{
+      h+=`<tr><td>${b.optimization||''}</td><td>${b.blocked_by||''}</td>`+
+         `<td style="font-family:monospace;font-size:.76rem">${b.object||''}</td><td>${b.message_id||''}</td>`+
+         `<td style="color:${b.recoverable?COLORS.green:COLORS.muted}">${b.recoverable?'yes':'no'}</td>`+
+         `<td style="font-size:.78rem">${b.suggested_fix||''}</td></tr>`;
+    });
+    h+='</table>';
+    el('blocked-content').innerHTML=h;
+    el('blocked-card').style.display='';
+  }
+}
+main();
+</script>
+</body>
+</html>

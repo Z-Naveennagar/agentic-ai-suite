@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "debug-map.schema.json",
+  "title": "Implemented Debug Map v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "request_id", "producer", "source_lineage", "implementation_identity", "build_set", "derivation", "clock", "cores", "qualification_boundary"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "request_id": {"type": "string", "minLength": 1},
+    "producer": {"const": "vivado_impl_closure"},
+    "source_lineage": {
+      "type": "object", "additionalProperties": false,
+      "required": ["hardware_spec", "architecture_plan", "hardware_test", "source_manifest", "verification_result"],
+      "properties": {
+        "hardware_spec": {"$ref": "#/$defs/lineage"}, "architecture_plan": {"$ref": "#/$defs/lineage"},
+        "hardware_test": {"$ref": "#/$defs/lineage"}, "source_manifest": {"$ref": "#/$defs/lineage"},
+        "verification_result": {"$ref": "#/$defs/lineage"}
+      }
+    },
+    "implementation_identity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["vivado_version", "session_id", "project", "top", "part", "board_part", "implementation_run", "run_strategy"],
+      "properties": {
+        "vivado_version": {"type": "string", "minLength": 1}, "session_id": {"type": "string", "minLength": 1},
+        "project": {"type": "string", "minLength": 1}, "top": {"type": "string", "minLength": 1},
+        "part": {"type": "string", "minLength": 1}, "board_part": {"type": ["string", "null"]},
+        "implementation_run": {"type": "string", "minLength": 1}, "run_strategy": {"type": "string", "minLength": 1}
+      }
+    },
+    "build_set": {
+      "type": "object", "additionalProperties": false,
+      "required": ["bitstream", "ltx", "routed_checkpoint", "fixed_xsa", "ltx_correspondence"],
+      "properties": {
+        "bitstream": {"$ref": "#/$defs/file"}, "ltx": {"$ref": "#/$defs/file"},
+        "routed_checkpoint": {"$ref": "#/$defs/file"}, "fixed_xsa": {"$ref": "#/$defs/file"},
+        "ltx_correspondence": {
+          "type": "object", "additionalProperties": false,
+          "required": ["native_run_ltx_sha256", "validator_generated_ltx_matches_native_run"],
+          "properties": {"native_run_ltx_sha256": {"$ref": "#/$defs/hash"}, "validator_generated_ltx_matches_native_run": {"const": true}}
+        }
+      }
+    },
+    "derivation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["implemented_object_discovery", "logical_sources", "implemented_design_open", "validator_sourced_after_implemented_design_open"],
+      "properties": {
+        "implemented_object_discovery": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1},
+        "logical_sources": {"type": "array", "items": {"$ref": "#/$defs/file"}, "minItems": 1},
+        "implemented_design_open": {"const": true}, "validator_sourced_after_implemented_design_open": {"const": true}
+      }
+    },
+    "clock": {
+      "type": "object", "additionalProperties": false,
+      "required": ["logical_domain", "physical_source", "frequency_hz", "constraint_period_ns"],
+      "properties": {
+        "logical_domain": {"type": "string", "minLength": 1}, "physical_source": {"type": "string", "minLength": 1},
+        "frequency_hz": {"type": "integer", "minimum": 1}, "constraint_period_ns": {"type": "number", "exclusiveMinimum": 0}
+      }
+    },
+    "cores": {"type": "array", "items": {"$ref": "#/$defs/core"}, "minItems": 2},
+    "qualification_boundary": {
+      "type": "object", "additionalProperties": false,
+      "required": ["design_complete", "physical_debug_cores_certified", "hardware_programmed", "hardware_qualified", "reason"],
+      "properties": {
+        "design_complete": {"const": true}, "physical_debug_cores_certified": {"const": true},
+        "hardware_programmed": {"const": false}, "hardware_qualified": {"const": false},
+        "reason": {"type": "string", "minLength": 1}
+      }
+    }
+  },
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"},
+    "lineage": {"type": "object", "additionalProperties": false, "required": ["revision", "sha256"], "properties": {"revision": {"type": "integer", "minimum": 1}, "sha256": {"$ref": "#/$defs/hash"}}},
+    "file": {"type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/hash"}}},
+    "signal": {"type": "object", "required": ["port", "net", "width"], "properties": {"port": {"type": "string", "minLength": 1}, "net": {"type": "string", "minLength": 1}, "width": {"type": "integer", "minimum": 1}}},
+    "core": {
+      "type": "object", "required": ["logical_id", "type", "physical_cell", "uuid", "physical_presence"],
+      "properties": {
+        "logical_id": {"type": "string", "minLength": 1}, "type": {"type": "string", "pattern": "^(ILA|VIO)"},
+        "physical_cell": {"type": "string", "minLength": 1}, "uuid": {"type": "string", "minLength": 1},
+        "physical_presence": {"type": "object", "required": ["primitive_count", "is_blackbox"], "properties": {"primitive_count": {"type": "integer", "minimum": 1}, "is_blackbox": {"const": false}}},
+        "probes": {"type": "array", "items": {"$ref": "#/$defs/signal"}},
+        "controls": {"type": "array", "items": {"$ref": "#/$defs/signal"}},
+        "status": {"type": "array", "items": {"$ref": "#/$defs/signal"}}
+      }
+    }
+  }
+}

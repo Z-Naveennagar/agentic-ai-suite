@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "dut": "replace_with_top",
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "requirement": "Replace with observable behavior",
+      "stimulus": ["nominal", "boundary", "error or reset interaction"],
+      "expected_result": "Replace with independent oracle",
+      "checker": "scoreboard_or_assertion",
+      "assertions": [],
+      "coverage": [],
+      "tests": ["smoke"],
+      "status": "planned"
+    }
+  ],
+  "unverified_boundaries": []
+}

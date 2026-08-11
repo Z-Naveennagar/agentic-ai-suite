@@ -1,0 +1,54 @@
+
+
+suite_id: hls-array2stream-12
+description: >
+  Test cases evaluating whether hls-array-to-stream can correctly identify
+  that a kernel with a custom struct copy-assignment operator does not follow
+  the recommended coding style for array-to-stream conversion. Prompt 1 is a
+  pure static analysis. Prompt 2 adds a fix-then-verify workflow where the
+  agent must fix the struct copy-assignment issue and confirm via C synthesis.
+
+test_cases:
+  - id: hls-array2stream-12_01
+    input_files: [kernel.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can the array arguments of the top
+      function be converted to streaming interfaces? Give a static analysis
+      without running HLS. Explain your answer.
+    expected:
+      skills: [hls-array-to-stream]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: >
+          The code does not follow the recommended coding style for array-to-stream
+          conversion. The struct A defines a custom copy-assignment operator
+          A::operator=(const A&), which violates the struct copy-assignment rules.
+          When the array element type is a struct, no custom copy-assignment operator
+          can be defined (only = default is allowed). This prevents the HLS tool from
+          implementing the stream interface on the top-function arguments 'in' and 'out'.
+
+  - id: hls-array2stream-12_02
+    input_files: [kernel.cpp, hls_config.cfg, vitis-comp.json]
+    prompt: |-
+      Analyze `{input_file}`: can the array arguments of the top
+      function be converted to streaming interfaces? If yes, do nothing; if
+      no, fix the code to make the conversion valid. Save the fixed code at
+      `outputs/hls-array2stream-12_02/{input_file}` and copy `hls_config.cfg`
+      to `outputs/hls-array2stream-12_02/hls_config.cfg`.Then verify by running C synthesis.
+
+      
+    expected:
+      skills: [hls-array-to-stream, hls-run-flow]
+      tool_sequence: ["Read", "bash: v++ --compile --mode hls --config hls_config.cfg --work_dir dut"]
+      expected_output:
+        verdict: "NO"
+        explanation: >
+          The code does not follow the recommended coding style for array-to-stream
+          conversion due to the custom struct copy-assignment operator A::operator=(const A&).
+          Fix by changing the operator to = default (or removing it entirely). After the
+          fix, C synthesis should complete successfully, confirming array-to-stream is
+          now applied correctly.
+      log_path: "outputs/hls-array2stream-12_02/dut/hls/syn/report/csynth.rpt"
+      log_substring: "* AXIS"
+      tool_call_observed: "bash: v++ --compile --mode hls --config hls_config.cfg --work_dir dut"

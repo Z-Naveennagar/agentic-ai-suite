@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "id": "basys3_pulse_counter",
+  "title": "Basys 3 edge-counting peripheral",
+  "prompt_file": "prompt.md",
+  "target": {
+    "part": "xc7a35tcpg236-1",
+    "vivado_version": "2025.2"
+  },
+  "expected_route": [
+    "amd_soc_orchestrator",
+    "amd_soc_intent_to_spec",
+    "amd_soc_architect",
+    "vivado_rtl_engineer",
+    "amd_soc_verifier",
+    "vivado_impl_closure"
+  ],
+  "candidate": {
+    "integration_mode": "rtl_top",
+    "top": "pulse_counter",
+    "rtl_sources": ["rtl/pulse_counter.sv"],
+    "constraint_sources": ["constraints/basys3.xdc"]
+  },
+  "public_interface": {
+    "design_root": "design",
+    "modules": [
+      {
+        "name": "pulse_counter",
+        "source": "rtl/pulse_counter.sv",
+        "roles": ["implementation_top", "simulation_top"],
+        "parameters": [],
+        "ports": [
+          {"name": "clk", "direction": "input", "width": 1},
+          {"name": "rst", "direction": "input", "width": 1},
+          {"name": "event_i", "direction": "input", "width": 1},
+          {"name": "clear_i", "direction": "input", "width": 1},
+          {"name": "count_o", "direction": "output", "width": 8},
+          {"name": "overflow_o", "direction": "output", "width": 1}
+        ]
+      }
+    ],
+    "constraints": ["constraints/basys3.xdc"]
+  },
+  "simulation": {
+    "make_directory": "testbench",
+    "toplevel": "pulse_counter"
+  },
+  "semantic_rubric": [
+    {
+      "id": "SEM-DIRECT-RTL",
+      "weight": 10,
+      "artifact": "architecture-plan.json",
+      "collection": "modules",
+      "match": {"name": "pulse_counter"},
+      "field": "implementation",
+      "operator": "equals",
+      "expected": "rtl"
+    },
+    {
+      "id": "SEM-CLOCK",
+      "weight": 10,
+      "artifact": "architecture-plan.json",
+      "collection": "clock_domains",
+      "match": {"name": "clk"},
+      "field": "frequency_hz",
+      "operator": "equals",
+      "expected": 100000000
+    },
+    {
+      "id": "SEM-RESET",
+      "weight": 10,
+      "artifact": "architecture-plan.json",
+      "collection": "reset_domains",
+      "match": {"name": "rst"},
+      "field": "assertion",
+      "operator": "equals",
+      "expected": "synchronous"
+    },
+    {
+      "id": "SEM-NO-HLS",
+      "weight": 10,
+      "artifact": "architecture-plan.json",
+      "collection": "work_packages",
+      "field": "agent",
+      "operator": "not_contains",
+      "expected": "vitis_hls_engineer"
+    }
+  ],
+  "score_weights": {
+    "contracts": 10,
+    "semantics": 40,
+    "simulation": 30,
+    "vivado": 20
+  }
+}

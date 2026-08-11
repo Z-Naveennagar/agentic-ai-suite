@@ -1,0 +1,273 @@
+<!-- Copyright (C) 2026, Advanced Micro Devices, Inc. All rights reserved. -->
+<!-- SPDX-License-Identifier: MIT -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>phys_opt_design Analysis Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+  :root{--bg:#0f1117;--card:#1a1d27;--border:#2a2d3a;--text:#e0e0e0;--muted:#888;--green:#4ade80;--yellow:#facc15;--red:#f87171;--blue:#60a5fa;--purple:#c084fc;--orange:#fb923c}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);padding:20px}
+  h1{font-size:1.5rem;margin-bottom:4px}
+  .subtitle{color:var(--muted);font-size:.85rem;margin-bottom:20px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px;margin-bottom:16px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px}
+  .card h2{font-size:1rem;margin-bottom:12px;color:var(--blue)}
+  .score-row{display:flex;gap:16px;align-items:center;margin-bottom:16px}
+  .score-badge{font-size:2rem;font-weight:700;padding:8px 20px;border-radius:8px;text-align:center}
+  .score-badge.green{background:#166534;color:var(--green)}
+  .score-badge.yellow{background:#854d0e;color:var(--yellow)}
+  .score-badge.red{background:#991b1b;color:var(--red)}
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+  .kpi{background:var(--bg);border-radius:6px;padding:10px;text-align:center}
+  .kpi .val{font-size:1.3rem;font-weight:700}
+  .kpi .lbl{font-size:.7rem;color:var(--muted);margin-top:2px}
+  .kpi .val.neg{color:var(--red)}.kpi .val.pos{color:var(--green)}.kpi .val.imp{color:var(--blue)}
+  table{width:100%;border-collapse:collapse;font-size:.82rem}
+  th,td{padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)}
+  th{color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase}
+  .sev-error{color:var(--red)}.sev-crit{color:var(--yellow)}.sev-warn{color:var(--muted)}
+  .sev-critical{color:var(--red)}.sev-high{color:var(--orange)}.sev-medium{color:var(--yellow)}.sev-info{color:var(--blue)}
+  .rec-cmd{background:var(--bg);padding:6px 8px;border-radius:4px;font-family:'Cascadia Code',monospace;font-size:.78rem;margin-top:4px;white-space:pre-wrap;word-break:break-all;cursor:pointer}
+  .rec-cmd:hover{background:#252833}
+  .rec-cmd:active::after{content:' ✓ copied';color:var(--green)}
+  .badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:.7rem;font-weight:600}
+  .badge-constraint{background:#1e3a5f;color:var(--blue)}
+  .badge-directive{background:#3b1f5e;color:var(--purple)}
+  .badge-rerun{background:#1e3a2f;color:var(--green)}
+  .badge-rtl{background:#5f3a1e;color:var(--orange)}
+  .badge-stop{background:#5f1e1e;color:var(--red)}
+  .empty{color:var(--muted);font-style:italic;padding:20px;text-align:center}
+  #error-banner{display:none;background:#991b1b;color:#fff;padding:12px;border-radius:8px;margin-bottom:16px}
+  canvas{max-height:280px}
+</style>
+</head>
+<body>
+<h1>phys_opt_design Analysis Dashboard</h1>
+<div class="subtitle" id="subtitle">Loading report_data.json...</div>
+<div id="error-banner"></div>
+
+<div class="score-row" id="score-row" style="display:none">
+  <div class="score-badge" id="score-badge"></div>
+  <div>
+    <div id="score-label" style="font-weight:600"></div>
+    <div id="score-notes" style="color:var(--muted);font-size:.82rem"></div>
+  </div>
+</div>
+
+<div class="kpi-grid" id="kpi-grid" style="display:none"></div>
+
+<div class="grid" style="margin-top:16px">
+  <div class="card">
+    <h2>WNS / TNS Trend</h2>
+    <canvas id="trendChart"></canvas>
+  </div>
+  <div class="card">
+    <h2>Optimization Statistics</h2>
+    <canvas id="statsChart"></canvas>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <h2>Blocking Properties</h2>
+    <div id="blocking-content"></div>
+  </div>
+  <div class="card">
+    <h2>Skipped Optimizations</h2>
+    <div id="skipped-content"></div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <h2>Errors &amp; Warnings</h2>
+    <div id="ew-content"></div>
+  </div>
+  <div class="card">
+    <h2>End-Pass Summary</h2>
+    <canvas id="endPassChart"></canvas>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px">
+  <h2>Recommendations</h2>
+  <div id="rec-content"></div>
+</div>
+
+<script>
+const COLORS={green:'#4ade80',yellow:'#facc15',red:'#f87171',blue:'#60a5fa',purple:'#c084fc',orange:'#fb923c',muted:'#888'};
+const SEV_CLS={ERROR:'sev-error',CRIT_WARN:'sev-crit',WARNING:'sev-warn',CRITICAL:'sev-critical',HIGH:'sev-high',MEDIUM:'sev-medium',INFO:'sev-info'};
+const CAT_BADGE={constraint:'badge-constraint',directive:'badge-directive',rerun:'badge-rerun',rtl:'badge-rtl',stop:'badge-stop'};
+
+function el(id){return document.getElementById(id)}
+function show(id){el(id).style.display=''}
+
+function copyCmd(e){
+  const t=e.currentTarget.textContent.trim();
+  navigator.clipboard.writeText(t).catch(()=>{});
+}
+
+function fmtNs(v){return v==null?'—':v.toFixed(3)}
+
+async function main(){
+  let data;
+  try{
+    const r=await fetch('report_data.json');
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    data=await r.json();
+  }catch(e){
+    el('error-banner').style.display='block';
+    el('error-banner').textContent='Failed to load report_data.json: '+e.message;
+    el('subtitle').textContent='Error loading data';
+    return;
+  }
+  const m=data.metadata||{};
+  el('subtitle').textContent=[m.design,m.device,m.directive?'Directive: '+m.directive:'',m.command,m.date].filter(Boolean).join(' · ');
+
+  // Score
+  const a=data.assessment||{};
+  if(a.optimization_score!=null){
+    show('score-row');
+    const b=el('score-badge');
+    b.textContent=a.optimization_score+'/5';
+    const cls=a.overall_status==='RED'?'red':a.overall_status==='YELLOW'?'yellow':'green';
+    b.className='score-badge '+cls;
+    el('score-label').textContent={GREEN:'Optimization Effective',YELLOW:'Review Recommended',RED:'Issues Found'}[a.overall_status]||'';
+    el('score-notes').textContent=a.notes||'';
+  }
+
+  // Timing trend data
+  const tt=data.timing_trend||[];
+  const wnsInit=tt.length?tt[0].wns:null;
+  const wnsFinal=tt.length?tt[tt.length-1].wns:null;
+  const tnsInit=tt.length?tt[0].tns:null;
+  const tnsFinal=tt.length?tt[tt.length-1].tns:null;
+  const impPct=(wnsInit&&wnsFinal&&wnsInit<0)?((1-wnsFinal/wnsInit)*100):0;
+
+  // KPIs
+  const os=data.optimization_stats||{};
+  const bp=data.blocking_properties||{};
+  const ew=data.errors_warnings||[];
+  const ep=os.end_pass||{};
+  const kpis=[
+    {v:fmtNs(wnsInit),l:'WNS Before',c:wnsInit<0?'neg':'pos'},
+    {v:fmtNs(wnsFinal),l:'WNS After',c:wnsFinal<0?'neg':'pos'},
+    {v:impPct.toFixed(1)+'%',l:'WNS Improvement',c:'imp'},
+    {v:fmtNs(tnsInit),l:'TNS Before',c:tnsInit<0?'neg':'pos'},
+    {v:ep.cells_created||0,l:'Cells Created'},
+    {v:ep.cells_moved||0,l:'Cells Moved'},
+    {v:bp.dont_touch_cells||0,l:'DONT_TOUCH'},
+    {v:bp.non_replicable||0,l:'Non-Replicable'},
+    {v:ew.filter(x=>x.severity==='ERROR').length,l:'Errors'},
+    {v:ew.filter(x=>x.severity==='CRIT_WARN').length,l:'Crit Warnings'}
+  ];
+  const kg=el('kpi-grid');
+  kg.innerHTML=kpis.map(k=>`<div class="kpi"><div class="val ${k.c||''}">${k.v}</div><div class="lbl">${k.l}</div></div>`).join('');
+  show('kpi-grid');
+
+  // WNS/TNS trend chart
+  if(tt.length>1){
+    new Chart(el('trendChart'),{type:'line',data:{
+      labels:tt.map(t=>t.label||'Iter '+t.iteration),
+      datasets:[
+        {label:'WNS (ns)',data:tt.map(t=>t.wns),borderColor:COLORS.blue,backgroundColor:COLORS.blue+'33',fill:true,tension:.3},
+        {label:'TNS (ns)',data:tt.map(t=>t.tns),borderColor:COLORS.purple,backgroundColor:COLORS.purple+'33',fill:true,tension:.3,hidden:true}
+      ]},options:{responsive:true,plugins:{legend:{labels:{color:'#e0e0e0'}}},scales:{
+        x:{ticks:{color:'#888'},grid:{color:'#2a2d3a'}},
+        y:{ticks:{color:'#888'},grid:{color:'#2a2d3a'},title:{display:true,text:'ns',color:'#888'}}},
+        interaction:{intersect:false,mode:'index'}}});
+  }else{el('trendChart').parentElement.innerHTML+='<div class="empty">Single iteration — no trend data</div>'}
+
+  // Optimization stats horizontal bar
+  const statItems=[
+    {l:'Replication',v:(os.replication||{}).instances_created||0},
+    {l:'Retiming',v:(os.retiming||{}).registers_retimed||0},
+    {l:'Rewiring',v:(os.rewiring||{}).nets_rewired||0},
+    {l:'DSP Reg',v:(os.dsp_reg||{}).registers_pushed||0},
+    {l:'BRAM Reg',v:(os.bram_reg||{}).registers_pushed||0},
+    {l:'URAM Reg',v:(os.uram_reg||{}).registers_pushed||0},
+    {l:'SRL',v:(os.srl||{}).optimized||0},
+    {l:'Hold Fix',v:(os.hold_fix||{}).lut1_inserted||0},
+    {l:'LUT Opt',v:(os.lut_opt||{}).luts_replaced||0},
+    {l:'IC Retime',v:(os.interconnect_retime||{}).optimized||0},
+    {l:'Eq Driver',v:(os.equivalent_driver||{}).groups_optimized||0},
+    {l:'Crit Cell',v:(os.critical_cell||{}).cells_optimized||0},
+    {l:'Fanout',v:(os.fanout||{}).nets_replicated||0},
+    {l:'Ctrl Set',v:(os.control_set||{}).flops_optimized||0}
+  ].filter(s=>s.v>0);
+  if(statItems.length){
+    new Chart(el('statsChart'),{type:'bar',data:{
+      labels:statItems.map(s=>s.l),
+      datasets:[{label:'Optimized',data:statItems.map(s=>s.v),backgroundColor:COLORS.purple}]
+    },options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false}},scales:{
+      x:{ticks:{color:'#888'},grid:{color:'#2a2d3a'}},
+      y:{ticks:{color:'#888'},grid:{color:'#2a2d3a'}}}}});
+  }else{el('statsChart').parentElement.innerHTML+='<div class="empty">No optimizations performed</div>'}
+
+  // End-pass doughnut
+  if(ep.cells_created||ep.cells_deleted||ep.cells_moved){
+    new Chart(el('endPassChart'),{type:'doughnut',data:{
+      labels:['Created','Deleted','Moved'],
+      datasets:[{data:[ep.cells_created||0,ep.cells_deleted||0,ep.cells_moved||0],backgroundColor:[COLORS.blue,COLORS.red,COLORS.yellow]}]
+    },options:{responsive:true,plugins:{legend:{labels:{color:'#e0e0e0'}}}}});
+  }else{el('endPassChart').parentElement.innerHTML+='<div class="empty">No end-pass data</div>'}
+
+  // Blocking properties
+  const cb=bp.critical_blocked||[];
+  if(cb.length){
+    let h='<table><tr><th>Cell</th><th>Property</th><th>Slack (ns)</th></tr>';
+    cb.forEach(c=>{h+=`<tr><td style="font-family:monospace;font-size:.78rem">${c.cell}</td><td>${c.property}</td><td style="color:${c.slack<0?COLORS.red:COLORS.green}">${c.slack}</td></tr>`});
+    h+='</table>';
+    el('blocking-content').innerHTML=h;
+  }else{
+    const tots=[bp.dont_touch_cells,bp.mark_debug_nets,bp.non_replicable,bp.phys_opt_skipped].reduce((a,b)=>a+(b||0),0);
+    el('blocking-content').innerHTML=tots?`<div style="padding:12px">${bp.dont_touch_cells||0} DONT_TOUCH, ${bp.mark_debug_nets||0} MARK_DEBUG, ${bp.non_replicable||0} non-replicable — none on critical paths</div>`:'<div class="empty">No blocking properties detected</div>';
+  }
+
+  // Skipped optimizations
+  const sk=data.skipped_optimizations||[];
+  if(sk.length){
+    let h='<table><tr><th>Optimization</th><th>Reason</th><th>ID</th></tr>';
+    sk.forEach(s=>{h+=`<tr><td>${s.optimization}</td><td style="font-size:.78rem">${s.reason}</td><td>${s.message_id||''}</td></tr>`});
+    h+='</table>';
+    el('skipped-content').innerHTML=h;
+  }else{el('skipped-content').innerHTML='<div class="empty">No optimizations skipped</div>'}
+
+  // Errors & warnings
+  if(ew.length){
+    let h='<table><tr><th>ID</th><th>Sev</th><th>#</th><th>Fix</th><th>Message</th></tr>';
+    ew.forEach(e=>{h+=`<tr><td>${e.id}</td><td class="${SEV_CLS[e.severity]||''}">${e.severity}</td><td>${e.count||1}</td><td>${e.fix_type||''}</td><td style="font-size:.78rem">${e.message||''}</td></tr>`});
+    h+='</table>';
+    el('ew-content').innerHTML=h;
+  }else{el('ew-content').innerHTML='<div class="empty">No errors or warnings</div>'}
+
+  // Recommendations
+  const recs=data.recommendations||[];
+  if(recs.length){
+    let h='';
+    recs.sort((a,b)=>(a.priority||99)-(b.priority||99));
+    recs.forEach(r=>{
+      const sev=r.severity||'INFO';
+      const cat=r.category||'';
+      h+=`<div style="margin-bottom:14px;padding:10px;background:var(--bg);border-radius:6px">`;
+      h+=`<span class="${SEV_CLS[sev]||''}" style="font-weight:600">${sev}</span> `;
+      if(cat) h+=`<span class="badge ${CAT_BADGE[cat]||''}">${cat}</span> `;
+      h+=`<span style="font-weight:500">${r.finding||''}</span>`;
+      if(r.action) h+=`<div style="margin-top:4px;font-size:.82rem">${r.action}</div>`;
+      if(r.tcl_commands&&r.tcl_commands.length){
+        r.tcl_commands.forEach(c=>{h+=`<div class="rec-cmd" onclick="copyCmd(event)" title="Click to copy">${c}</div>`});
+      }
+      if(r.expected_impact) h+=`<div style="margin-top:4px;font-size:.78rem;color:var(--muted)">Impact: ${r.expected_impact}</div>`;
+      h+=`</div>`;
+    });
+    el('rec-content').innerHTML=h;
+  }else{el('rec-content').innerHTML='<div class="empty">No recommendations — all optimizations completed successfully</div>'}
+}
+main();
+</script>
+</body>
+</html>

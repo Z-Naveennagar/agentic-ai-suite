@@ -1,0 +1,292 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "hardware-target.schema.json",
+  "title": "Hardware Target Capability Profile v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "board",
+    "capabilities",
+    "peripheral_instances",
+    "endpoints",
+    "policy",
+    "identity_checks"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_-]*$"},
+    "board": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "part", "board_part", "carrier"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "part": {"type": "string", "minLength": 1},
+        "board_part": {"type": ["string", "null"], "minLength": 1},
+        "carrier": {"type": ["string", "null"], "minLength": 1}
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["transports", "programming", "debug", "stimulus", "peripherals"],
+      "properties": {
+        "transports": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"enum": ["ssh", "jtag", "uart", "xvc"]}
+        },
+        "programming": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"enum": ["vivado_hw_manager", "linux_fpga_manager", "boot_image"]}
+        },
+        "debug": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"enum": ["ila", "vio", "jtag_axi", "sysmon"]}
+        },
+        "stimulus": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"enum": ["vio_native", "jtag_axi", "ps_software", "dma", "onchip_generator", "external_equipment"]}
+        },
+        "peripherals": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "peripheral_instances": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/peripheral_instance"}
+    },
+    "endpoints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ssh", "hw_server", "uart"],
+      "properties": {
+        "ssh": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["host_env", "user_env", "port"],
+              "properties": {
+                "host_env": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]*$"},
+                "user_env": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]*$"},
+                "default_host": {"type": "string", "minLength": 1},
+                "default_user": {"type": "string", "minLength": 1},
+                "port": {"type": "integer", "minimum": 1, "maximum": 65535}
+              }
+            }
+          ]
+        },
+        "hw_server": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["url_env", "default_url"],
+              "properties": {
+                "url_env": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]*$"},
+                "default_url": {"type": "string", "pattern": "^[^:]+:[0-9]+$"}
+              }
+            }
+          ]
+        },
+        "uart": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["device_env", "baud"],
+              "properties": {
+                "device_env": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]*$"},
+                "baud": {"type": "integer", "minimum": 1200}
+              }
+            }
+          ]
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "require_programming_authorization",
+        "require_probe_drive_authorization",
+        "allow_power_cycle",
+        "cleanup_required"
+      ],
+      "properties": {
+        "require_programming_authorization": {"const": true},
+        "require_probe_drive_authorization": {"const": true},
+        "allow_power_cycle": {"type": "boolean"},
+        "cleanup_required": {"const": true}
+      }
+    },
+    "identity_checks": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"enum": ["part", "jtag_chain", "device_dna", "linux_machine_id", "carrier_id"]}
+    }
+  },
+  "$defs": {
+    "scalar": {
+      "type": ["string", "integer", "number", "boolean", "null"]
+    },
+    "peripheral_instance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "status",
+        "vendor",
+        "model",
+        "part_number",
+        "connection",
+        "interface",
+        "components",
+        "capabilities",
+        "operator_confirmations",
+        "validation",
+        "evidence"
+      ],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_-]*$"},
+        "kind": {
+          "enum": [
+            "camera",
+            "audio_codec",
+            "audio_source",
+            "audio_sink",
+            "display",
+            "network",
+            "storage",
+            "sensor",
+            "external_equipment"
+          ]
+        },
+        "status": {"enum": ["declared", "discovered", "validated"]},
+        "vendor": {"type": ["string", "null"], "minLength": 1},
+        "model": {"type": "string", "minLength": 1},
+        "part_number": {"type": ["string", "null"], "minLength": 1},
+        "connection": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["connector", "connector_name", "route", "carrier_revision"],
+          "properties": {
+            "connector": {"type": "string", "minLength": 1},
+            "connector_name": {"type": "string", "minLength": 1},
+            "route": {"type": "string", "minLength": 1},
+            "carrier_revision": {"type": ["string", "null"], "minLength": 1}
+          }
+        },
+        "interface": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["protocol", "direction", "parameters"],
+          "properties": {
+            "protocol": {
+              "enum": [
+                "mipi_csi2_via_isp",
+                "mipi_csi2_direct",
+                "i2s",
+                "analog_line_in",
+                "analog_line_out",
+                "hdmi",
+                "displayport",
+                "ethernet",
+                "usb",
+                "gpio",
+                "spi",
+                "i2c",
+                "uart",
+                "other"
+              ]
+            },
+            "direction": {"enum": ["input", "output", "bidirectional", "source", "sink"]},
+            "parameters": {
+              "type": "object",
+              "propertyNames": {"pattern": "^[a-z][a-z0-9_]*$"},
+              "additionalProperties": {"$ref": "#/$defs/scalar"}
+            }
+          }
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["vendor", "model", "function"],
+            "properties": {
+              "vendor": {"type": ["string", "null"], "minLength": 1},
+              "model": {"type": "string", "minLength": 1},
+              "function": {"type": "string", "minLength": 1}
+            }
+          }
+        },
+        "capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[a-z][a-z0-9_-]*$"}
+        },
+        "operator_confirmations": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "validation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "discovery_checks",
+            "functional_checks",
+            "synthetic_fallback_required",
+            "physical_observation_required"
+          ],
+          "properties": {
+            "discovery_checks": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {"type": "string", "minLength": 1}
+            },
+            "functional_checks": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {"type": "string", "minLength": 1}
+            },
+            "synthetic_fallback_required": {"type": "boolean"},
+            "physical_observation_required": {"type": "boolean"}
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "reference", "finding"],
+            "properties": {
+              "kind": {"enum": ["user_declaration", "official_documentation", "schematic", "live_linux"]},
+              "reference": {"type": "string", "minLength": 1},
+              "finding": {"type": "string", "minLength": 1}
+            }
+          }
+        }
+      }
+    }
+  }
+}

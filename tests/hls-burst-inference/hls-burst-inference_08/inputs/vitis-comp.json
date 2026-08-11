@@ -1,0 +1,11 @@
+{
+  "name": "hls-burst-inference_08",
+  "type": "HLS",
+  "configuration": {
+    "componentType": "HLS",
+    "configFiles": [
+      "hls_config.cfg"
+    ],
+    "work_dir": "example"
+  }
+}

@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "verification-result.schema.json",
+  "title": "Verification Result v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "request_id",
+    "spec_revision",
+    "architecture_revision",
+    "source_revision",
+    "revision",
+    "status",
+    "backends",
+    "tool_versions",
+    "tests",
+    "requirement_coverage",
+    "checks",
+    "coverage_reviewed",
+    "unverified_boundaries",
+    "artifacts",
+    "feedback"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "request_id": {"type": "string", "minLength": 1},
+    "spec_revision": {"type": "integer", "minimum": 1},
+    "architecture_revision": {"type": "integer", "minimum": 1},
+    "source_revision": {"type": "integer", "minimum": 1},
+    "revision": {"type": "integer", "minimum": 1},
+    "status": {"enum": ["PASS", "FAIL", "ERROR", "BLOCKED"]},
+    "backends": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "uniqueItems": true},
+    "tool_versions": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/tool"},
+      "minItems": 1
+    },
+    "tests": {"type": "array", "items": {"$ref": "#/$defs/test"}, "minItems": 1},
+    "requirement_coverage": {"type": "array", "items": {"$ref": "#/$defs/coverage"}, "minItems": 1},
+    "checks": {"type": "array", "items": {"$ref": "#/$defs/check"}},
+    "coverage_reviewed": {"type": "boolean"},
+    "unverified_boundaries": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "artifacts": {"type": "array", "items": {"$ref": "#/$defs/artifact"}},
+    "feedback": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/feedback"}]}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "PASS"}}, "required": ["status"]},
+      "then": {
+        "properties": {
+          "coverage_reviewed": {"const": true},
+          "unverified_boundaries": {"maxItems": 0},
+          "tests": {
+            "items": {
+              "properties": {"status": {"const": "PASS"}},
+              "required": ["status"]
+            }
+          },
+          "requirement_coverage": {
+            "items": {
+              "properties": {"status": {"const": "COVERED"}},
+              "required": ["status"]
+            }
+          },
+          "checks": {
+            "items": {
+              "properties": {"status": {"const": "PASS"}},
+              "required": ["status"]
+            }
+          },
+          "artifacts": {
+            "minItems": 1,
+            "items": {
+              "properties": {"exists": {"const": true}},
+              "required": ["exists"]
+            }
+          },
+          "feedback": {"type": "null"}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1}
+      }
+    },
+    "test": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "requirement_ids", "status", "command", "seed", "duration_seconds", "artifacts", "details"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "requirement_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true},
+        "status": {"enum": ["PASS", "FAIL", "SKIP", "ERROR"]},
+        "command": {"type": "string", "minLength": 1},
+        "seed": {"type": ["integer", "null"]},
+        "duration_seconds": {"type": "number", "minimum": 0},
+        "artifacts": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "details": {"type": "string"}
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requirement_id", "test_ids", "status"],
+      "properties": {
+        "requirement_id": {"type": "string", "minLength": 1},
+        "test_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true},
+        "status": {"enum": ["COVERED", "PARTIAL", "UNCOVERED"]}
+      }
+    },
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "status", "details"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["lint", "protocol", "reset", "coverage", "elaboration", "simulation", "other"]},
+        "status": {"enum": ["PASS", "FAIL", "SKIP", "ERROR"]},
+        "details": {"type": "string"}
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "path", "exists"],
+      "properties": {
+        "kind": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "minLength": 1},
+        "exists": {"type": "boolean"}
+      }
+    },
+    "feedback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner", "failure_class", "architecture_element", "requirement_ids", "evidence", "reproduction", "requested_action"],
+      "properties": {
+        "owner": {"type": "string", "minLength": 1},
+        "failure_class": {"type": "string", "minLength": 1},
+        "architecture_element": {"type": ["string", "null"]},
+        "requirement_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "evidence": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        "reproduction": {"type": "string", "minLength": 1},
+        "requested_action": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

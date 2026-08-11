@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "evaluation-case.schema.json",
+  "title": "Regression Evaluation Case v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "title",
+    "prompt_file",
+    "target",
+    "expected_route",
+    "candidate",
+    "public_interface",
+    "simulation",
+    "semantic_rubric",
+    "score_weights"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_-]*$"},
+    "title": {"type": "string", "minLength": 1},
+    "prompt_file": {"type": "string", "pattern": "^[^/]+\\.md$"},
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["part", "vivado_version"],
+      "properties": {
+        "part": {"type": "string", "minLength": 1},
+        "board_part": {"type": ["string", "null"], "minLength": 1},
+        "vivado_version": {"type": "string", "minLength": 1}
+      }
+    },
+    "expected_route": {
+      "type": "array",
+      "minItems": 2,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["integration_mode", "top", "rtl_sources", "constraint_sources"],
+      "properties": {
+        "integration_mode": {"enum": ["rtl_top", "ip_integrator", "vitis"]},
+        "top": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_$]*$"},
+        "simulation_top": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_$]*$"},
+        "rtl_sources": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/relative_path"}
+        },
+        "constraint_sources": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/relative_path"}
+        }
+      }
+    },
+    "public_interface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["design_root", "modules", "constraints"],
+      "properties": {
+        "design_root": {"const": "design"},
+        "modules": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/module"}
+        },
+        "constraints": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/relative_path"}
+        }
+      }
+    },
+    "simulation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["make_directory", "toplevel"],
+      "properties": {
+        "make_directory": {"type": "string", "minLength": 1},
+        "toplevel": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_$]*$"}
+      }
+    },
+    "semantic_rubric": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/semantic_rule"}
+    },
+    "score_weights": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contracts", "semantics", "simulation", "vivado"],
+      "properties": {
+        "contracts": {"type": "integer", "minimum": 0},
+        "semantics": {"type": "integer", "minimum": 0},
+        "simulation": {"type": "integer", "minimum": 0},
+        "vivado": {"type": "integer", "minimum": 0}
+      }
+    }
+  },
+  "$defs": {
+    "relative_path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+    },
+    "parameter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "type", "default"],
+      "properties": {
+        "name": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_$]*$"},
+        "type": {"type": "string", "minLength": 1},
+        "default": {"type": ["string", "number", "integer", "boolean"]}
+      }
+    },
+    "port": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "direction", "width"],
+      "properties": {
+        "name": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_$]*$"},
+        "direction": {"enum": ["input", "output", "inout"]},
+        "width": {
+          "oneOf": [
+            {"type": "integer", "minimum": 1},
+            {"type": "string", "minLength": 1}
+          ]
+        }
+      }
+    },
+    "module": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "source", "roles", "parameters", "ports"],
+      "properties": {
+        "name": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_$]*$"},
+        "source": {"$ref": "#/$defs/relative_path"},
+        "roles": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": ["implementation_top", "simulation_top", "required_component"]
+          }
+        },
+        "parameters": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/parameter"}
+        },
+        "ports": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/port"}
+        }
+      }
+    },
+    "semantic_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "weight", "artifact", "operator", "expected"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[A-Z][A-Z0-9_-]*$"},
+        "weight": {"type": "integer", "minimum": 1},
+        "artifact": {"$ref": "#/$defs/relative_path"},
+        "collection": {"type": "string", "minLength": 1},
+        "match": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": ["string", "number", "integer", "boolean", "null"]
+          }
+        },
+        "field": {"type": "string", "minLength": 1},
+        "operator": {"enum": ["equals", "contains", "not_contains"]},
+        "expected": {
+          "type": ["string", "number", "integer", "boolean", "null"]
+        }
+      }
+    }
+  }
+}

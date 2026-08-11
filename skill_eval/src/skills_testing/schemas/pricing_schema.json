@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "skills_testing pricing.yaml",
+  "description": "Model & hardware pricing for the cost model (split out of config.yaml — see config.yaml's own header comment)",
+  "type": "object",
+  "required": ["model_pricing"],
+  "properties": {
+    "model_pricing": {
+      "type": "object",
+      "description": "Model pricing and hardware cost models",
+      "required": ["default_currency", "estimation_chars_per_token", "hosted_gpu_hourly_usd", "hosted_gpu_tok_per_sec", "machines", "models"],
+      "properties": {
+        "default_currency": { "type": "string" },
+        "estimation_chars_per_token": { "type": "number", "minimum": 0 },
+        "hosted_gpu_hourly_usd": { "type": "number", "minimum": 0 },
+        "hosted_gpu_tok_per_sec": { "type": "number", "minimum": 0 },
+        "machines": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "description": { "type": "string" },
+              "capex_usd": { "type": "number", "minimum": 0 },
+              "useful_life_years": { "type": "number", "minimum": 0 },
+              "avg_power_watts": { "type": "number", "minimum": 0 },
+              "electricity_usd_per_kwh": { "type": "number", "minimum": 0 },
+              "override_hourly_usd": { "type": "number", "minimum": 0 }
+            },
+            "additionalProperties": false
+          }
+        },
+        "models": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "input_per_mtok": { "type": "number", "minimum": 0 },
+              "output_per_mtok": { "type": "number", "minimum": 0 },
+              "cache_read_per_mtok": { "type": "number", "minimum": 0 },
+              "cache_write_per_mtok": { "type": "number", "minimum": 0 },
+              "self_hosted": { "type": "boolean" },
+              "machine": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

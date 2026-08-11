@@ -1,0 +1,728 @@
+# ── Suite: ip-configurator-test-kit ──────────
+suite_id: ip-configurator-test-kit
+description: Blind IP-configuration benchmark. Each case gives a natural-language design intent; the agent must infer the correct Vivado IP and CONFIG.* properties and emit the mandated JSON output contract. Golden results (from blind_run.sample.jsonl) live per case in expected.expected_output and are the correctness gate via the output_contract_match grader (skill arm only).
+flags:
+- customer-realistic prompts -- no skill name / protocol / tier / mode mention
+- skill_name inferred from case basename by stripping '-test-kit' -> 'ip-configurator'
+- expected.expected_output golden = identified_ip, vlnv, as_configured, tier1_success, tier2_success, self_fidelity, notes (the deterministic skill contract)
+- vlnv is version-tolerant (golden family matches the agent's :version suffix)
+- the agent's mcp_calls / notes / part_swapped are allowed extras (non-deterministic)
+- 'output_contract_match is skill_only: it runs in the with-skill arm, skipped no-skill'
+test_cases:
+- id: ip-configurator-test-kit_01
+  input_files: []
+  cell_name: bench_cell_001
+  prompt: Configure an AXI GPIO as a 2-bit, all-outputs port to drive the auto-IOB MSI-X enable lines.
+  expected:
+    skills:
+    - ip-configurator
+    expected_output:
+      identified_ip: axi_gpio
+      vlnv: xilinx.com:ip:axi_gpio
+      as_configured:
+        CONFIG.C_GPIO_WIDTH: '2'
+        CONFIG.C_ALL_OUTPUTS: '1'
+      tier1_success: true
+      tier2_success: null
+      self_fidelity: full
+      notes: "2-bit all-outputs GPIO. Doc PG144 grounded params (shared GPIO doc search + batched execute for 001-005)."
+- id: ip-configurator-test-kit_02
+  input_files: []
+  cell_name: bench_cell_002
+  prompt: Single-bit AXI GPIO to drive the camera sensor-hub reset line.
+  expected:
+    skills:
+    - ip-configurator
+    expected_output:
+      identified_ip: axi_gpio
+      vlnv: xilinx.com:ip:axi_gpio
+      as_configured:
+        CONFIG.C_GPIO_WIDTH: '1'
+        CONFIG.C_ALL_OUTPUTS: '1'
+      tier1_success: true
+      tier2_success: null
+      self_fidelity: full
+      notes: "Single-bit output GPIO to drive reset line (drive=output)."
+- id: ip-configurator-test-kit_03
+  input_files: []
+  cell_name: bench_cell_003
+  prompt: '24-bit AXI GPIO for auto-IOB board control: output default 0x00024042, tri-state default 0x00000F00.'
+  expected:
+    skills:
+    - ip-configurator
+    expected_output:
+      identified_ip: axi_gpio
+      vlnv: xilinx.com:ip:axi_gpio
+      as_configured:
+        CONFIG.C_GPIO_WIDTH: '24'
+        CONFIG.C_DOUT_DEFAULT: '0x00024042'
+        CONFIG.C_TRI_DEFAULT: '0x00000F00'
+      tier1_success: true
+      tier2_success: null
+      self_fidelity: full
+      notes: "24-bit; tri-state 0x00000F00 means mixed dir so not all-outputs. C_DOUT_DEFAULT/C_TRI_DEFAULT grounded in PG144."
+- id: ip-configurator-test-kit_04
+  input_files: []
+  cell_name: bench_cell_004
+  prompt: 'Reset-control AXI GPIO: all outputs, 32-bit, power-on default value 0xFFFFFFFF so every reset line is deasserted high.'
+  expected:
+    skills:
+    - ip-configurator
+    expected_output:
+      identified_ip: axi_gpio
+      vlnv: xilinx.com:ip:axi_gpio
+      as_configured:
+        CONFIG.C_GPIO_WIDTH: '32'
+        CONFIG.C_ALL_OUTPUTS: '1'
+        CONFIG.C_DOUT_DEFAULT: '0xFFFFFFFF'
+      tier1_success: true
+      tier2_success: null
+      self_fidelity: full
+      notes: "Width 32 equals default (verify_intent suspect-no-change is benign; requested value is 32). All-outputs + power-on default 0xFFFFFFFF realized."
+- id: ip-configurator-test-kit_05
+  input_files: []
+  cell_name: bench_cell_005
+  prompt: AXI GPIO 6 bits wide for an ISP tile's parallel GPIO bus.
+  expected:
+    skills:
+    - ip-configurator
+    expected_output:
+      identified_ip: axi_gpio
+      vlnv: xilinx.com:ip:axi_gpio
+      as_configured:
+        CONFIG.C_GPIO_WIDTH: '6'
+      tier1_success: true
+      tier2_success: null
+      self_fidelity: full
+      notes: "6-bit GPIO bus; width only."
+- id: ip-configurator-test-kit_06
+  input_files: []
+  cell_name: bench_cell_006
+  prompt: AXI BRAM Controller in single-port mode for the boot-ROM mailbox.
+  expected:
+    skills:
+    - ip-configurator
+    expected_output:
+      identified_ip: axi_bram_ctrl
+      vlnv: xilinx.com:ip:axi_bram_ctrl
+      as_configured:
+        CONFIG.SINGLE_PORT_BRAM: '1'
+      tier1_success: true
+      tier2_success: null
+      self_fidelity: full
+      notes: "Single-port mode via SINGLE_PORT_BRAM=1 (doc C_SINGLE_PORT_BRAM=1). Shared batched execute for 006-012."
+- id: ip-configurator-test-kit_07
+  input_files: []
+  cell_name: bench_cell_007
+  prompt: Embedded Memory Generator backed by BRAM primitives for the mailbox RAM.
+  expected:
+    skills:
+    - ip-configurator
+    expected_output:
+      identified_ip: emb_mem_gen
+      vlnv: xilinx.com:ip:emb_mem_gen
+      as_configured:
+        CONFIG.MEMORY_PRIMITIVE: BRAM
+      tier1_success: true
+      tier2_success: null
+      self_fidelity: full
+      notes: "MEMORY_PRIMITIVE=BRAM is also the default (suspect-no-change benign); requested primitive matches intent. PG326 grounded."
+- id: ip-configurator-test-kit_08
+  input_files: []
+  cell_name: bench_cell_008
+  prompt: AXI UART Lite for the Ryzen<->Versal sideband console, clocked from the ~100 MHz AXI clock (99.999 MHz).
+  expected:
+    skills:
+    - ip-configurator
+    expected_output:
+      identified_ip: axi_uartlite
+      vlnv: xilinx.com:ip:axi_uartlite
+      as_configured:
+        CONFIG.C_S_AXI_ACLK_FREQ_HZ: '99999000'
+      tier1_success: true
+      tier2_success: null
+      self_fidelity: full
+      notes: "99.999 MHz AXI clock = 99999000 Hz via C_S_AXI_ACLK_FREQ_HZ (DS741)."
+- id: ip-configurator-test-kit_09
+  input_files: []
+  cell_name: bench_cell_009
+  prompt: AXI4-Stream Data FIFO with a depth of 128 for the audio sample path.
+  expected:
+    skills:
+    - ip-configurator
+    expected_output:
+      identified_ip: axis_data_fifo
+      vlnv: xilinx.com:ip:axis_data_fifo
+      as_configured:
+        CONFIG.FIFO_DEPTH: '128'
+      tier1_success: true
+      tier2_success: null
+      self_fidelity: full
+      notes: "AXI4-Stream Data FIFO depth 128 via FIFO_DEPTH."
+- id: ip-configurator-test-kit_10
+  input_files: []
+  cell_name: bench_cell_010
+  prompt: Concat block that merges 22 interrupt sources into one interrupt vector.
+  expected:
+    skills:
+    - ip-configurator
+    expected_output:
+      identified_ip: xlconcat
+      vlnv: xilinx.com:ip:xlconcat
+      as_configured:
+        CONFIG.NUM_PORTS: '22'
+      tier1_success: true
+      tier2_success: null
+      self_fidelity: full
+      notes: "Concat merges 22 sources via NUM_PORTS=22 (PB041/UG994)."
+- id: ip-configurator-test-kit_11
+  input_files: []
+  cell_name: bench_cell_011
+  prompt: AXI IIC controller (default configuration) for a camera-module I2C control bus.
+  expected:
+    skills:
+    - ip-configurator
+    expected_output:
+      identified_ip: axi_iic
+      vlnv: xilinx.com:ip:axi_iic
+      as_configured: {}
+      tier1_success: true
+      tier2_success: null
+      self_fidelity: full
+      notes: "Default configuration as requested; cell created, no CONFIG overrides."
+- id: ip-configurator-test-kit_12
+  input_files: []
+  cell_name: bench_cell_012
+  prompt: AXI Quad SPI (default configuration) for the boot-ROM flash interface.
+  expected:
+    skills:
+    - ip-configurator
+    expected_output:
+      identified_ip: axi_quad_spi
+      vlnv: xilinx.com:ip:axi_quad_spi
+      as_configured: {}
+      tier1_success: true
+      tier2_success: null
+      self_fidelity: full
+      notes: "Default configuration as requested; cell created, no CONFIG overrides."
+- id: ip-configurator-test-kit_13
+  input_files: []
+  cell_name: bench_cell_013
+  prompt: AXI Interrupt Controller wired to a single processor IRQ connection.
+  expected:
+    skills:
+    - ip-configurator
+    expected_output:
+      identified_ip: axi_intc
+      vlnv: xilinx.com:ip:axi_intc
+      as_configured:
+        CONFIG.C_IRQ_CONNECTION: '1'
+      tier1_success: true
+      tier2_success: null
+      self_fidelity: full
+      notes: "Single processor IRQ connection = C_IRQ_CONNECTION 1 (0=Bus,1=Single) per PG099. Shared INTC doc search + batched execute."
+- id: ip-configurator-test-kit_14
+  input_files: []
+  cell_name: bench_cell_014
+  prompt: SmartConnect with 1 slave port fanning out to 4 master ports.
+  expected:
+    skills:
+    - ip-configurator
+    expected_output:
+      identified_ip: smartconnect
+      vlnv: xilinx.com:ip:smartconnect
+      as_configured:
+        CONFIG.NUM_SI: '1'
+        CONFIG.NUM_MI: '4'
+      tier1_success: true
+      tier2_success: null
+      self_fidelity: full
+      notes: "1 SI -> 4 MI via NUM_SI/NUM_MI (PG247)."
+- id: ip-configurator-test-kit_15
+  input_files: []
+  cell_name: bench_cell_015
+  prompt: Single-clock SmartConnect routing 1 slave to 15 master ports for the auto-IOB peripheral block.
+  expected:
+    skills:
+    - ip-configurator
+    expected_output:
+      identified_ip: smartconnect
+      vlnv: xilinx.com:ip:smartconnect
+      as_configured:
+        CONFIG.NUM_SI: '1'
+        CONFIG.NUM_MI: '15'
+        CONFIG.NUM_CLKS: '1'
+      tier1_success: true
+      tier2_success: null
+      self_fidelity: full
+      notes: "1 SI -> 15 MI single-clock; NUM_CLKS=1 equals default (single-clock requested = default, benign suspect-no-change)."
+- id: ip-configurator-test-kit_16
+  input_files: []
+  cell_name: bench_cell_016
+  prompt: Versal clocking wizard producing 100, 200 and 250 MHz outputs (data-path clocks) with an active-low reset, and the locked and reset signals exposed.
+  expected:
+    skills:
+    - ip-configurator
+    # Version-keyed identity: 2026.1 ships the Clocking Wizard as THREE catalog
+    # entries partitioned by device generation, all with the identical
+    # DISPLAY_NAME "Clocking Wizard" and DISJOINT SUPPORTED_PARTS --
+    # clk_wiz (7-series/UltraScale), clk_wizard (Versal Gen1: 0 xc2ve parts,
+    # 264 xcve / 283 xcvc) and clkx5_wiz (Versal Gen2: 375 xc2ve parts, 0 of
+    # Gen1's). On the xc2ve3558 baseline part clkx5_wiz IS this device's edition
+    # of the same IP, so it is the correct answer and NO part swap is warranted;
+    # expecting clk_wizard here would require downgrading the device to reach an
+    # older edition of the same core. `ipcfg::ip_availability` reports the pair
+    # as VARIANT_OF and tells the agent to use the AVAILABLE one.
+    # The genuine part-swap path is covered by case 32 (cmac_usplus), where the
+    # WRONG_PART IP has no same-DISPLAY_NAME edition for this device.
+    # Param names are identical across the two editions, so only identity moves.
+    expected_output_by_vivado_version:
+      "2026.1":
+        identified_ip: clkx5_wiz
+        vlnv: xilinx.com:ip:clkx5_wiz
+        as_configured:
+          CONFIG.CLKOUT_USED: true,true,true,false,false,false,false
+          CONFIG.CLKOUT_REQUESTED_OUT_FREQUENCY: 100.000,200.000,250.000,100.000,100.000,100.000,100.000
+          CONFIG.USE_RESET: 'true'
+          CONFIG.RESET_TYPE: ACTIVE_LOW
+          CONFIG.USE_LOCKED: 'true'
+        tier1_success: true
+        tier2_success: null
+        self_fidelity: full
+        notes: "Clocking Wizard on Versal AI Edge Gen2. On 2026.1 the Gen2 edition is clkx5_wiz; clk_wizard (Gen1) supports 0 xc2ve parts and is a device-generation VARIANT of the same IP (identical DISPLAY_NAME), so it is NOT substituted and NO part swap is done. Comma-list params; 3 outputs 100/200/250 MHz, active-low reset (RESET_TYPE ACTIVE_LOW + USE_RESET), USE_LOCKED exposes locked+reset."
+      default:
+        identified_ip: clk_wizard
+        vlnv: xilinx.com:ip:clk_wizard
+        as_configured:
+          CONFIG.CLKOUT_USED: true,true,true,false,false,false,false
+          CONFIG.CLKOUT_REQUESTED_OUT_FREQUENCY: 100.000,200.000,250.000,100.000,100.000,100.000,100.000
+          CONFIG.USE_RESET: 'true'
+          CONFIG.RESET_TYPE: ACTIVE_LOW
+          CONFIG.USE_LOCKED: 'true'
+        tier1_success: true
+        tier2_success: null
+        self_fidelity: full
+        notes: "Versal Clocking Wizard (PG321). clk_wizard:1.0 unsupported on xc2ve3558; swapped to xcvc1902 then restored. Comma-list params; 3 outputs 100/200/250 MHz, active-low reset (RESET_TYPE ACTIVE_LOW + USE_RESET), USE_LOCKED exposes locked+reset."
+- id: ip-configurator-test-kit_17
+  input_files: []
+  cell_name: bench_cell_017
+  prompt: MMI/display clocking wizard generating three outputs at 74.25 MHz, 148.5 MHz and 22.5792 MHz (HDMI pixel/link and audio) with an active-low reset.
+  expected:
+    skills:
+    - ip-configurator
+    # Version-keyed for the same reason as case 16: on 2026.1 the Gen2 edition of
+    # the Clocking Wizard is clkx5_wiz, and clk_wizard is a same-DISPLAY_NAME
+    # variant covering other device generations, so no part swap is warranted.
+    expected_output_by_vivado_version:
+      "2026.1":
+        identified_ip: clkx5_wiz
+        vlnv: xilinx.com:ip:clkx5_wiz
+        as_configured:
+          CONFIG.CLKOUT_USED: true,true,true,false,false,false,false
+          CONFIG.CLKOUT_REQUESTED_OUT_FREQUENCY: 74.250,148.500,22.5792,100.000,100.000,100.000,100.000
+          CONFIG.USE_RESET: 'true'
+          CONFIG.RESET_TYPE: ACTIVE_LOW
+        tier1_success: true
+        tier2_success: null
+        self_fidelity: full
+        notes: "Display clocking wizard on Versal AI Edge Gen2: 74.25/148.5/22.5792 MHz, active-low reset. clkx5_wiz is the Gen2 edition of the Clocking Wizard on 2026.1; no part swap (clk_wizard is a device-generation variant of the same IP, not a different IP)."
+      default:
+        identified_ip: clk_wizard
+        vlnv: xilinx.com:ip:clk_wizard
+        as_configured:
+          CONFIG.CLKOUT_USED: true,true,true,false,false,false,false
+          CONFIG.CLKOUT_REQUESTED_OUT_FREQUENCY: 74.250,148.500,22.5792,100.000,100.000,100.000,100.000
+          CONFIG.USE_RESET: 'true'
+          CONFIG.RESET_TYPE: ACTIVE_LOW
+        tier1_success: true
+        tier2_success: null
+        self_fidelity: full
+        notes: "Display clocking wizard: 74.25/148.5/22.5792 MHz, active-low reset. Part swap shared with 016, restored after."
+- id: ip-configurator-test-kit_18
+  input_files: []
+  cell_name: bench_cell_018
+  prompt: Processor System Reset block for the 100 MHz control domain (default configuration, active-low aux reset).
+  expected:
+    skills:
+    - ip-configurator
+    expected_output:
+      identified_ip: proc_sys_reset
+      vlnv: xilinx.com:ip:proc_sys_reset
+      as_configured:
+        CONFIG.C_AUX_RESET_HIGH: '0'
+      tier1_success: true
+      tier2_success: null
+      self_fidelity: full
+      notes: "Active-low aux reset = C_AUX_RESET_HIGH 0 (PG164: set 0 => aux_reset_in active Low). Otherwise default config."
+- id: ip-configurator-test-kit_19
+  input_files: []
+  cell_name: bench_cell_019
+  prompt: I2S receiver for the in-cabin audio capture path (default configuration).
+  expected:
+    skills:
+    - ip-configurator
+    expected_output:
+      identified_ip: i2s_receiver
+      vlnv: xilinx.com:ip:i2s_receiver
+      as_configured: {}
+      tier1_success: true
+      tier2_success: null
+      self_fidelity: full
+      notes: "Default configuration as requested; cell created (PG308)."
+- id: ip-configurator-test-kit_20
+  input_files: []
+  cell_name: bench_cell_020
+  prompt: 'MIPI CSI-2 RX subsystem for a GMSL camera bridged via C-PHY: 3 lanes, 4 pixels per clock, RAW12, all virtual channels, 4096-deep line buffer, user-data-type filtering on, ISP bridge enabled, register interface on, D-PHY line rate 1500 Mbps, SupportLevel 1.'
+  expected:
+    skills:
+    - ip-configurator
+    expected_output:
+      identified_ip: mipi_csi2_rx_subsystem
+      vlnv: xilinx.com:ip:mipi_csi2_rx_subsystem
+      as_configured:
+        CONFIG.C_PHY_MODE: CPHY
+        CONFIG.SupportLevel: '1'
+        CONFIG.CMN_NUM_LANES: '3'
+        CONFIG.CMN_NUM_PIXELS: '4'
+        CONFIG.CMN_PXL_FORMAT: RAW12
+        CONFIG.CMN_VC: All
+        CONFIG.CSI_BUF_DEPTH: '4096'
+        CONFIG.C_CSI_FILTER_USERDATATYPE: 'true'
+        CONFIG.C_SPRT_ISP_BRIDGE: 'true'
+        CONFIG.DPY_EN_REG_IF: 'true'
+        CONFIG.DPY_LINE_RATE: '1500'
+      tier1_success: true
+      tier2_success: null
+      self_fidelity: full
+      notes: "C-PHY 3-lane GMSL bridge. PG232 grounded: PHY Mode=CPHY, Serial Data Lanes=3, Pixels Per Clock=4, Pixel Format=RAW12, Allowed VC=All, Line Buffer Depth=4096, user-data-type filter on, ISP bridge on, register I/F on, line rate 1500. PHY-mode applied first (enabler). All 11 target params read back exactly. C_DPHY_LANES is NOT graded: Vivado derives it from CMN_NUM_LANES (it tracks the value in both DPHY and CPHY mode) but leaves VALUE_SRC=DEFAULT, so the read-back only sees it if an agent redundantly restates a value Vivado already maintains -- it carries no signal CMN_NUM_LANES does not. TRI_SELECT/BITSLIP_VAL disabled warnings are internal PHY sub-core artifacts, not targets. Doc search shared with 021."
+- id: ip-configurator-test-kit_21
+  input_files: []
+  cell_name: bench_cell_021
+  prompt: 'MIPI CSI-2 RX subsystem over D-PHY for a 4-lane camera: 4 active lanes, 4 pixels per clock, RAW12, all virtual channels, 4096 buffer depth, active-lanes detection and user-data-type filtering enabled, ISP bridge on, register interface on, 1500 Mbps line rate, SupportLevel 0.'
+  expected:
+    skills:
+    - ip-configurator
+    expected_output:
+      identified_ip: mipi_csi2_rx_subsystem
+      vlnv: xilinx.com:ip:mipi_csi2_rx_subsystem
+      as_configured:
+        CONFIG.C_PHY_MODE: DPHY
+        CONFIG.SupportLevel: '0'
+        CONFIG.CMN_NUM_LANES: '4'
+        CONFIG.CMN_NUM_PIXELS: '4'
+        CONFIG.CMN_PXL_FORMAT: RAW12
+        CONFIG.CMN_VC: All
+        CONFIG.CSI_BUF_DEPTH: '4096'
+        CONFIG.C_CSI_EN_ACTIVELANES: 'true'
+        CONFIG.C_CSI_FILTER_USERDATATYPE: 'true'
+        CONFIG.C_SPRT_ISP_BRIDGE: 'true'
+        CONFIG.DPY_EN_REG_IF: 'true'
+        CONFIG.DPY_LINE_RATE: '1500'
+      tier1_success: true
+      tier2_success: null
+      self_fidelity: full
+      notes: "D-PHY 4-lane camera. PG232 grounded: PHY Mode=DPHY, 4 lanes, 4 ppc, RAW12, All VC, 4096 buffer, active-lanes detection on (C_CSI_EN_ACTIVELANES), user-data-type filter on, ISP bridge on, register I/F on (DPY_EN_REG_IF), line rate 1500, SupportLevel 0. PHY-mode applied first. All 12 target params read back exactly. Two former blockers removed: the prompt now names the register interface (as 020's does) where it previously did not while the golden still required DPY_EN_REG_IF=true, and C_DPHY_LANES is no longer graded because Vivado derives it from CMN_NUM_LANES without leaving VALUE_SRC=DEFAULT (see 020's note)."
+- id: ip-configurator-test-kit_22
+  input_files: []
+  cell_name: bench_cell_022
+  prompt: 'Hardened ISP subsystem for the perception preprocessing path: enable 3 tiles, 12-bit basic data format on the ISP0 cores, ISP core clocks at ~600 MHz, and 4 live inputs on tile 2''s ISP0.'
+  expected:
+    skills:
+    - ip-configurator
+    expected_output:
+      identified_ip: visp_ss
+      vlnv: xilinx.com:ip:visp_ss:2.0
+      as_configured:
+        CONFIG.C_TILE0_ENABLE: 'true'
+        CONFIG.C_TILE1_ENABLE: 'true'
+        CONFIG.C_TILE2_ENABLE: 'true'
+        CONFIG.C_TILE2_ISP0_IO_TYPE: '2'
+        CONFIG.C_TILE0_ISP0_BASIC_DATA_FORMAT: '12'
+        CONFIG.C_TILE1_ISP0_BASIC_DATA_FORMAT: '12'
+        CONFIG.C_TILE2_ISP0_BASIC_DATA_FORMAT: '12'
+        CONFIG.C_TILE0_ISP0_CORE_CLK: '600'
+        CONFIG.C_TILE1_ISP0_CORE_CLK: '600'
+        CONFIG.C_TILE2_ISP0_CORE_CLK: '600'
+        CONFIG.C_TILE2_ISP0_LIVE_INPUTS: '4'
+      tier1_success: true
+      tier2_success: null
+      self_fidelity: full
+      notes: "Versal AI Edge Gen2 hardened ISP subsystem (PG432). 3 tiles enabled, ISP0 Common Pixel Format=12 (RAW12) on all tiles, ISP0 core clock 600 MHz (documented nominal/default; intent ~600), tile2 ISP0 LIVE_INPUTS=4. IO_TYPE=LIMO applied as enabler (read back enum 2) so LIVE_INPUTS became selectable=4. BD 41-3287/41-1306 warnings are hardened NMU/NSU physical-connection artifacts of standalone instantiation, not CONFIG params. All target params read back."
+- id: ip-configurator-test-kit_23
+  input_files: []
+  cell_name: bench_cell_023
+  prompt: 'Versal NoC for the master interconnect: 11 AXI slave ports, 4 AXI master ports, 4 inter-NoC master (NMI) and 5 inter-NoC slave (NSI) ports, across 15 clocks.'
+  expected:
+    skills:
+    - ip-configurator
+    expected_output:
+      identified_ip: axi_noc2
+      vlnv: xilinx.com:ip:axi_noc2:1.1
+      as_configured:
+        CONFIG.NUM_SI: '11'
+        CONFIG.NUM_MI: '4'
+        CONFIG.NUM_NMI: '4'
+        CONFIG.NUM_NSI: '5'
+        CONFIG.NUM_CLKS: '15'
+      tier1_success: true
+      tier2_success: null
+      self_fidelity: full
+      notes: "Versal NoC2 (PG406). 11 SI, 4 MI, 4 NMI, 5 NSI, 15 clocks all read back exactly. Doc search shared with 024-026."
+- id: ip-configurator-test-kit_24
+  input_files: []
+  cell_name: bench_cell_024
+  prompt: 'Versal NoC for the VCU video codec: 4 AXI slave ports, no AXI master ports, 2 inter-NoC master (NMI) ports, 5 clocks, 128-bit data width.'
+  expected:
+    skills:
+    - ip-configurator
+    expected_output:
+      identified_ip: axi_noc2
+      vlnv: xilinx.com:ip:axi_noc2:1.1
+      as_configured:
+        CONFIG.NUM_SI: '4'
+        CONFIG.NUM_MI: '0'
+        CONFIG.NUM_NMI: '2'
+        CONFIG.NUM_CLKS: '5'
+      tier1_success: true
+      tier2_success: null
+      self_fidelity: partial
+      notes: "4 SI, 0 MI, 2 NMI, 5 clocks stuck. CONFIG.DATA_WIDTH does NOT exist on axi_noc2 (BD 41-1276 param does not exist): NoC data width is per-connection/integration-derived (set by the connected master at link time), not a global cell CONFIG. Structural ports = full; 128-bit width is integration-derived, hence partial."
+- id: ip-configurator-test-kit_25
+  input_files: []
+  cell_name: bench_cell_025
+  prompt: 'Versal NoC aggregator for the ISP datapath: 3 AXI slave ports, 3 AXI master ports, 3 inter-NoC master (NMI) and 3 inter-NoC slave (NSI) ports, 6 clocks.'
+  expected:
+    skills:
+    - ip-configurator
+    expected_output:
+      identified_ip: axi_noc2
+      vlnv: xilinx.com:ip:axi_noc2:1.1
+      as_configured:
+        CONFIG.NUM_SI: '3'
+        CONFIG.NUM_MI: '3'
+        CONFIG.NUM_NMI: '3'
+        CONFIG.NUM_NSI: '3'
+        CONFIG.NUM_CLKS: '6'
+      tier1_success: true
+      tier2_success: null
+      self_fidelity: full
+      notes: "3 SI, 3 MI, 3 NMI, 3 NSI, 6 clocks all read back exactly."
+- id: ip-configurator-test-kit_26
+  input_files: []
+  cell_name: bench_cell_026
+  prompt: 'Versal NoC configured as an integrated LPDDR5/DDR5 memory controller for the C0/C1 DRAM: 4 memory controllers (NUM_MC), 1 memory-controller port (NUM_MCP), 2 inter-NoC slave (NSI) ports, no AXI slave/master ports and no AXI clocks (NUM_CLKS), using discrete memory components, LPDDR5 controller type, 32-bit per-MC data width, LPDDR5X-8533 speed grade.'
+  expected:
+    skills:
+    - ip-configurator
+    expected_output:
+      identified_ip: axi_noc2
+      vlnv: xilinx.com:ip:axi_noc2:1.1
+      as_configured:
+        CONFIG.NUM_SI: '0'
+        CONFIG.NUM_MI: '0'
+        CONFIG.NUM_NSI: '2'
+        CONFIG.NUM_CLKS: '0'
+      tier1_success: true
+      tier2_success: false
+      self_fidelity: partial
+      notes: "axi_noc2 as integrated LPDDR5 MC (PG406/PG456/PG313). Structural ports (NUM_SI=0, NUM_MI=0, NUM_NSI=2, NUM_CLKS=0) stick when applied in that order -- the AXI ports must go to zero before NUM_CLKS=0 is legal. MC_CHAN_REGION0 is NOT graded: on a bare PL NoC cell Vivado accepts the write with no error but leaves VALUE_SRC=DEFAULT, so the read-back can never observe it and requiring it capped this case below a full score no matter what the agent did. NUM_MC, NUM_MCP, MC_CHAN_REGION1 remain GATED (IP_Flow 19-3374 / BD 41-721 disabled) on a bare PL NoC cell. The integrated-MC identity (NUM_MC/NUM_MCP) plus the DDRMC5_CONFIG sub-dict (controller type LPDDR5, 32-bit data width, LPDDR5X-8533 speed, Components device type) only become valid when the NoC is instantiated as an integrated memory controller via device/board automation; not settable standalone. Partial: structural realized, DRAM identity integration-derived."
+- id: ip-configurator-test-kit_27
+  input_files: []
+  cell_name: bench_cell_027
+  prompt: Instantiate the AIE-ML (AI Engine 2.0) array for the object-detection/segmentation inference stage with its NoC-attached AXI slave port (default array configuration).
+  expected:
+    skills:
+    - ip-configurator
+    expected_output:
+      identified_ip: ai_engine
+      vlnv: xilinx.com:ip:ai_engine:2.0
+      as_configured: {}
+      tier1_success: true
+      tier2_success: null
+      self_fidelity: full
+      notes: "AIE-ML (AI Engine 2.0) array instantiated with default array configuration as requested; NoC-attached AXI slave port is part of the default IP. No CONFIG overrides."
+- id: ip-configurator-test-kit_28
+  input_files: []
+  cell_name: bench_cell_028
+  prompt: Instantiate a VCU2 (video codec unit) for the annotated-video output path (default configuration).
+  expected:
+    skills:
+    - ip-configurator
+    expected_output:
+      identified_ip: vcu2
+      vlnv: xilinx.com:ip:vcu2:3.0
+      as_configured: {}
+      tier1_success: true
+      tier2_success: null
+      self_fidelity: full
+      notes: "VCU2 video codec unit instantiated with default configuration as requested. No CONFIG overrides."
+- id: ip-configurator-test-kit_29
+  input_files: []
+  cell_name: bench_cell_029
+  prompt: 'Configure the Versal Gen2 processing system as a PCIe Gen4 x2 endpoint on the MDB5 GT quad (shared with 10GbE): port type endpoint, PERST on PS_MIO_3, device ID 0x9038, subsystem vendor ID 0x10ee, BAR2 enabled at 512 MB and BAR3 enabled at 128 MB.'
+  expected:
+    skills:
+    - ip-configurator
+    # Version-keyed identity only (see case 30/31): `ps11` does not exist on
+    # 2026.1; the PS is `ps_wizard`. Param names are unchanged because the
+    # read-back flattens the nested container into the same flat keys.
+    expected_output_by_vivado_version:
+      "2026.1":
+        identified_ip: ps_wizard
+        vlnv: xilinx.com:ip:ps_wizard:1.0
+        as_configured:
+          CONFIG.MDB5_GT: PCIe0_x2_10GbE
+          CONFIG.MMI_PCIE0_PORT_TYPE: PCIe_Endpoint_Express_Device
+          CONFIG.MMI_PCIE0_PERST: PS_MIO_3
+        tier1_success: true
+        tier2_success: false
+        self_fidelity: partial
+        notes: "Versal Gen2 PS (ps_wizard on 2026.1; ps11 is not in this catalog) PCIe Gen4 x2 endpoint. Enabler params realized: MDB5_GT=PCIe0_x2_10GbE (GT quad shared w/ 10GbE), MMI_PCIE0_PORT_TYPE=PCIe_Endpoint_Express_Device (endpoint), MMI_PCIE0_PERST=PS_MIO_3. The PF0/BAR sub-params (device ID 0x9038, subsystem vendor ID 0x10ee, BAR2 512MB, BAR3 128MB) only materialize once the PCIe controller is brought up via integration/automation. Partial: GT+port-type+PERST realized, PF0/BAR config integration-derived."
+      default:
+        identified_ip: ps11
+        vlnv: xilinx.com:ip:ps11:1.0
+        as_configured:
+          CONFIG.MDB5_GT: PCIe0_x2_10GbE
+          CONFIG.MMI_PCIE0_PORT_TYPE: PCIe_Endpoint_Express_Device
+          CONFIG.MMI_PCIE0_PERST: PS_MIO_3
+        tier1_success: true
+        tier2_success: false
+        self_fidelity: partial
+        notes: "Versal Gen2 PS (ps11) PCIe Gen4 x2 endpoint. Top-level enabler params stuck: MDB5_GT=PCIe0_x2_10GbE (GT quad shared w/ 10GbE), MMI_PCIE0_PORT_TYPE=PCIe_Endpoint_Express_Device (endpoint), MMI_PCIE0_PERST=PS_MIO_3. The PF0 sub-params (device ID 0x9038, subsystem vendor ID 0x10ee, BAR2 EN/512MB, BAR3 EN/128MB) do NOT exist as flat CONFIG on a standalone cell under either PCIE0_PF0_* or MMI_PCIE0_PF0_* (BD 41-1276 param does not exist; 2 Tier-2 name retries). These deeper PCIe-controller PF/BAR params only materialize once the PCIe controller is brought up via integration/automation. Partial: GT+port-type+PERST realized, PF0/BAR config integration-derived."
+- id: ip-configurator-test-kit_30
+  input_files: []
+  cell_name: bench_cell_030
+  prompt: 'Set up the Versal Gen2 processing system''s PL fabric clocks: enable PL clocks 0, 1 and 2 at 100 MHz, 150 MHz and 134 MHz respectively, leave PL clock 3 disabled, and generate a single PL fabric reset.'
+  expected:
+    skills:
+    - ip-configurator
+    # Version-keyed for the same reason as case 31: `ps11` is absent from the
+    # 2026.1 catalog and the PS is `ps_wizard`, where these params are sub-keys
+    # of the nested CONFIG.PS11_CONFIG rather than flat props. The param NAMES
+    # are unchanged -- the read-back flattens the container, so the same flat
+    # keys are gradable under both shapes; only the IP identity differs.
+    expected_output_by_vivado_version:
+      "2026.1":
+        identified_ip: ps_wizard
+        vlnv: xilinx.com:ip:ps_wizard:1.0
+        as_configured:
+          CONFIG.PS_USE_PMCPL_CLK0: '1'
+          CONFIG.PS_USE_PMCPL_CLK1: '1'
+          CONFIG.PS_USE_PMCPL_CLK2: '1'
+          CONFIG.PS_USE_PMCPL_CLK3: '0'
+          CONFIG.PMC_CRP_PL0_REF_CTRL_FREQMHZ: '100'
+          CONFIG.PMC_CRP_PL1_REF_CTRL_FREQMHZ: '150'
+          CONFIG.PMC_CRP_PL2_REF_CTRL_FREQMHZ: '134'
+          CONFIG.PS_NUM_FABRIC_RESETS: '1'
+        tier1_success: true
+        tier2_success: null
+        self_fidelity: full
+        notes: "Versal Gen2 PS (ps_wizard on 2026.1; ps11 is not in this catalog). PL-clock params are sub-keys of the nested CONFIG.PS11_CONFIG dict, so they are set through that container. PL clocks 0/1/2 enabled at 100/150/134 MHz, PL clock 3 disabled, 1 fabric reset."
+      default:
+        identified_ip: ps11
+        vlnv: xilinx.com:ip:ps11:1.0
+        as_configured:
+          CONFIG.PS_USE_PMCPL_CLK0: '1'
+          CONFIG.PS_USE_PMCPL_CLK1: '1'
+          CONFIG.PS_USE_PMCPL_CLK2: '1'
+          CONFIG.PS_USE_PMCPL_CLK3: '0'
+          CONFIG.PMC_CRP_PL0_REF_CTRL_FREQMHZ: '100'
+          CONFIG.PMC_CRP_PL1_REF_CTRL_FREQMHZ: '150'
+          CONFIG.PMC_CRP_PL2_REF_CTRL_FREQMHZ: '134'
+          CONFIG.PS_NUM_FABRIC_RESETS: '1'
+        tier1_success: false
+        tier2_success: true
+        self_fidelity: full
+        notes: "Versal Gen2 PS (ps11). PS11 exposes FLAT CONFIG params, NOT a CONFIG.PS11_CONFIG nested dict (that container does not exist on a standalone cell; BD 41-1276). Tier-2 recovery: switched from dict-set to flat keys. PL clocks 0/1/2 enabled at 100/150/134 MHz, PL clock 3 disabled, 1 fabric reset. All 8 read back exactly."
+- id: ip-configurator-test-kit_31
+  input_files: []
+  cell_name: bench_cell_031
+  prompt: 'Enable the hardened CAN-FD controllers on the Versal Gen2 processing system for the ADAS safety path: enable CAN-FD 1 (on PMC_MIO_44:45) and CAN-FD 3 (on PMC_MIO_40:41), keep CAN-FD 0 and CAN-FD 2 disabled.'
+  expected:
+    skills:
+    - ip-configurator
+    # Version-keyed golden: the Versal Gen2 PS IP is not the same IP across
+    # releases. On 2025.2 it is `ps11`, exposing FLAT CONFIG.PS_CANn_PERIPHERAL
+    # params. On 2026.1 `xilinx.com:ip:ps11:1.0` does NOT exist in the catalog
+    # at all (the PS family is ps11_vip / ps_wizard / psx_vip / psx_wizard);
+    # the IP is `ps_wizard`, it is IPI-only, its BD cell carries just 19
+    # top-level CONFIG props, and the CAN-FD params exist ONLY as sub-keys of
+    # the nested CONFIG.PS11_CONFIG dict. The read-back flattens that dict, so
+    # the flat CONFIG.PS_CANn_PERIPHERAL keys are still gradable either way.
+    expected_output_by_vivado_version:
+      "2026.1":
+        identified_ip: ps_wizard
+        vlnv: xilinx.com:ip:ps_wizard:1.0
+        as_configured:
+          CONFIG.PS_CAN1_PERIPHERAL: ENABLE 1 IO PMC_MIO_44:45 IO_TYPE MIO
+          CONFIG.PS_CAN3_PERIPHERAL: ENABLE 1 IO PMC_MIO_40:41 IO_TYPE MIO
+        tier1_success: true
+        tier2_success: null
+        self_fidelity: full
+        notes: "Versal Gen2 PS (ps_wizard on 2026.1; ps11 does not exist in this catalog) CAN-FD. PS_CANn_PERIPHERAL are sub-keys of the nested CONFIG.PS11_CONFIG dict, not flat params. CAN-FD 1 enabled on PMC_MIO_44:45, CAN-FD 3 enabled on PMC_MIO_40:41. CAN-FD 0 and 2 remain ENABLE 0 (disabled) as intended. IO_TYPE MIO auto-appended by IP."
+      default:
+        identified_ip: ps11
+        vlnv: xilinx.com:ip:ps11:1.0
+        as_configured:
+          CONFIG.PS_CAN1_PERIPHERAL: ENABLE 1 IO PMC_MIO_44:45 IO_TYPE MIO
+          CONFIG.PS_CAN3_PERIPHERAL: ENABLE 1 IO PMC_MIO_40:41 IO_TYPE MIO
+        tier1_success: true
+        tier2_success: null
+        self_fidelity: full
+        notes: "Versal Gen2 PS (ps11) CAN-FD via flat PS_CANn_PERIPHERAL params. CAN-FD 1 enabled on PMC_MIO_44:45, CAN-FD 3 enabled on PMC_MIO_40:41. CAN-FD 0 and 2 remain ENABLE 0 (disabled) as intended. Read back exactly (IO_TYPE MIO auto-appended by IP)."
+# THE part-swap case. Cases 16/17 used to carry this role and could not: their
+# clk_wizard/clkx5_wiz pair is one IP split across device generations, so the
+# right answer there is to use this device's edition, not to swap (see 16's
+# comment). This case makes the swap genuinely necessary and unambiguous:
+#
+#   - `cmac_usplus` (UltraScale+ 100G Ethernet Subsystem) supports 83 devices,
+#     NONE of them the xc2ve3558 baseline part -> WRONG_PART.
+#   - No IP available on the baseline part shares its DISPLAY_NAME, so it is NOT
+#     a device-generation variant: there is no local edition to fall back to and
+#     the swap is the only correct route.
+#   - The distractor is real. On the baseline part `ipcfg::ip_availability
+#     {*cmac* *100g*}` reports cmac / cmac_usplus / dcmac all WRONG_PART while
+#     `flexo_100g_rs_fec` is AVAILABLE -- a DIFFERENT IP (RS-FEC block only) that
+#     would build, configure and verify clean while being the wrong answer. That
+#     is exactly the substitution SELECT_RULE exists to prevent, so this case
+#     fails if the agent takes the available IP instead of swapping.
+#
+# The harness makes the swap safe: `verify:` reads the design back BEFORE
+# `reset:` restores the baseline part, so the agent must leave the part swapped
+# (restoring it while the cell exists would drop the cell -- ipcfg::restore_part
+# now refuses with WARN:RESTORE_BLOCKED rather than doing that silently).
+#
+# The prompt sanctions the swap in so many words because the first run showed it
+# has to: a rep that swapped and built this golden exactly was still graded F by
+# the LLM judge, which read the baseline part as a hard task constraint and
+# called the swap an unauthorised deviation ("cannot be used in the specified
+# Versal Gen2 block design", practical_value 30). With the swap approved in the
+# prompt, the judge and the agent are measuring the same task. Note this makes
+# the case a test of *executing* a necessary swap, not of resisting substitution
+# -- the run also showed both reps reaching first for `mrmac` (Versal's own
+# 100G-capable MAC, AVAILABLE on the baseline part, so no availability verdict
+# contradicts it), which is a selection-policy gap tracked separately.
+#
+# Golden derived empirically on 2026.1/xcvu9p-flga2104-2L-e: all three requested
+# params applied and read back exactly (verify_stuck empty). NUM_LANES is IP-
+# derived 10x10 -> 4x25 by CAUI-4 and left out of golden (allow_extra tolerates
+# it). Defaults differ from every requested value (CAUI4_MODE 0, GT_REF_CLK_FREQ
+# 156.25, INCLUDE_RS_FEC 0), so no requirement can pass by accident.
+- id: ip-configurator-test-kit_32
+  input_files: []
+  cell_name: bench_cell_032
+  prompt: 'Integrated UltraScale+ 100G Ethernet subsystem for a CAUI-4 optical link: enable CAUI-4 mode, set the GT reference clock to 161.1328125 MHz, and include the RS-FEC block. This is an UltraScale+ target: if the current project part does not support the IP, swapping the project part to a supported UltraScale+ device is approved and expected -- leave the part swapped when you finish.'
+  expected:
+    skills:
+    - ip-configurator
+    expected_output:
+      identified_ip: cmac_usplus
+      vlnv: xilinx.com:ip:cmac_usplus
+      as_configured:
+        CONFIG.CMAC_CAUI4_MODE: '1'
+        CONFIG.GT_REF_CLK_FREQ: '161.1328125'
+        CONFIG.INCLUDE_RS_FEC: '1'
+      tier1_success: true
+      tier2_success: null
+      self_fidelity: full
+      notes: "UltraScale+ Integrated 100G Ethernet (CMAC). cmac_usplus is WRONG_PART on the xc2ve3558 baseline (83 supported devices, no xc2ve) and has no same-DISPLAY_NAME edition for this device, so a guarded part swap to xcvu9p-flga2104-2L-e is the correct route -- not substituting the AVAILABLE flexo_100g_rs_fec, which is a different IP (RS-FEC only). CAUI-4 mode (CMAC_CAUI4_MODE=1, which derives NUM_LANES 10x10 -> 4x25), GT reference clock 161.1328125 MHz, RS-FEC included. Part left swapped for read-back; the harness reset restores the baseline."

@@ -1,0 +1,138 @@
+{
+    "description": "HLS coding style skills test",
+    "queries": [
+        {
+            "id": "hls_skill_test_hls_stencil_pattern_01",
+            "category": "hls-stencil-pattern",
+            "query": "/hls-stencil-pattern",
+            "input_file": "hls-stencil-pattern_01.cpp:8-24",
+            "expected_answer": "yes"
+        },
+        {
+            "id": "hls_skill_test_hls_stencil_pattern_02",
+            "category": "hls-stencil-pattern",
+            "query": "/hls-stencil-pattern",
+            "input_file": "hls-stencil-pattern_02.cpp:8-24",
+            "expected_answer": "no, the variable filter_buf is not a top-level function argument"
+        },
+        {
+            "id": "hls_skill_test_hls_stencil_pattern_03",
+            "category": "hls-stencil-pattern",
+            "query": "/hls-stencil-pattern",
+            "input_file": "hls-stencil-pattern_03.cpp:8-30",
+            "expected_answer": "no, the output loop r has a non-constant trip count (var)"
+        },
+        {
+            "id": "hls_skill_test_hls_stencil_pattern_04",
+            "category": "hls-stencil-pattern",
+            "query": "/hls-stencil-pattern",
+            "input_file": "hls-stencil-pattern_04.cpp:8-30",
+            "expected_answer": "no, access is not continuous in loop iteration space: outer loop c controls the rightmost dimension instead of the leftmost"
+        },
+        {
+            "id": "hls_skill_test_hls_stencil_pattern_05",
+            "category": "hls-stencil-pattern",
+            "query": "/hls-stencil-pattern",
+            "input_file": "hls-stencil-pattern_05.cpp:8-31",
+            "expected_answer": "no, the variable O is not read-only in scope (also written via O[r][c] = temp)"
+        },
+        {
+            "id": "hls_skill_test_hls_stencil_pattern_06",
+            "category": "hls-stencil-pattern",
+            "query": "/hls-stencil-pattern",
+            "input_file": "hls-stencil-pattern_06.cpp:5-26",
+            "expected_answer": "no, the output loop r has a loop step of 2 (not 1)"
+        },
+        {
+            "id": "hls_skill_test_hls_stencil_pattern_07",
+            "category": "hls-stencil-pattern",
+            "query": "/hls-stencil-pattern",
+            "input_file": "hls-stencil-pattern_07.cpp:5-26",
+            "expected_answer": "no, the array_stencil pragma is not located within a loop"
+        },
+        {
+            "id": "hls_skill_test_hls_stencil_pattern_08",
+            "category": "hls-stencil-pattern",
+            "query": "/hls-stencil-pattern",
+            "input_file": "hls-stencil-pattern_08.cpp:5-20",
+            "expected_answer": "no, the output loop i has a loop step of 2 (not 1)"
+        },
+        {
+            "id": "hls_skill_test_hls_stencil_pattern_09",
+            "category": "hls-stencil-pattern",
+            "query": "/hls-stencil-pattern",
+            "input_file": "hls-stencil-pattern_09.cpp:1-13",
+            "expected_answer": "no, the variable c has 3 dimensions (only 1D or 2D is allowed)"
+        },
+        {
+            "id": "hls_skill_test_hls_stencil_pattern_10",
+            "category": "hls-stencil-pattern",
+            "query": "/hls-stencil-pattern",
+            "input_file": "hls-stencil-pattern_10.cpp:1-12",
+            "expected_answer": "yes"
+        },
+        {
+            "id": "hls_skill_test_hls_stencil_pattern_11",
+            "category": "hls-stencil-pattern",
+            "query": "/hls-stencil-pattern",
+            "input_file": "hls-stencil-pattern_11.cpp:5-26",
+            "expected_answer": "yes"
+        },
+        {
+            "id": "hls_skill_test_hls_stencil_pattern_12",
+            "category": "hls-stencil-pattern",
+            "query": "/hls-stencil-pattern",
+            "input_file": "hls-stencil-pattern_12.cpp:5-26",
+            "expected_answer": "no, the loop directly containing the array_stencil pragma does not control the rightmost array dimension"
+        },
+        {
+            "id": "hls_skill_test_hls_stencil_pattern_13",
+            "category": "hls-stencil-pattern",
+            "query": "/hls-stencil-pattern",
+            "input_file": "hls-stencil-pattern_13.cpp:1-10",
+            "expected_answer": "yes"
+        },
+        {
+            "id": "hls_skill_test_hls_stencil_pattern_14",
+            "category": "hls-stencil-pattern",
+            "query": "/hls-stencil-pattern",
+            "input_file": "hls-stencil-pattern_14.cpp:5-20",
+            "expected_answer": "no, array_stencil pragma is illegal because variable=xxx is missing"
+        },
+        {
+            "id": "hls_skill_test_hls_stencil_pattern_15",
+            "category": "hls-stencil-pattern",
+            "query": "/hls-stencil-pattern",
+            "input_file": "hls-stencil-pattern_15.cpp:1-11",
+            "expected_answer": "no, the output loops are not perfectly nested due to a non-loop statement between loop headers"
+        },
+        {
+            "id": "hls_skill_test_hls_stencil_pattern_16",
+            "category": "hls-stencil-pattern",
+            "query": "/hls-stencil-pattern",
+            "input_file": "hls-stencil-pattern_16.cpp:5-14",
+            "expected_answer": "no, the variable merlin_in is not read within the same scope as the pragma"
+        },
+        {
+            "id": "hls_skill_test_hls_stencil_pattern_17",
+            "category": "hls-stencil-pattern",
+            "query": "/hls-stencil-pattern",
+            "input_file": "hls-stencil-pattern_17.cpp:1-10",
+            "expected_answer": "yes"
+        },
+        {
+            "id": "hls_skill_test_hls_stencil_pattern_18",
+            "category": "hls-stencil-pattern",
+            "query": "/hls-stencil-pattern",
+            "input_file": "hls-stencil-pattern_18.cpp:1-10",
+            "expected_answer": "no, access is not continuous in loop iteration space: outer loop j controls the rightmost dimension instead of the leftmost"
+        },
+        {
+            "id": "hls_skill_test_hls_stencil_pattern_19",
+            "category": "hls-stencil-pattern",
+            "query": "/hls-stencil-pattern",
+            "input_file": "hls-stencil-pattern_19.cpp:1-10",
+            "expected_answer": "no, 1D access cannot be delinearized to 2D because stride 90 is not greater than the maximum offset (99)"
+        }
+    ]
+}

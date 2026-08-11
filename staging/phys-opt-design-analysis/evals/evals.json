@@ -1,0 +1,293 @@
+{
+  "skill_name": "phys-opt-design-analysis",
+  "evals": [
+    {
+      "id": 1,
+      "name": "phys-opt-log-review",
+      "prompt": "I ran phys_opt_design with AggressiveExplore. Can you check the log and tell me if it was effective? How much did WNS/TNS improve?",
+      "expected_output": "Agent scopes log to phys_opt_design section via sed, extracts timing summaries [Physopt 32-668/603/619], per-phase optimization counts, and recommends next steps.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "log_scoped_correctly",
+          "type": "execution_check",
+          "description": "Log extraction was scoped to phys_opt_design section only",
+          "check": "Agent used sed -n '/Command: phys_opt_design/,/phys_opt_design.*Time/p' or equivalent scoping, not a raw unscoped grep"
+        },
+        {
+          "name": "timing_trend_extracted",
+          "type": "content_check",
+          "description": "WNS/TNS values from before and after phys_opt were reported",
+          "check": "Output includes WNS/TNS values showing the trend across iterations (before vs after)"
+        },
+        {
+          "name": "optimization_counts",
+          "type": "content_check",
+          "description": "Per-category optimization counts were extracted",
+          "check": "Output includes counts for replication, retiming, rewiring, or other phys_opt categories"
+        },
+        {
+          "name": "session_id_passed",
+          "type": "execution_check",
+          "description": "session_id was passed to all vivado_execute calls",
+          "check": "Every vivado_execute call includes session_id"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "hold-fix-analysis",
+      "prompt": "phys_opt_design inserted a lot of LUT1 buffers for hold fixing. Is that normal? Can you analyze the hold-fix impact on setup timing?",
+      "expected_output": "Agent extracts [Physopt 32-234] hold fix results and [Physopt 32-960] skip messages, counts LUT1 insertions, assesses setup degradation, and recommends whether to adjust hold margin.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "log_scoped_correctly",
+          "type": "execution_check",
+          "description": "Log extraction was scoped to phys_opt_design section",
+          "check": "Agent used sed scoping to extract only phys_opt_design section from log"
+        },
+        {
+          "name": "hold_fix_counted",
+          "type": "content_check",
+          "description": "Hold-fix LUT1/ZHOLD_DELAY count was reported",
+          "check": "Output includes count of hold-fix insertions from [Physopt 32-234] or LUT1 cell query"
+        },
+        {
+          "name": "setup_impact_assessed",
+          "type": "content_check",
+          "description": "Impact of hold fix on setup timing was assessed",
+          "check": "Output discusses whether hold-fix LUT1 insertions degraded setup WNS"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "retiming-analysis",
+      "prompt": "I expected phys_opt_design retiming to help my critical paths but WNS barely changed. Can you check what happened with retiming?",
+      "expected_output": "Agent extracts retiming-specific messages [Physopt 32-942/943/952/953/847/735], reports candidate counts vs improvements, identifies why retiming was ineffective.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "retiming_messages_checked",
+          "type": "content_check",
+          "description": "Retiming-specific message IDs were extracted from log",
+          "check": "Output references [Physopt 32-942], [Physopt 32-952], [Physopt 32-953], or retiming candidate/improvement counts"
+        },
+        {
+          "name": "blocking_reason_identified",
+          "type": "content_check",
+          "description": "Reason for ineffective retiming was identified",
+          "check": "Output explains why retiming did not help (e.g., no candidates, DONT_TOUCH, improvement not found, async reset blocking)"
+        },
+        {
+          "name": "log_scoped_correctly",
+          "type": "execution_check",
+          "description": "Log extraction was scoped to phys_opt_design section",
+          "check": "Agent used sed scoping, not unscoped grep"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "uram-register-opt",
+      "prompt": "I have URAM-heavy paths that are timing critical. Did phys_opt_design push registers into the URAMs? Are there any candidates it missed?",
+      "expected_output": "Agent checks [Physopt 32-846] for no-candidate messages and any successful URAM register optimization, reports how many URAMs were optimized vs skipped.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "uram_messages_checked",
+          "type": "content_check",
+          "description": "URAM register optimization messages were extracted",
+          "check": "Output references [Physopt 32-846] (no candidates) or URAM register optimization results"
+        },
+        {
+          "name": "recommendation_given",
+          "type": "content_check",
+          "description": "Recommendation was given for URAM register patterns",
+          "check": "Output includes guidance on URAM-adjacent register patterns, enable/reset requirements, or -uram_register_opt option"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "equivalent-driver-rewiring",
+      "prompt": "Can you check if equivalent driver rewiring helped during phys_opt_design? I have some nets with redundant drivers.",
+      "expected_output": "Agent extracts [Physopt 32-670/1030/1032/1487-1489] messages, reports candidate counts and optimization results, explains skip reasons.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "eq_driver_messages_checked",
+          "type": "content_check",
+          "description": "Equivalent driver rewiring messages were extracted",
+          "check": "Output references [Physopt 32-670] (skipped), [Physopt 32-1030] (candidates), [Physopt 32-1032] (result), or [Physopt 32-1488] (optimized group)"
+        },
+        {
+          "name": "skip_reason_reported",
+          "type": "content_check",
+          "description": "If rewiring was skipped, the reason was reported",
+          "check": "Output explains why equivalent driver rewiring was skipped (e.g., no setup violation, no equivalent drivers found)"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "memory-rewire-opt",
+      "prompt": "phys_opt_design shows memory rewire optimization in the log. How effective was it? Did it improve timing on my BRAM paths?",
+      "expected_output": "Agent extracts [Physopt 32-1395/1396/1397/1398] MemoryRewireOpt messages, reports iteration-level pin rewire counts and WNS changes.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "memory_rewire_messages",
+          "type": "content_check",
+          "description": "MemoryRewireOpt messages were extracted from log",
+          "check": "Output references [Physopt 32-1395] (success), [Physopt 32-1396] (iteration detail), [Physopt 32-1398] (pins rewired), or [Physopt 32-1397] (failed)"
+        },
+        {
+          "name": "timing_impact_reported",
+          "type": "content_check",
+          "description": "Timing impact of memory rewire was reported",
+          "check": "Output includes WNS change or timing improvement data from memory rewire iterations"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "dsp-bram-register-opt",
+      "prompt": "My DSP and BRAM paths are failing timing. Did phys_opt_design push registers into the hard macros?",
+      "expected_output": "Agent extracts DSP register [Physopt 32-456/457/665/666] and BRAM register [Physopt 32-526/527] messages, reports which macros had registers pushed in/out.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "dsp_bram_messages_checked",
+          "type": "content_check",
+          "description": "DSP and BRAM register optimization messages were extracted",
+          "check": "Output references DSP register messages ([Physopt 32-456/457/665/666]) and/or BRAM register messages ([Physopt 32-526/527])"
+        },
+        {
+          "name": "candidates_vs_results",
+          "type": "content_check",
+          "description": "Candidate count vs optimization count was reported",
+          "check": "Output distinguishes between candidates found and actual optimizations performed for DSP/BRAM registers"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "fanout-replication-analysis",
+      "prompt": "phys_opt_design should have replicated some high-fanout net drivers. Can you tell me which nets were replicated and which were skipped?",
+      "expected_output": "Agent extracts [Physopt 32-76/65/569/571/232] messages, reports replicated vs skipped nets and reasons.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "replication_messages_checked",
+          "type": "content_check",
+          "description": "Replication messages were extracted from log",
+          "check": "Output references [Physopt 32-569] (replicated), [Physopt 32-571] (not replicated), [Physopt 32-76] (candidates), or [Physopt 32-65] (no nets found)"
+        },
+        {
+          "name": "skip_reasons_reported",
+          "type": "content_check",
+          "description": "Reasons for skipped replication were reported",
+          "check": "Output explains why specific nets were not replicated (e.g., fanout threshold, DONT_TOUCH, IS_REPLICABLE=FALSE)"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "blocking-properties-inventory",
+      "prompt": "phys_opt_design seems to be skipping a lot of optimizations. I suspect DONT_TOUCH or MARK_DEBUG is blocking it. Can you check?",
+      "expected_output": "Agent queries design for PHYS_OPT_SKIPPED, DONT_TOUCH, IS_REPLICABLE=FALSE, and MARK_DEBUG properties, reports counts and affected timing paths.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "blocking_props_queried",
+          "type": "execution_check",
+          "description": "Blocking properties were queried via Vivado Tcl",
+          "check": "Agent queried DONT_TOUCH, IS_REPLICABLE, MARK_DEBUG, or PHYS_OPT_SKIPPED properties via get_cells/get_nets"
+        },
+        {
+          "name": "counts_reported",
+          "type": "content_check",
+          "description": "Counts of blocking properties were reported",
+          "check": "Output includes counts for DONT_TOUCH cells, MARK_DEBUG nets, non-replicable primitives, or PHYS_OPT_SKIPPED cells"
+        },
+        {
+          "name": "recommendation_given",
+          "type": "content_check",
+          "description": "Recommendation to resolve blocking was given",
+          "check": "Output recommends removing DONT_TOUCH/MARK_DEBUG from timing-critical paths or using -force_replication_on_nets"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "directive-recommendation",
+      "prompt": "I've run phys_opt_design twice with Default directive and WNS isn't improving much. What directive should I try next?",
+      "expected_output": "Agent analyzes the diminishing returns pattern, checks which optimizations were attempted, and recommends a specific directive change based on the design's bottleneck.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "current_directive_identified",
+          "type": "content_check",
+          "description": "Current directive was identified from log",
+          "check": "Output identifies the directive used (Default) from [Vivado_Tcl 4-137] or command line"
+        },
+        {
+          "name": "diminishing_returns_diagnosed",
+          "type": "content_check",
+          "description": "Diminishing returns pattern was identified",
+          "check": "Output notes the WNS improvement trend across passes and flags stagnation"
+        },
+        {
+          "name": "specific_directive_recommended",
+          "type": "content_check",
+          "description": "A specific alternative directive was recommended",
+          "check": "Output recommends a specific directive (AggressiveExplore, AggressiveFanoutOpt, etc.) with justification based on the design's bottleneck type"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "name": "srl-shift-register-opt",
+      "prompt": "I see shift register optimization messages in the phys_opt log. Were any SRLs decomposed for timing? Should I enable -shift_register_opt?",
+      "expected_output": "Agent extracts [Physopt 32-677/1123/1401/1402] SRL optimization messages, reports candidates vs results.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "srl_messages_checked",
+          "type": "content_check",
+          "description": "SRL optimization messages were extracted",
+          "check": "Output references [Physopt 32-677], [Physopt 32-1123], [Physopt 32-1401], or [Physopt 32-1402] shift register optimization messages"
+        },
+        {
+          "name": "option_guidance",
+          "type": "content_check",
+          "description": "Guidance on -shift_register_opt option was provided",
+          "check": "Output discusses whether -shift_register_opt should be enabled and potential trade-offs (area vs timing)"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "name": "slr-crossing-optimization",
+      "prompt": "My multi-die design has timing failures on SLR crossing paths. What did phys_opt_design do for SLR crossings?",
+      "expected_output": "Agent extracts [Physopt 32-1411/1492] SLR replication messages and [Physopt 32-949] DFX interface replication messages, reports SLR-specific optimizations.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "slr_messages_checked",
+          "type": "content_check",
+          "description": "SLR crossing optimization messages were extracted",
+          "check": "Output references [Physopt 32-1411] (SLR replication candidates) or [Physopt 32-1492] (SLR candidate net) or -slr_crossing_opt option"
+        },
+        {
+          "name": "slr_recommendation",
+          "type": "content_check",
+          "description": "SLR-specific recommendation was provided",
+          "check": "Output recommends -slr_crossing_opt, pipeline register insertion at SLR boundaries, or floorplan adjustments"
+        }
+      ]
+    }
+  ]
+}

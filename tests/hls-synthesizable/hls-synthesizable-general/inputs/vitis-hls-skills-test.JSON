@@ -1,0 +1,40 @@
+{
+    "description": "HLS coding style skills test",
+    "queries": [
+        {
+            "id": "hls_skill_test_hls_synthesizable_01",
+            "category": "hls-synthesizable",
+            "query": "/hls-synthesizable is it synthesizable?",
+            "input_file": "hls-synthesizable_01.cpp",
+            "expected_answer": "yes"
+        },
+        {
+            "id": "hls_skill_test_hls_synthesizable_02",
+            "category": "hls-synthesizable",
+            "query": "/hls-synthesizable is it synthesizable?",
+            "input_file": "hls-synthesizable_02.cpp",
+            "expected_answer": "no, there shouldn't be system call"
+        },
+        {
+            "id": "hls_skill_test_hls_synthesizable_03",
+            "category": "hls-synthesizable",
+            "query": "/hls-synthesizable is it synthesizable?",
+            "input_file": "hls-synthesizable_03.cpp",
+            "expected_answer": "no, there shouldn't be dynamic memory allocation"
+        },
+        {
+            "id": "hls_skill_test_hls_synthesizable_04",
+            "category": "hls-synthesizable",
+            "query": "/hls-synthesizable is it synthesizable?",
+            "input_file": "hls-synthesizable_04.cpp",
+            "expected_answer": "no, there shouldn't be recursion"
+        },
+        {
+            "id": "hls_skill_test_hls_synthesizable_05",
+            "category": "hls-synthesizable",
+            "query": "/hls-synthesizable is it synthesizable?",
+            "input_file": "hls-synthesizable_05.cpp",
+            "expected_answer": "no, there shouldn't be recursion"
+        }
+    ]
+}

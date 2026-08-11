@@ -1,0 +1,453 @@
+# ── Suite: hls-burst-inference-general ───────────────
+# HLS coding style skills test — burst inference analysis on 32 code
+# snippets covering precondition checks (M-AXI, DATAFLOW, data type width,
+# volatile, burst length, memory access pattern, determinability, same-
+# direction access, dependency) and limitation checks (ap_int loop vars,
+# shared M-AXI in dataflow, loop dependencies, conditional access,
+# cross-function access, potential address overlap).
+#
+# Sourced from: inputs/vitis-hls-skills-test.JSON (queries manifest).
+#
+# Placeholders substituted into any prompt:
+#   {input_file}  -> the first entry of a case's input_files
+# {skill_name} / {flow_skill} are internal bookkeeping only (used in
+# expected.skills and in SKILL.md lookups) — they never appear inside
+# a prompt's literal text. No test case, of any shape, ever names a
+# skill in its customer-facing prompt.
+#
+# Per-case fields:
+#   id           unique case id
+#   input_files  files staged into the workspace from ./inputs
+#   prompt       the case's instruction — analysis-only one-liner, always
+#                skill-agnostic, informed by reading the relevant SKILL.md.
+#                The mandated {"verdict", "explanation"} JSON contract is NOT
+#                repeated per case: it's appended once via runner_spec.yaml's
+#                `output_contract:` (shared_prompt_prefix + output_contract +
+#                this prompt, per core/case_loader.py).
+#   expected     values substituted into grader_spec {tokens}:
+#                  expected_output -> golden {verdict, explanation} dict,
+#                                     graded whole by output_contract_match:
+#                                     verdict is literal/tolerant-compared
+#                                     (YES/NO, no partial credit), explanation
+#                                     is LLM-judged for substance via
+#                                     grader_spec's semantic_fields intent
+#                  skills          -> every skill this case is expected to invoke
+#                  tool_sequence   -> always present: expected tool calls in order
+
+suite_id: hls-burst-inference-general
+description: >
+  HLS burst inference analysis across 32 C/C++ snippets covering all
+  precondition and limitation checks. Sourced from
+  inputs/vitis-hls-skills-test.JSON.
+
+test_cases:
+  - id: hls-burst-inference-general_01
+    input_files: [hls-burst-inference_01.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference optimization be
+      applied to this code in Vitis HLS? Give a static analysis without running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "YES"
+        explanation: "Burst inference CAN be applied — m_axi interfaces on in/out on separate bundles, simple forward copy loop with consecutive accesses."
+
+  - id: hls-burst-inference-general_02
+    input_files: [hls-burst-inference_02.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference optimization be
+      applied to this code in Vitis HLS? Give a static analysis without running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Burst inference CANNOT be applied — both load and store occur on the same address of `a` in the same region (read a[i] and write a[i]), violating the dependency check."
+
+  - id: hls-burst-inference-general_03
+    input_files: [hls-burst-inference_03.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference optimization be
+      applied to this code in Vitis HLS? Give a static analysis without running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "YES"
+        explanation: "Burst inference CAN be applied — reads from `in` and writes to `out` on separate bundles with consecutive access patterns."
+
+  - id: hls-burst-inference-general_04
+    input_files: [hls-burst-inference_04.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference optimization be
+      applied to this code in Vitis HLS? Give a static analysis without running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Burst inference CANNOT be applied — `in` and `in1` are same-direction reads on the same bundle (aximm) and same default channel, violating the same-direction access check."
+
+  - id: hls-burst-inference-general_05
+    input_files: [hls-burst-inference_05.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference optimization be
+      applied to this code in Vitis HLS? Give a static analysis without running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Burst inference CANNOT be applied — `in` and `in1` are same-direction reads on the same channel (0) of the same bundle (aximm), violating the same-direction access check."
+
+  - id: hls-burst-inference-general_06
+    input_files: [hls-burst-inference_06.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference optimization be
+      applied to this code in Vitis HLS? Give a static analysis without
+      running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Burst inference CANNOT be applied — the two reads of `in` (in[i-1] and in[i+20]) have overlapping index ranges, violating the consecutive/non-overlapping memory access check."
+
+  - id: hls-burst-inference-general_07
+    input_files: [hls-burst-inference_07.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference optimization be
+      applied to this code in Vitis HLS? Give a static analysis without
+      running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Burst inference CANNOT be applied — the loop decrements i so accesses are in descending order, violating the monotonically increasing memory access pattern check."
+
+  - id: hls-burst-inference-general_08
+    input_files: [hls-burst-inference_08.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference optimization be
+      applied to this code in Vitis HLS? Give a static analysis without
+      running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Burst inference CANNOT be applied — the accessed data type `MyType` is 12 bytes (3 ints) whose width is not a power of 2, violating the data type width check."
+
+  - id: hls-burst-inference-general_09
+    input_files: [hls-burst-inference_09.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference optimization be
+      applied to this code in Vitis HLS? Give a static analysis without
+      running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Burst inference CANNOT be applied — `in` and `out` have the `volatile` qualifier, violating the volatile qualifier check."
+
+  - id: hls-burst-inference-general_10
+    input_files: [hls-burst-inference_10.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference optimization be
+      applied to this code in Vitis HLS? Give a static analysis without
+      running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "YES"
+        explanation: "Burst inference CAN be applied — DATAFLOW pragma is in a nested inner loop, so the outer loop region permits burst inference."
+
+  - id: hls-burst-inference-general_11
+    input_files: [hls-burst-inference_11.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference optimization be
+      applied to this code in Vitis HLS? Give a static analysis without
+      running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Burst inference CANNOT be applied — the DATAFLOW pragma appears as a direct statement within the loop block, violating the dataflow pragma check."
+
+  - id: hls-burst-inference-general_12
+    input_files: [hls-burst-inference_12.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference optimization be
+      applied to this code in Vitis HLS? Give a static analysis without
+      running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "YES"
+        explanation: "Burst inference CAN be applied — out-of-loop DATAFLOW pragma does not block burst inference on the loop."
+
+  - id: hls-burst-inference-general_13
+    input_files: [hls-burst-inference_13.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference optimization be
+      applied to this code in Vitis HLS? Give a static analysis without
+      running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Burst inference CANNOT be applied — the loop stride `step` is a runtime variable so the access pattern is not provably consecutive and the burst length is not determinable, violating the memory access pattern / burst length determinability checks."
+
+  - id: hls-burst-inference-general_14
+    input_files: [hls-burst-inference_14.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference optimization be
+      applied to this code in Vitis HLS? Give a static analysis without
+      running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "YES"
+        explanation: "Burst inference CAN be applied — runtime-variable burst length is allowed as long as it is determinable before the request is issued."
+
+  - id: hls-burst-inference-general_15
+    input_files: [hls-burst-inference_15.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference optimization be
+      applied to this code in Vitis HLS? Give a static analysis without
+      running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Burst inference CANNOT be applied — the loop induction variable `i` uses an ap_uint type, which may fail burst inference (Limitation 1)."
+
+  - id: hls-burst-inference-general_16
+    input_files: [hls-burst-inference_16.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference optimization be
+      applied to this code in Vitis HLS? Give a static analysis without
+      running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Burst inference CANNOT be applied — the reads of `in` are conditional (in[i] vs in[i+var]) with overlapping/non-contiguous index ranges, violating the memory access pattern check (conditional access)."
+
+  - id: hls-burst-inference-general_17
+    input_files: [hls-burst-inference_17.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference optimization be
+      applied to this code in Vitis HLS? Give a static analysis without
+      running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Burst inference CANNOT be applied — `out[i] += in[j]` performs both load and store on the same address of `out` in the region, violating the dependency check."
+
+  - id: hls-burst-inference-general_18
+    input_files: [hls-burst-inference_18.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference optimization be
+      applied to this code in Vitis HLS? Give a static analysis without
+      running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Burst inference CANNOT be applied — `out[i] += in[i]` performs both load and store on the same address of `out` in the region, violating the dependency check."
+
+  - id: hls-burst-inference-general_19
+    input_files: [hls-burst-inference_19.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference optimization be
+      applied to this code in Vitis HLS? Give a static analysis without
+      running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Burst inference CANNOT be applied — the read of `in` occurs inside the non-inlined function `sub` (inline off), so it is a cross-function access that may fail burst inference (Limitation 5)."
+
+  - id: hls-burst-inference-general_20
+    input_files: [hls-burst-inference_20.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference optimization be
+      applied to this code in Vitis HLS? Give a static analysis without
+      running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "YES"
+        explanation: "Burst inference CAN be applied — the subfunction containing the access is inlined, avoiding the cross-function access limitation."
+
+  - id: hls-burst-inference-general_21
+    input_files: [hls-burst-inference_21.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference optimization be
+      applied to this code in Vitis HLS? Give a static analysis without
+      running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Burst inference CANNOT be applied — `in` and `in1` are same-direction reads on the same channel (0) of the same bundle (aximm), violating the same-direction access check."
+
+  - id: hls-burst-inference-general_22
+    input_files: [hls-burst-inference_22.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference optimization be
+      applied to this code in Vitis HLS? Give a static analysis without
+      running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "YES"
+        explanation: "Burst inference CAN be applied — reads are on separate channels (0 and 1) on the same bundle, avoiding the same-direction access violation."
+
+  - id: hls-burst-inference-general_23
+    input_files: [hls-burst-inference_23.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference optimization be
+      applied to this code in Vitis HLS? Give a static analysis without
+      running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Burst inference CANNOT be applied — `in` and `out` have no m_axi interface pragma; under the default Vivado flow they are not M-AXI, violating the M-AXI interface check."
+
+  - id: hls-burst-inference-general_24
+    input_files: [hls-burst-inference_24.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference optimization be
+      applied to this code in Vitis HLS? Give a static analysis without
+      running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Burst inference CANNOT be applied — `func1` and `func2` in the dataflow region access the same M-AXI ports (in/out), which may fail burst inference (shared M-AXI port in dataflow, Limitation 2)."
+
+  - id: hls-burst-inference-general_25
+    input_files: [hls-burst-inference_25.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference optimization be
+      applied to this code in Vitis HLS? Give a static analysis without
+      running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Burst inference CANNOT be applied — the two reads of `in` (in[i] and in[i+50]) have overlapping index ranges, violating the consecutive/non-overlapping memory access check."
+
+  - id: hls-burst-inference-general_26
+    input_files: [hls-burst-inference_26.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference optimization be
+      applied to this code in Vitis HLS? Give a static analysis without
+      running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "YES"
+        explanation: "Burst inference CAN be applied — function-level burst inference region with consecutive accesses."
+
+  - id: hls-burst-inference-general_27
+    input_files: [hls-burst-inference_27.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference optimization be
+      applied to this code in Vitis HLS? Give a static analysis without
+      running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Burst inference CANNOT be applied — the read index of `in` wraps/resets (non-monotonic), so `in` accesses are not consecutive in increasing order, violating the memory access pattern check."
+
+  - id: hls-burst-inference-general_28
+    input_files: [hls-burst-inference_28.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference optimization be
+      applied to this code in Vitis HLS? Give a static analysis without
+      running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "YES"
+        explanation: "Burst inference CAN be applied — separate dataflow processes have independent M-AXI access patterns that do not conflict."
+
+  - id: hls-burst-inference-general_29
+    input_files: [hls-burst-inference_29.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference optimization be
+      applied to this code in Vitis HLS? Give a static analysis without
+      running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "YES"
+        explanation: "Burst inference CAN be applied — consecutive memory accesses on separate bundles with no violations."
+
+  - id: hls-burst-inference-general_30
+    input_files: [hls-burst-inference_30.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference optimization be
+      applied to this code in Vitis HLS? Give a static analysis without
+      running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Burst inference CANNOT be applied — accesses must be one next to another with no gaps, but `in` is read with stride 2 (in[0], in[2], ...) leaving gaps, violating the consecutive memory access check."
+
+  - id: hls-burst-inference-general_31
+    input_files: [hls-burst-inference_31.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference optimization be
+      applied to this code in Vitis HLS? Give a static analysis without
+      running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Burst inference CANNOT be applied — the loop step is 2, so accesses to `in`/`out` are strided (out[0], out[2], ...) with gaps, violating the consecutive memory access check."
+
+  - id: hls-burst-inference-general_32
+    input_files: [hls-burst-inference_32.cpp]
+    prompt: |-
+      Analyze `{input_file}`: can burst inference optimization be
+      applied to this code in Vitis HLS? Give a static analysis without
+      running HLS. Explain your answer.
+    expected:
+      skills: [hls-burst-inference]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Burst inference CANNOT be applied — although the reads of `in` (in[i] and in[i+1]) reconstruct a contiguous stream, `out` is written with stride 2 (out[0], out[2], ...) leaving gaps, violating the consecutive memory access check."

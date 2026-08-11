@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "request_id": "replace-me",
+  "architecture_revision": 1,
+  "status": "ERROR",
+  "top": "",
+  "files": [],
+  "compile_order": [],
+  "elaboration": {"status": "NOT_RUN", "artifacts": []},
+  "unresolved": []
+}

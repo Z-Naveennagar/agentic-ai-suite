@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.skill-test/
+sim_build/
+results/
+*.wdb
+*.vcd
+*.fst
+coverage.dat
+xsim.dir/
+.Xil/
+.vivado-ai/

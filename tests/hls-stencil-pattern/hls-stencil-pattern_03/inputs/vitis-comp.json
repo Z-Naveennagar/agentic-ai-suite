@@ -1,0 +1,11 @@
+{
+  "name": "hls-stencil-pattern_03",
+  "type": "HLS",
+  "configuration": {
+    "componentType": "HLS",
+    "configFiles": [
+      "hls_config.cfg"
+    ],
+    "work_dir": "stencil"
+  }
+}

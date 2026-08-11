@@ -1,0 +1,14 @@
+# Copyright (C) 2026, Advanced Micro Devices, Inc. All rights reserved.
+# SPDX-License-Identifier: MIT
+
+interface:
+  display_name: "Vivado Design Architecture"
+  short_description: "Create implementable FPGA architecture plans"
+  default_prompt: "Use $vivado-design-architecture to turn this hardware specification into an implementation plan."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "vivado-mcp-server"
+      description: "Vivado design discovery and official AMD documentation search"
+policy:
+  allow_implicit_invocation: true

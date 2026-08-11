@@ -1,0 +1,233 @@
+{
+  "skill_name": "opt-design-analysis",
+  "evals": [
+    {
+      "id": 1,
+      "name": "opt-design-log-review",
+      "prompt": "I just ran opt_design. Can you analyze what it did and whether the optimizations were effective?",
+      "expected_output": "Agent extracts opt_design section from log, reports per-phase stats (retarget/propconst/sweep/BUFG/carry remap), and gives directive recommendations.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "log_scoped_correctly",
+          "type": "execution_check",
+          "description": "Log extraction was scoped to the opt_design section only",
+          "check": "Agent used sed -n '/Command: opt_design/,/opt_design: Time/p' or equivalent scoping"
+        },
+        {
+          "name": "phase_stats_extracted",
+          "type": "content_check",
+          "description": "Per-phase optimization stats were reported",
+          "check": "Output includes counts for retarget, propconst, sweep, or remap phases"
+        },
+        {
+          "name": "change_summary_found",
+          "type": "content_check",
+          "description": "Opt_design Change Summary table was extracted",
+          "check": "Output references the Change Summary showing before/after resource counts"
+        },
+        {
+          "name": "session_id_passed",
+          "type": "execution_check",
+          "description": "session_id was passed to all vivado_execute calls",
+          "check": "Every vivado_execute call includes session_id"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "dont-touch-conflicts",
+      "prompt": "opt_design seems to be skipping some optimizations. I have DONT_TOUCH and MARK_DEBUG on some signals. Can you check if those are blocking opt_design?",
+      "expected_output": "Agent identifies DONT_TOUCH/MARK_DEBUG properties in the opt_design log section, reports which optimizations were skipped, and recommends resolution.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "blocking_props_identified",
+          "type": "content_check",
+          "description": "DONT_TOUCH/MARK_DEBUG blocking properties found in log",
+          "check": "Output lists specific cells/nets with DONT_TOUCH or MARK_DEBUG that blocked optimization"
+        },
+        {
+          "name": "session_id_passed",
+          "type": "execution_check",
+          "description": "session_id was passed to all vivado_execute calls",
+          "check": "Every vivado_execute call includes session_id"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "muxf-optimization-analysis",
+      "prompt": "opt_design ran MUXF optimization. I'm seeing MUXF7 and MUXF8 being removed. Is that expected? What do the Opt 31-1384 through 31-1389 messages mean?",
+      "expected_output": "Agent explains MUXF optimization phase, reports per-type MUXF7/F8/F9 creation/removal stats from [Opt 31-1384]-[Opt 31-1389], and notes that removals indicate synthesis MUXF inference was aggressive.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "muxf_ids_recognized",
+          "type": "content_check",
+          "description": "Agent recognizes [Opt 31-1384] through [Opt 31-1389] as MUXF per-type stats",
+          "check": "Output mentions MUXF7/F8/F9 optimization stats and references the specific message ID range"
+        },
+        {
+          "name": "removal_explained",
+          "type": "content_check",
+          "description": "Agent explains that MUXF removals mean synthesis was aggressive",
+          "check": "Output explains that removals indicate synthesis MUXF inference was too aggressive and opt_design is correcting"
+        },
+        {
+          "name": "log_scoped_correctly",
+          "type": "execution_check",
+          "description": "Log extraction was scoped to the opt_design section only",
+          "check": "Agent used sed -n scoping with Command: opt_design markers"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "set-logic-critical-warning",
+      "prompt": "I'm getting a CRITICAL WARNING [Opt 31-81] about set_logic_one on a pin that's already driven. What does this mean and should I fix it?",
+      "expected_output": "Agent identifies [Opt 31-81] as a set_logic constraint on an already-driven pin, explains the constraint is ineffective, and recommends removing the constraint or fixing the netlist.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "critical_warning_identified",
+          "type": "content_check",
+          "description": "Agent identifies [Opt 31-81] as set_logic on driven pin",
+          "check": "Output explains that set_logic_one/set_logic_zero was applied to an already-driven pin"
+        },
+        {
+          "name": "recommendation_given",
+          "type": "content_check",
+          "description": "Agent recommends removing the constraint or fixing the netlist",
+          "check": "Output recommends removing the set_logic constraint or fixing the design intent"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "bram-memory-optimization",
+      "prompt": "I see [Opt 31-2042] messages in my opt_design log about BRAM memory optimization. What did opt_design do to the BRAMs?",
+      "expected_output": "Agent explains [Opt 31-2042] relates to BRAM memory optimization (port mapping, power mode conversion), uses scoped grep to extract relevant messages, and checks for bram_power_opt directive usage.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "bram_id_recognized",
+          "type": "content_check",
+          "description": "Agent recognizes [Opt 31-2042] as BRAM memory optimization",
+          "check": "Output explains that [Opt 31-2042] relates to BRAM port optimization or power mode conversion"
+        },
+        {
+          "name": "log_scoped_correctly",
+          "type": "execution_check",
+          "description": "Log extraction was scoped to the opt_design section",
+          "check": "Agent used sed -n scoping, not full-log grep"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "hfn-bufg-insertion-review",
+      "prompt": "opt_design inserted several BUFGs for high-fanout nets. How can I see which nets got BUFGs and control the fanout threshold?",
+      "expected_output": "Agent extracts [Opt 31-194] messages showing BUFG insertions with load counts, explains -hier_fanout_limit directive, and reports the BUFG phase summary from [Opt 31-662].",
+      "files": [],
+      "assertions": [
+        {
+          "name": "bufg_messages_extracted",
+          "type": "content_check",
+          "description": "Agent extracts BUFG insertion messages with load counts",
+          "check": "Output shows [Opt 31-194] BUFG insertions with specific net names and load counts"
+        },
+        {
+          "name": "fanout_threshold_explained",
+          "type": "content_check",
+          "description": "Agent explains -hier_fanout_limit directive",
+          "check": "Output mentions -hier_fanout_limit with minimum value of 512"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "resynth-remap-stats",
+      "prompt": "I ran opt_design with -remap. What did the resynth/remap phase accomplish? I see Opt 31-2117 and 31-2118 messages.",
+      "expected_output": "Agent explains [Opt 31-2117] and [Opt 31-2118] as resynth/remap optimization stats, reports LUT packing improvements, and compares with non-remap run.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "resynth_ids_recognized",
+          "type": "content_check",
+          "description": "Agent recognizes resynth/remap message IDs",
+          "check": "Output explains [Opt 31-2117] and [Opt 31-2118] as resynth/remap optimization counts"
+        },
+        {
+          "name": "log_scoped_correctly",
+          "type": "execution_check",
+          "description": "Log scoped to opt_design section",
+          "check": "Agent used sed -n scoping to extract only the opt_design section"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "mbufg-gt-sweep-drc",
+      "prompt": "After opt_design sweeps MBUFG_GT instances I get DRC REQP-2090 about CLR/CLRB_LEAF pins. What's going on?",
+      "expected_output": "Agent identifies DRC REQP-2090 as an MBUFG_GT CLR/CLRB_LEAF pin issue after sweep, references AR73639, and recommends checking CLR sequencing.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "drc_recognized",
+          "type": "content_check",
+          "description": "Agent recognizes DRC REQP-2090 as MBUFG_GT CLR/CLRB_LEAF issue",
+          "check": "Output identifies REQP-2090 as related to MBUFG_GT CLR/CLRB_LEAF pin state after sweep"
+        },
+        {
+          "name": "workaround_provided",
+          "type": "content_check",
+          "description": "Agent provides AR reference or workaround",
+          "check": "Output references AR73639 or provides guidance for CLR sequencing fix"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "lut-decomposition-analysis",
+      "prompt": "I see [Opt 31-2244] messages about LUT decomposition. What does this optimization do and is it helping my timing?",
+      "expected_output": "Agent explains LUT decomposition (LUT6→LUT5+LUT5) for timing improvement, extracts [Opt 31-2244] stats showing decomposition counts, and notes it trades area for timing.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "decomposition_explained",
+          "type": "content_check",
+          "description": "Agent explains LUT decomposition purpose",
+          "check": "Output explains decomposing wide LUTs (LUT6 to LUT5+LUT5) to improve timing at the cost of area"
+        },
+        {
+          "name": "stats_extracted",
+          "type": "content_check",
+          "description": "Agent extracts decomposition stats from log",
+          "check": "Output references [Opt 31-2244] LUT decomposition counts from the scoped log"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "series-ibuf-warning",
+      "prompt": "opt_design reports [Opt 31-83] about series input buffers. What does this mean for my design?",
+      "expected_output": "Agent explains [Opt 31-83] detects chained IBUF→IBUF or OBUF→OBUF, recommends RTL fix to eliminate buffer chains.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "series_buffer_explained",
+          "type": "content_check",
+          "description": "Agent explains series buffer detection",
+          "check": "Output explains that [Opt 31-83] means chained I/O buffers (IBUF→IBUF or OBUF→OBUF) were detected"
+        },
+        {
+          "name": "rtl_fix_recommended",
+          "type": "content_check",
+          "description": "Agent recommends RTL fix",
+          "check": "Output recommends fixing RTL to avoid chained I/O buffers"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,118 @@
+{
+  "source": {
+    "srs_path": "sample_srs.md"
+  },
+  "target_context": {
+    "board": "ZCU102",
+    "target_processor": "psu_cortexa53_0",
+    "target_os": "baremetal",
+    "target_domain": "standalone_psu_cortexa53_0"
+  },
+  "requirements": [
+    {
+      "id": "FR-001",
+      "type": "FR",
+      "text": "Configure GPIO output pin MIO17 and initialize it to low at boot.",
+      "source_anchor": {
+        "heading": "Functional Requirements",
+        "line_hint": 11
+      }
+    },
+    {
+      "id": "FR-002",
+      "type": "FR",
+      "text": "Configure GPIO input pin MIO12 and poll at a 20 ms interval.",
+      "source_anchor": {
+        "heading": "Functional Requirements",
+        "line_hint": 12
+      }
+    },
+    {
+      "id": "FR-003",
+      "type": "FR",
+      "text": "On each valid rising edge on MIO12, toggle MIO17 exactly once.",
+      "source_anchor": {
+        "heading": "Functional Requirements",
+        "line_hint": 13
+      },
+      "id_generation": "auto"
+    },
+    {
+      "id": "FR-004",
+      "type": "FR",
+      "text": "Maintain a software counter g_gpio_event_count for accepted rising edges.",
+      "source_anchor": {
+        "heading": "Functional Requirements",
+        "line_hint": 14
+      },
+      "id_generation": "auto"
+    },
+    {
+      "id": "NFR-001",
+      "type": "NFR",
+      "text": "GPIO initialization shall complete within 200 ms of reset.",
+      "source_anchor": {
+        "heading": "Non-Functional Requirements",
+        "line_hint": 17
+      }
+    },
+    {
+      "id": "NFR-002",
+      "type": "NFR",
+      "text": "Input-to-output toggle latency shall be <= 50 ms in steady state.",
+      "source_anchor": {
+        "heading": "Non-Functional Requirements",
+        "line_hint": 18
+      },
+      "id_generation": "auto"
+    },
+    {
+      "id": "NFR-003",
+      "type": "NFR",
+      "text": "CPU usage for GPIO polling shall remain below 10 percent on psu_cortexa53_0.",
+      "source_anchor": {
+        "heading": "Non-Functional Requirements",
+        "line_hint": 19
+      },
+      "id_generation": "auto"
+    },
+    {
+      "id": "AC-001",
+      "type": "AC",
+      "text": "After boot, MIO17 stays low until the first valid rising edge on MIO12.",
+      "source_anchor": {
+        "heading": "Acceptance Criteria",
+        "line_hint": 22
+      }
+    },
+    {
+      "id": "AC-002",
+      "type": "AC",
+      "text": "Given 10 clean rising edges on MIO12, MIO17 toggles exactly 10 times.",
+      "source_anchor": {
+        "heading": "Acceptance Criteria",
+        "line_hint": 23
+      },
+      "id_generation": "auto"
+    },
+    {
+      "id": "AC-003",
+      "type": "AC",
+      "text": "Pulses shorter than 40 ms are treated as bounce and ignored.",
+      "source_anchor": {
+        "heading": "Acceptance Criteria",
+        "line_hint": 24
+      }
+    },
+    {
+      "id": "AC-004",
+      "type": "AC",
+      "text": "g_gpio_event_count equals accepted rising-edge count after a 60 second run.",
+      "source_anchor": {
+        "heading": "Acceptance Criteria",
+        "line_hint": 25
+      },
+      "id_generation": "auto"
+    }
+  ]
+}

@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ship Skills with Confidence — the skills-test Framework</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1:      #fcfcfb;
+    --page-plane:     #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+
+    --series-1: #2a78d6; /* blue   */
+    --series-2: #eb6834; /* orange */
+    --series-3: #1baf7a; /* aqua   */
+    --series-4: #eda100; /* yellow */
+    --series-5: #e87ba4; /* magenta*/
+    --series-6: #008300; /* green  */
+    --series-7: #4a3aa7; /* violet */
+    --series-8: #e34948; /* red    */
+
+    --seq-100: #cde2fb; --seq-250: #86b6ef; --seq-450: #2a78d6; --seq-600: #184f95;
+
+    --status-good:     #0ca30c;
+    --status-warning:  #fab219;
+    --status-serious:  #ec835a;
+    --status-critical: #d03b3b;
+
+    --success-text: #006300;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    background: var(--page-plane);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--text-primary);
+    overflow: hidden;
+  }
+  #deck {
+    height: 100vh;
+    width: 100vw;
+    position: relative;
+  }
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    padding: 48px 78px 40px;
+    background: var(--surface-1);
+  }
+  .slide.active { display: flex; }
+
+  .kicker {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--series-1);
+    margin-bottom: 10px;
+  }
+  h1 {
+    font-size: 36px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    line-height: 1.15;
+    margin-bottom: 6px;
+  }
+  h2.subtitle {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 22px;
+    max-width: 920px;
+  }
+  .body { flex: 1; min-height: 0; }
+
+  /* ---- generic layout helpers ---- */
+  .cols { display: grid; gap: 20px; height: 100%; }
+  .cols-2 { grid-template-columns: 1fr 1fr; }
+  .cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .cols-4 { grid-template-columns: repeat(4, 1fr); }
+  .scroll { overflow-y: auto; padding-right: 4px; }
+
+  /* ---- stat tiles ---- */
+  .stat {
+    background: var(--page-plane);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .stat .value {
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1.1;
+  }
+  .stat .label {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    margin-top: 6px;
+  }
+  .stat.good .value { color: var(--status-good); }
+  .stat.accent .value { color: var(--series-1); }
+
+  /* ---- pipeline / flow diagram ---- */
+  .flow {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    height: 100%;
+  }
+  .flow-step {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 16px 12px;
+  }
+  .flow-box {
+    width: 100%;
+    border-radius: 10px;
+    border: 2px solid var(--series-1);
+    background: var(--surface-1);
+    padding: 16px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    justify-content: center;
+  }
+  .flow-box .icon { font-size: 24px; }
+  .flow-box .title { font-size: 14px; font-weight: 700; }
+  .flow-box .desc { font-size: 12px; color: var(--text-secondary); line-height: 1.4; }
+  .flow-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--baseline);
+    font-size: 20px;
+    padding: 0 2px;
+  }
+  .flow-box.c2 { border-color: var(--series-2); }
+  .flow-box.c3 { border-color: var(--series-3); }
+  .flow-box.c4 { border-color: var(--series-4); }
+  .flow-box.c6 { border-color: var(--series-6); }
+  .flow-box.c7 { border-color: var(--series-7); }
+
+  /* vertical mini-flow, for lifecycle timelines */
+  .vflow { display: flex; flex-direction: column; gap: 0; }
+  .vflow-step { display: flex; align-items: center; gap: 14px; padding: 10px 0; }
+  .vflow-badge {
+    flex: 0 0 auto;
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 800;
+    color: white;
+  }
+  .vflow-line {
+    width: 2px; height: 20px;
+    background: var(--gridline);
+    margin-left: 16px;
+  }
+  .vflow-content .title { font-size: 14px; font-weight: 700; }
+  .vflow-content .desc { font-size: 12.5px; color: var(--text-secondary); }
+
+  /* ---- code block ---- */
+  pre.code {
+    background: #14181f;
+    color: #e6edf3;
+    border-radius: 10px;
+    padding: 14px 16px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    line-height: 1.6;
+    overflow: auto;
+  }
+  pre.code .c { color: #8b949e; }
+  pre.code .s { color: var(--series-3); }
+  pre.code .k { color: var(--series-4); }
+
+  /* ---- checklist ---- */
+  ul.checks { list-style: none; }
+  ul.checks li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 11px;
+    color: var(--text-primary);
+  }
+  ul.checks li .mark {
+    flex: 0 0 auto;
+    width: 19px; height: 19px;
+    border-radius: 50%;
+    background: var(--status-good);
+    color: white;
+    font-size: 11px;
+    font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    margin-top: 1px;
+  }
+
+  ul.plain { list-style: none; }
+  ul.plain li {
+    font-size: 14px;
+    line-height: 1.55;
+    margin-bottom: 9px;
+    padding-left: 20px;
+    position: relative;
+  }
+  ul.plain li::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 8px;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--series-1);
+  }
+
+  /* ---- card ---- */
+  .card {
+    background: var(--page-plane);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+  }
+  .card h3 {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card h3 .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    flex: 0 0 auto;
+  }
+  .card p, .card .desc { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+  .card code { font-size: 12.5px; }
+
+  /* ---- table ---- */
+  table.simple { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.simple th {
+    text-align: left;
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 7px 10px;
+    border-bottom: 2px solid var(--gridline);
+  }
+  table.simple td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--gridline);
+    vertical-align: top;
+  }
+  table.simple tr:last-child td { border-bottom: none; }
+  table.simple code { font-size: 12px; }
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .badge.pass { background: rgba(12,163,12,0.12); color: var(--status-good); }
+  .badge.fail { background: rgba(208,59,59,0.12); color: var(--status-critical); }
+  .badge.skip { background: rgba(137,135,129,0.15); color: var(--text-secondary); }
+  .badge.watch { background: rgba(250,178,25,0.18); color: #8a5a00; }
+
+  code {
+    background: rgba(11,11,11,0.05);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  /* ---- footer / progress ---- */
+  .footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--gridline);
+  }
+  .footer .brand { font-size: 12px; color: var(--text-muted); }
+  .progress-dots { display: flex; gap: 6px; }
+  .progress-dots .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--gridline);
+    cursor: pointer;
+  }
+  .progress-dots .dot.active { background: var(--series-1); }
+  .page-num { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+  .nav-btn {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    width: 42px; height: 42px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: 18px;
+    color: var(--text-secondary);
+    box-shadow: 0 2px 8px rgba(11,11,11,0.08);
+    z-index: 10;
+  }
+  .nav-btn:hover { color: var(--series-1); }
+  #prevBtn { left: 18px; }
+  #nextBtn { right: 18px; }
+
+  .highlight { color: var(--series-1); font-weight: 700; }
+  .strike { text-decoration: line-through; color: var(--text-muted); }
+
+  .quote {
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--text-primary);
+    border-left: 4px solid var(--series-1);
+    padding-left: 18px;
+  }
+
+  .pill-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pill {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: var(--page-plane);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+  }
+</style>
+</head>
+<body>
+
+<div id="deck">
+
+  <!-- SLIDE 1 — Title -->
+  <section class="slide active" data-title="Title">
+    <div style="flex:1; display:flex; flex-direction:column; justify-content:center; align-items:flex-start; max-width: 900px;">
+      <div class="kicker">Skill Developer Training</div>
+      <h1 style="font-size:50px;">Ship Skills with Confidence</h1>
+      <h2 class="subtitle" style="font-size:19px; margin-bottom: 32px;">
+        An introduction to <strong>skills-test</strong> — the harness and CI framework that lets you
+        change a skill and know, before anyone else does, whether it still works.
+      </h2>
+      <div class="cols cols-4" style="height:auto; width:100%;">
+        <div class="stat accent"><div class="value">4</div><div class="label">CLI backends tested</div></div>
+        <div class="stat accent"><div class="value">83+</div><div class="label">skills under management</div></div>
+        <div class="stat accent"><div class="value">15+</div><div class="label">grader types available</div></div>
+        <div class="stat good"><div class="value">1 cmd</div><div class="label">to validate before you ship</div></div>
+      </div>
+    </div>
+    <div class="footer">
+      <span class="brand">AMD · skills-test harness</span>
+      <span class="page-num">1 / 13</span>
+    </div>
+  </section>
+
+  <!-- SLIDE 2 — The problem -->
+  <section class="slide" data-title="Problem">
+    <div class="kicker">Why this exists</div>
+    <h1>Skills used to ship on faith</h1>
+    <h2 class="subtitle">Before this framework, "does my change still work?" had one answer: try it by hand, once, and hope.</h2>
+    <div class="body cols cols-2">
+      <div class="card">
+        <h3><span class="dot" style="background:var(--status-critical)"></span>Without a harness</h3>
+        <ul class="plain">
+          <li>One manual run, one client, one model — if it happened to work that time</li>
+          <li>No record of what "working" even looked like last week</li>
+          <li>A prompt tweak that quietly breaks another skill's trigger goes unnoticed</li>
+          <li>Regressions surface in someone else's session, days later</li>
+          <li>Promoting a skill to production is a guess, not a decision</li>
+        </ul>
+      </div>
+      <div class="card" style="border-color: var(--series-1);">
+        <h3><span class="dot" style="background:var(--series-1)"></span>What we actually need</h3>
+        <ul class="plain">
+          <li>Run the same case <strong>repeatedly</strong>, across the clients customers actually use</li>
+          <li>A durable, inspectable record of pass/fail — not a memory</li>
+          <li>A structural check <em>before</em> anything ever executes an LLM</li>
+          <li>The same validation to run identically on your laptop and in CI</li>
+          <li>Evidence, not a guess, behind every staging → production promotion</li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer">
+      <span class="brand">AMD · skills-test harness</span>
+      <div class="progress-dots"></div>
+      <span class="page-num">2 / 13</span>
+    </div>
+  </section>
+
+  <!-- SLIDE 3 — What is skills-test -->
+  <section class="slide" data-title="What is it">
+    <div class="kicker">The framework</div>
+    <h1>skills-test: run, grade, benchmark</h1>
+    <h2 class="subtitle">One harness that launches an agent CLI against a test case, captures what it did, grades the result, and remembers it.</h2>
+    <div class="body" style="display:flex; flex-direction:column; gap: 20px;">
+      <div class="flow">
+        <div class="flow-step">
+          <div class="flow-box">
+            <div class="icon">✍️</div>
+            <div class="title">You author</div>
+            <div class="desc">a skill in <code>staging/</code> + a test suite in <code>tests/</code></div>
+          </div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="flow-box c2">
+            <div class="icon">🚀</div>
+            <div class="title">Agent runs it</div>
+            <div class="desc">Claude Code, Cursor, Copilot, or opencode — your call</div>
+          </div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="flow-box c3">
+            <div class="icon">📋</div>
+            <div class="title">Graders score it</div>
+            <div class="desc">artifacts, content, metrics, LLM judges — automatic</div>
+          </div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="flow-box c6">
+            <div class="icon">🗄️</div>
+            <div class="title">Recorded</div>
+            <div class="desc">every run written to SQLite — nothing is forgotten</div>
+          </div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="flow-box c7">
+            <div class="icon">📊</div>
+            <div class="title">Reported</div>
+            <div class="desc">a dashboard + a per-skill signoff you can hand to a reviewer</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Two trees, one install</h3>
+        <p>
+          <code>staging/&lt;skill&gt;/SKILL.md</code> (what the skill <em>is</em>) and <code>tests/&lt;skill&gt;/&lt;suite&gt;/</code>
+          (how you prove it works) are separate, authored trees. <code>skills-test install</code> validates and joins them —
+          only a skill with a passing suite ever reaches <code>.claude/skills/</code> or <code>.opencode/skills/</code>.
+        </p>
+      </div>
+    </div>
+    <div class="footer">
+      <span class="brand">AMD · skills-test harness</span>
+      <div class="progress-dots"></div>
+      <span class="page-num">3 / 13</span>
+    </div>
+  </section>
+
+  <!-- SLIDE 4 — Author a suite -->
+  <section class="slide" data-title="Author a suite">
+    <div class="kicker">Getting started</div>
+    <h1>Three files. That's the whole contract.</h1>
+    <h2 class="subtitle">Scaffold a canonical suite in one command — then just fill in what you'd write anyway.</h2>
+    <div class="body cols cols-2">
+      <div>
+        <pre class="code"><span class="c"># scaffold a suite for your skill</span>
+skills-test init --skill <span class="s">my-skill</span> --suite <span class="s">my-suite</span>
+
+<span class="c"># creates tests/my-skill/my-suite/</span>
+tests/my-skill/my-suite/
+├── runner_spec.yaml   <span class="c"># clients, timeouts, requirements</span>
+├── grader_spec.yaml   <span class="c"># how a case is scored</span>
+├── test_cases.yaml    <span class="c"># the prompts + expected values</span>
+└── inputs/            <span class="c"># files staged into the workspace</span></pre>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:14px;">
+        <div class="card">
+          <h3><span class="dot" style="background:var(--series-1)"></span>runner_spec.yaml</h3>
+          <p>Which client(s)/model(s) to run against, Vivado/Vitis requirements, timeout, retries.</p>
+        </div>
+        <div class="card">
+          <h3><span class="dot" style="background:var(--series-3)"></span>grader_spec.yaml</h3>
+          <p>One shared scoring rubric — artifact checks, content matches, metric thresholds, even an LLM judge.</p>
+        </div>
+        <div class="card">
+          <h3><span class="dot" style="background:var(--series-4)"></span>test_cases.yaml</h3>
+          <p>The list of prompts and expected values every case in the suite substitutes in.</p>
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      <span class="brand">AMD · skills-test harness</span>
+      <div class="progress-dots"></div>
+      <span class="page-num">4 / 13</span>
+    </div>
+  </section>
+
+  <!-- SLIDE 5 — Graders (NEW) -->
+  <section class="slide" data-title="Graders">
+    <div class="kicker">grader_spec.yaml, in depth</div>
+    <h1>Graders: what actually gets checked</h1>
+    <h2 class="subtitle">Every case is scored by one or more graders — pick the kind that matches what "correct" means for your skill.</h2>
+    <div class="body scroll">
+      <table class="simple">
+        <thead><tr><th style="width:15%">Grader</th><th style="width:45%">What it checks</th><th>Use it when…</th></tr></thead>
+        <tbody>
+          <tr><td><code>artifact_exists</code></td><td>A file exists at a path and is at least N bytes</td><td>The skill should produce a specific output file</td></tr>
+          <tr><td><code>artifact_valid</code></td><td>A file exists <em>and</em> passes a named validator (e.g. is a real Vivado DCP)</td><td>Existence alone isn't proof — the file has to be structurally correct</td></tr>
+          <tr><td><code>content_contains</code></td><td>A substring/regex is present (or absent) in stdout/stderr/a file</td><td>Simple text evidence — a keyword, an absence of "ERROR:"</td></tr>
+          <tr><td><code>metric_threshold</code></td><td>A numeric value clears a threshold (<code>&gt;=</code>, <code>&lt;</code>, …)</td><td>"Achieved FPS must be ≥ target"</td></tr>
+          <tr><td><code>metric_delta</code> / <code>baseline_delta</code></td><td>A metric vs. a stored baseline — directional (must improve) or symmetric (within tolerance)</td><td>QoR impact: did this change help, hurt, or hold steady?</td></tr>
+          <tr><td><code>oracle_match</code></td><td>Extracted values against a hand-curated oracle (required items present, forbidden ones absent)</td><td>Classification / triage skills with a known-correct answer set</td></tr>
+          <tr><td><code>artifact_signature</code></td><td>The artifact carries headers a tool actually emits — defeats "fake it with a heredoc"</td><td>You need proof the real tool ran, not a plausible-looking fabrication</td></tr>
+          <tr><td><code>tool_call_observed</code></td><td>An external tool was actually invoked (filesystem side-effect or transcript command)</td><td>The skill's whole point is triggering a specific tool call</td></tr>
+          <tr><td><code>action_sequence</code></td><td>The agent's tool-call sequence matches an expected order/set</td><td>Process matters, not just the end state (read → skill → compile)</td></tr>
+          <tr><td><code>trigger</code></td><td>Did the skill activate at all? (probability from the transcript)</td><td>Testing whether a skill fires on the prompts it should (and doesn't on ones it shouldn't)</td></tr>
+          <tr><td><code>llm_judge</code></td><td>An LLM scores the answer against a rubric (0–100)</td><td>The correct answer is judgment-based prose, not something a regex can check</td></tr>
+          <tr><td><code>diff</code> / <code>config_match</code></td><td>Expected file edits, or a tolerant JSON-config comparison</td><td>Code-editing skills; skills that produce a structured config</td></tr>
+        </tbody>
+      </table>
+      <div class="pill-row" style="margin-top:14px;">
+        <span class="pill">Families expand into several graders</span>
+        <span class="pill"><code>violation:</code> → verdict + rule-citation checks</span>
+        <span class="pill"><code>tool-execution:</code> → trigger + sequence + tool-call checks</span>
+      </div>
+    </div>
+    <div class="footer">
+      <span class="brand">AMD · skills-test harness</span>
+      <div class="progress-dots"></div>
+      <span class="page-num">5 / 13</span>
+    </div>
+  </section>
+
+  <!-- SLIDE 6 — Workflow / lifecycle concept (NEW) -->
+  <section class="slide" data-title="Workflow concept">
+    <div class="kicker">How a suite actually runs</div>
+    <h1>Two lifecycles: per-run setup, and consistency over time</h1>
+    <h2 class="subtitle">A suite has a fixture lifecycle around each shared run, and every skill has a longer-running consistency lifecycle across runs.</h2>
+    <div class="body cols cols-2">
+      <div class="card">
+        <h3><span class="dot" style="background:var(--series-1)"></span>Per-run: setup / reset / teardown</h3>
+        <div class="vflow" style="margin-top:8px;">
+          <div class="vflow-step">
+            <div class="vflow-badge" style="background:var(--series-1);">1</div>
+            <div class="vflow-content"><div class="title">setup</div><div class="desc">once per (suite, client, model) group — start a shared session</div></div>
+          </div>
+          <div class="vflow-line"></div>
+          <div class="vflow-step">
+            <div class="vflow-badge" style="background:var(--series-4); color:#3a2c00;">2</div>
+            <div class="vflow-content"><div class="title">reset</div><div class="desc">after every case except the last — restore shared state; a failure here is fatal to the whole group</div></div>
+          </div>
+          <div class="vflow-line"></div>
+          <div class="vflow-step">
+            <div class="vflow-badge" style="background:var(--series-6);">3</div>
+            <div class="vflow-content"><div class="title">teardown</div><div class="desc">once, after the group's last case — wipe the shared workspace</div></div>
+          </div>
+        </div>
+        <p style="margin-top:10px;"><strong>Prefer <code>kind: python</code>/<code>bash</code> over <code>prompt</code>:</strong> a prompt-based setup makes one LLM turn the gate for every case — when it improvises, the failure looks like a skill failure. Direct scripts don't add LLM variance.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot" style="background:var(--series-7)"></span>Across runs: the consistency lifecycle</h3>
+        <p style="margin-bottom:10px;">Every skill moves through a state machine driven by repeated runs, not a single verdict:</p>
+        <div class="pill-row" style="margin-bottom:12px;">
+          <span class="badge skip">UNASSESSED</span>
+          <span class="badge pass">KEEP</span>
+          <span class="badge watch">WATCH</span>
+          <span class="badge fail">DEPRECATE</span>
+          <span class="badge fail">REMOVE</span>
+        </div>
+        <ul class="plain">
+          <li>Below <code>min_reps</code> (default 3) or full coverage → <code>UNASSESSED</code>, never a weak verdict</li>
+          <li>Passing gates → <code>KEEP</code>; a failing run moves a healthy skill to <code>WATCH</code></li>
+          <li>Two consecutive failures → <code>DEPRECATE</code>; sustained failure → <code>REMOVE</code></li>
+          <li>Gates check pass rate, per-case score spread, and mandatory/weighted grader failures</li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer">
+      <span class="brand">AMD · skills-test harness</span>
+      <div class="progress-dots"></div>
+      <span class="page-num">6 / 13</span>
+    </div>
+  </section>
+
+  <!-- SLIDE 7 — Everyday commands -->
+  <section class="slide" data-title="Commands">
+    <div class="kicker">The daily loop</div>
+    <h1>Four commands cover the whole workflow</h1>
+    <h2 class="subtitle">The same commands you run on your laptop are what CI runs — no separate "CI-only" path to trust blindly.</h2>
+    <div class="body cols cols-2">
+      <pre class="code" style="align-self:start;"><span class="c"># 1. is my host ready?</span>
+skills-test doctor
+
+<span class="c"># 2. validate + install (dry run first)</span>
+skills-test install --dry-run
+skills-test install
+
+<span class="c"># 3. see what's discoverable</span>
+skills-test list --tags smoke
+
+<span class="c"># 4. run it — validate the plan first</span>
+skills-test run --skills my-skill --dry-run
+skills-test run --skills my-skill --reps 3</pre>
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <div class="card">
+          <h3><span class="dot" style="background:var(--series-1)"></span>--dry-run everywhere</h3>
+          <p>Validates manifests and prints the exact execution plan — zero LLM calls, zero cost, catches a typo before it costs you tokens.</p>
+        </div>
+        <div class="card">
+          <h3><span class="dot" style="background:var(--series-3)"></span>--reps N</h3>
+          <p>Repeats each case within one run record, so consistency (not just a single lucky pass) is what gets measured.</p>
+        </div>
+        <div class="card">
+          <h3><span class="dot" style="background:var(--series-7)"></span>--client / --model</h3>
+          <p>Force a one-off backend for this invocation — outranks everything else, no suite file edits needed.</p>
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      <span class="brand">AMD · skills-test harness</span>
+      <div class="progress-dots"></div>
+      <span class="page-num">7 / 13</span>
+    </div>
+  </section>
+
+  <!-- SLIDE 8 — Guardrails on install -->
+  <section class="slide" data-title="Guardrails">
+    <div class="kicker">Safety nets, built in</div>
+    <h1>The framework tells you exactly where you stand</h1>
+    <h2 class="subtitle">Install reports every skill's status — nothing silently vanishes, nothing silently ships broken.</h2>
+    <div class="body cols cols-2">
+      <div>
+        <table class="simple">
+          <thead><tr><th>Skill</th><th>Status</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>hls-array-to-stream</code></td><td><span class="badge pass">PASS</span></td><td>Valid suite — installed, ready to run</td></tr>
+            <tr><td><code>ip-configurator</code></td><td><span class="badge pass">PASS</span></td><td>Valid suite — installed, ready to run</td></tr>
+            <tr><td><code>rtl-assistant</code></td><td><span class="badge skip">SKIP</span></td><td>No suite yet — a warning, not a failure</td></tr>
+            <tr><td><code>bad-skill</code></td><td><span class="badge fail">FAIL</span></td><td>Real problem: bad YAML, missing dependency</td></tr>
+          </tbody>
+        </table>
+        <div class="card" style="margin-top:16px;">
+          <h3>=== Summary: 1 passed, 0 failed, 82 skipped (no suite), 83 total ===</h3>
+          <p>Real, live output from this framework's own CI. A SKIP never blocks the run — only a genuine problem does.</p>
+        </div>
+      </div>
+      <div>
+        <ul class="checks">
+          <li><span class="mark">✓</span><div>A skill only reaches <code>.claude/skills/</code> / <code>.opencode/skills/</code> after its suite structurally validates</div></li>
+          <li><span class="mark">✓</span><div>A skill with no suite is <span class="highlight">skipped and reported</span>, never silently dropped</div></li>
+          <li><span class="mark">✓</span><div>A skill with a <span class="highlight">real</span> problem — bad YAML, an unresolved dependency — <span class="strike">fails</span> the run and tells you why</div></li>
+          <li><span class="mark">✓</span><div><code>doctor</code> reports host readiness — Vivado/Vitis versions, CLI availability, endpoints — before you spend a single token</div></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer">
+      <span class="brand">AMD · skills-test harness</span>
+      <div class="progress-dots"></div>
+      <span class="page-num">8 / 13</span>
+    </div>
+  </section>
+
+  <!-- SLIDE 9 — Doctor actually checks things -->
+  <section class="slide" data-title="Doctor">
+    <div class="kicker">Trust, verified</div>
+    <h1>"Installed" and "works" are different questions</h1>
+    <h2 class="subtitle">doctor doesn't just check a binary exists — it runs it, and it sends a real prompt through.</h2>
+    <div class="body cols cols-2">
+      <div class="card">
+        <h3><span class="dot" style="background:var(--status-critical)"></span>Presence check alone (the old way)</h3>
+        <pre class="code" style="font-size:12px;">[PASS] cli_cursor: /usr/local/bin/agent</pre>
+        <p style="margin-top:8px;">
+          Looked healthy. In reality this install was missing its own runtime — every real invocation failed instantly.
+        </p>
+      </div>
+      <div class="card" style="border-color:var(--status-good);">
+        <h3><span class="dot" style="background:var(--status-good)"></span>Functional check (today)</h3>
+        <pre class="code" style="font-size:12px;"><span class="c">[FAIL]</span> cli_cursor: /usr/local/bin/agent
+  --version exited 127: node: No such file
+<span class="c">// version_check() actually runs the binary</span>
+<span class="c">// prompt_smoke_test() sends a real prompt</span>
+<span class="c">// to catch "runs but isn't authenticated" too</span></pre>
+      </div>
+    </div>
+    <div class="quote" style="margin-top:20px;">"If doctor says PASS, a real test run is credible — not just that a file exists on disk."</div>
+    <div class="footer">
+      <span class="brand">AMD · skills-test harness</span>
+      <div class="progress-dots"></div>
+      <span class="page-num">9 / 13</span>
+    </div>
+  </section>
+
+  <!-- SLIDE 10 — CI: it happens automatically -->
+  <section class="slide" data-title="CI">
+    <div class="kicker">In CI, not just on your laptop</div>
+    <h1>Every push gets its own honest report</h1>
+    <h2 class="subtitle">The same harness runs in GitHub Actions on real hardware — a self-hosted runner with live Vivado, real license servers, real MCP sessions.</h2>
+    <div class="body cols cols-2">
+      <div>
+        <div class="card" style="margin-bottom:14px;">
+          <h3><span class="dot" style="background:var(--series-1)"></span>[ZB] Runner Diagnostics</h3>
+          <p>Host resources, Vivado/Vitis versions, every CLI's real readiness, configured models/endpoints — rendered as tables right on the run's summary page. No log-diving.</p>
+        </div>
+        <div class="card">
+          <h3><span class="dot" style="background:var(--series-2)"></span>[ZB] IP Configurator</h3>
+          <p>A real functional run against a live Vivado MCP session — the exact suite a skill author would run, on the exact infrastructure a customer would use.</p>
+        </div>
+      </div>
+      <div>
+        <pre class="code" style="font-size:12px; margin-bottom:14px;">### Skill install report
+
+| Passed | Failed | Skipped | Total |
+|---|---|---|---|
+| 1 | 0 | 82 | 83 |
+
+### Doctor checks
+| Check | Status | Detail |
+| vivado | ✅ PASS | 2026.1 |
+| cli_cursor | ❌ FAIL | ...  |</pre>
+        <div class="cols cols-2" style="height:auto;">
+          <div class="stat good"><div class="value">✓</div><div class="label">Green run = safe to merge</div></div>
+          <div class="stat"><div class="value">⚠</div><div class="label">Red = you find out first, not a customer</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      <span class="brand">AMD · skills-test harness</span>
+      <div class="progress-dots"></div>
+      <span class="page-num">10 / 13</span>
+    </div>
+  </section>
+
+  <!-- SLIDE 11 — Effort required (NEW) -->
+  <section class="slide" data-title="Effort required">
+    <div class="kicker">Set expectations honestly</div>
+    <h1>What's free, and what you actually have to write</h1>
+    <h2 class="subtitle"><code>skills-test init</code> gives you a skeleton — the judgment calls are still yours.</h2>
+    <div class="body cols cols-2">
+      <div>
+        <table class="simple">
+          <thead><tr><th>File</th><th>Scaffold gives you</th><th>You still author</th></tr></thead>
+          <tbody>
+            <tr><td><code>runner_spec.yaml</code></td><td>Mostly usable: client/model, defaults, tags: [smoke]</td><td>Real timeout, Vivado/Vitis flags, and — for shared sessions — setup/reset/teardown</td></tr>
+            <tr><td><code>grader_spec.yaml</code></td><td>One placeholder grader (<code>response_not_empty</code>)</td><td>The real rubric — every field, every grader, weights and mandatory flags</td></tr>
+            <tr><td><code>test_cases.yaml</code></td><td>One empty-prompt stub case</td><td>Real prompts, staged input files, golden <code>expected</code> values</td></tr>
+            <tr><td><code>inputs/</code></td><td>An empty directory</td><td>Every file the prompt references</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <div class="card">
+          <h3><span class="dot" style="background:var(--series-1)"></span>Bottom line</h3>
+          <p>Of the three files, only <code>runner_spec.yaml</code> is substantially reusable out of the box. Plan real authoring time for the grading rubric and the test cases — that's where your skill's actual correctness bar lives.</p>
+        </div>
+        <div class="card">
+          <h3><span class="dot" style="background:var(--series-3)"></span>Minimum bar to ship</h3>
+          <ul class="plain" style="margin-top:4px;">
+            <li>≥1 structurally-valid suite to pass <code>skills-test install</code></li>
+            <li><strong>3 reps</strong>, full coverage, to get a real lifecycle signoff (not <code>UNASSESSED</code>)</li>
+            <li>Skill must be in <code>config.yaml</code>'s allowlist to be run at all</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      <span class="brand">AMD · skills-test harness</span>
+      <div class="progress-dots"></div>
+      <span class="page-num">11 / 13</span>
+    </div>
+  </section>
+
+  <!-- SLIDE 12 — What you get -->
+  <section class="slide" data-title="What you get">
+    <div class="kicker">The payoff</div>
+    <h1>What this framework gives you back</h1>
+    <div class="body cols cols-2">
+      <ul class="checks">
+        <li><span class="mark">✓</span><div><strong>Confidence to change things.</strong> A prompt tweak, a new grader, a model swap — run the suite, see the delta, ship or don't.</div></li>
+        <li><span class="mark">✓</span><div><strong>Consistency, not luck.</strong> <code>--reps 3+</code> catches the skill that passes sometimes and fails other times — the failure mode a single manual try can never see.</div></li>
+        <li><span class="mark">✓</span><div><strong>Cross-client coverage for free.</strong> One suite, four backends (Claude Code, Cursor, Copilot, opencode) — write once, validate everywhere your customers actually work.</div></li>
+        <li><span class="mark">✓</span><div><strong>A durable signoff package.</strong> Every run writes a per-skill report — the evidence a reviewer needs to approve staging → production, not a verbal "trust me."</div></li>
+      </ul>
+      <ul class="checks">
+        <li><span class="mark">✓</span><div><strong>Fast, cheap failure.</strong> <code>--dry-run</code> and structural validation catch a typo before a single LLM token is spent.</div></li>
+        <li><span class="mark">✓</span><div><strong>Nothing silently breaks.</strong> A skill with no suite is flagged; a skill with a real problem fails loudly, with a reason.</div></li>
+        <li><span class="mark">✓</span><div><strong>The same commands everywhere.</strong> What you run locally is exactly what CI runs — no surprises from an untested "CI-only" path.</div></li>
+        <li><span class="mark">✓</span><div><strong>A dashboard, not a memory.</strong> Every result lands in SQLite — pass rates, score trends, cost — queryable, not folklore.</div></li>
+      </ul>
+    </div>
+    <div class="footer">
+      <span class="brand">AMD · skills-test harness</span>
+      <div class="progress-dots"></div>
+      <span class="page-num">12 / 13</span>
+    </div>
+  </section>
+
+  <!-- SLIDE 13 — Call to action -->
+  <section class="slide" data-title="Get started">
+    <div class="kicker">Your first 15 minutes</div>
+    <h1>Get started today</h1>
+    <h2 class="subtitle">This is not a proposal — it's already running. The only step left is yours.</h2>
+    <div class="body cols cols-2">
+      <pre class="code"><span class="c"># 1. install the harness (once)</span>
+pip install -e skill_eval
+
+<span class="c"># 2. check your host</span>
+skills-test doctor
+
+<span class="c"># 3. scaffold your first suite</span>
+skills-test init --skill <span class="s">your-skill</span> --suite <span class="s">smoke</span>
+
+<span class="c"># 4. validate, then run for real</span>
+skills-test install --dry-run
+skills-test run --skills <span class="s">your-skill</span> --dry-run
+skills-test run --skills <span class="s">your-skill</span> --reps 3</pre>
+      <div style="display:flex; flex-direction:column; gap:14px; justify-content:center;">
+        <div class="card">
+          <h3><span class="dot" style="background:var(--series-1)"></span>Read first</h3>
+          <p><code>skill_eval/CLAUDE.md</code> — the full architecture, gotchas, and conventions in one place.</p>
+        </div>
+        <div class="card">
+          <h3><span class="dot" style="background:var(--series-3)"></span>Ask</h3>
+          <p>Bring your suite to office hours before your first real CI run — five minutes now saves an hour of log-reading later.</p>
+        </div>
+        <div class="card" style="border-color:var(--status-good);">
+          <h3><span class="dot" style="background:var(--status-good)"></span>Ship</h3>
+          <p>A green run is your evidence. Merge with confidence — the framework already did the checking for you.</p>
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      <span class="brand">AMD · skills-test harness</span>
+      <div class="progress-dots"></div>
+      <span class="page-num">13 / 13</span>
+    </div>
+  </section>
+
+</div>
+
+<div class="nav-btn" id="prevBtn">‹</div>
+<div class="nav-btn" id="nextBtn">›</div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  let current = 0;
+
+  function renderDots() {
+    document.querySelectorAll('.progress-dots').forEach(container => {
+      container.innerHTML = '';
+      slides.forEach((_, i) => {
+        const dot = document.createElement('div');
+        dot.className = 'dot' + (i === current ? ' active' : '');
+        dot.addEventListener('click', () => goTo(i));
+        container.appendChild(dot);
+      });
+    });
+  }
+
+  function goTo(i) {
+    if (i < 0 || i >= slides.length) return;
+    slides[current].classList.remove('active');
+    current = i;
+    slides[current].classList.add('active');
+    renderDots();
+  }
+
+  document.getElementById('prevBtn').addEventListener('click', () => goTo(current - 1));
+  document.getElementById('nextBtn').addEventListener('click', () => goTo(current + 1));
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); goTo(current + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); goTo(current - 1); }
+  });
+
+  renderDots();
+</script>
+
+</body>
+</html>

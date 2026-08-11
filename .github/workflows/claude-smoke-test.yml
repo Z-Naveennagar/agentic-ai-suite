@@ -1,0 +1,262 @@
+name: "[ZB] Claude smoke test"
+
+# Installs the Claude Code CLI (workspace-local, the same
+# `curl -fsSL https://claude.ai/install.sh | bash` command PR #63's
+# regression.yml uses in its "Install Claude Code CLI (workspace-local)"
+# step) and smoke tests it on both opus and sonnet -- one matrix job per
+# model, sharing this file so the two never drift out of sync.
+#
+# Points the CLI at the corporate Anthropic-compatible gateway rather than
+# api.anthropic.com, mirroring what skill_eval's own LLM judge already does
+# (graders/judge.py's LLM_GATEWAY_* pathway: base_url +
+# Ocp-Apim-Subscription-Key/user/anthropic-version headers via the
+# anthropic SDK). Same reasoning as [ZB] opencode setup's Azure block --
+# the workflow is the source of truth for CI's config, not a runner-local
+# file that could drift.
+#
+# The gateway is reached with ANTHROPIC_BASE_URL + ANTHROPIC_CUSTOM_HEADERS.
+# The credential is the Ocp-Apim-Subscription-Key *header*, not one of
+# Claude Code's own credential variables: ANTHROPIC_API_KEY is set to the
+# literal "dummy" only to stop the CLI opening an interactive login, exactly
+# as judge.py passes the anthropic SDK a dummy api_key. There is therefore
+# only one real gateway secret to configure -- see the env: block below.
+#
+# The smoke-test call (an actual `claude -p ...`) is not wired up yet --
+# flip SKILL_TEST_CLAUDE_SMOKE_TEST once the secrets/variables below are
+# confirmed present.
+
+on:
+  workflow_dispatch:
+  # Same workflow_dispatch caveat as the other [ZB] workflows: GitHub only
+  # allows dispatching a workflow that has existed on the default branch at
+  # least once, and this file hasn't been merged there yet. push has no such
+  # restriction, so it's the only way to exercise this before it lands on
+  # main -- scoped to this feature branch only so it doesn't fire on every
+  # push once merged.
+  push:
+    branches:
+      - zettabolt/test-infra-github-actions
+
+permissions:
+  contents: read
+
+jobs:
+  claude-smoke-test:
+    # See runner-diagnostics.yml for what ZB_ONLY_WORKFLOW does. Set it to
+    # claude-smoke-test to silence the other three [ZB] workflows while
+    # iterating on this one; unset means all four run as before.
+    if: ${{ vars.ZB_ONLY_WORKFLOW == '' || vars.ZB_ONLY_WORKFLOW == 'claude-smoke-test' }}
+    runs-on: [xsjhalo06]
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      # xsjhalo06 is a single shared self-hosted runner -- run the two model
+      # jobs one at a time rather than letting GitHub schedule them
+      # concurrently against it.
+      max-parallel: 1
+      matrix:
+        # The CLI's short aliases. ANTHROPIC_DEFAULT_<TIER>_MODEL below is
+        # what each alias actually resolves to on this gateway -- the whole
+        # reason those two variables exist. cli_backends/claude_code.py's
+        # _MODEL_ALIAS uses the same two short names, so a later
+        # `skills-test run --client claude_code --model opus` lands on the
+        # same deployment this job smoke-tests.
+        model: [opus, sonnet]
+    env:
+      # --- Gateway endpoint + auth -------------------------------------
+      # Reuses the same repo-level gateway config the harness's judge reads
+      # from LLM_GATEWAY_BASE_URL / LLM_GATEWAY_SUBSCRIPTION_KEY, so CI has
+      # one gateway to configure rather than two.
+      ANTHROPIC_BASE_URL: ${{ vars.LLM_GATEWAY_BASE_URL }}
+      # One "Name: Value" pair per line -- newline-separated, not
+      # comma-separated. This header is the *actual* credential: the gateway
+      # authenticates on Ocp-Apim-Subscription-Key, exactly as
+      # graders/judge.py:_dispatch_raw does. The `user` header matches
+      # judge.py's own os.getlogin()-derived value; anthropic-version pins
+      # the same wire version it sends.
+      ANTHROPIC_CUSTOM_HEADERS: |
+        Ocp-Apim-Subscription-Key: ${{ secrets.LLM_GATEWAY_SUBSCRIPTION_KEY }}
+        user: github-actions
+        anthropic-version: 2023-10-16
+      # Deliberately a literal placeholder, NOT a real credential. Claude
+      # Code needs *some* credential present or it tries to open an
+      # interactive login, which would hang a CI job -- but the gateway
+      # ignores x-api-key entirely and auths on the header above. This
+      # mirrors judge.py, which passes the anthropic SDK
+      # `api_key=gateway_cfg.get("api_key", "dummy")` for the same reason
+      # (see skill_eval/README.md: 'LLM_GATEWAY_API_KEY ... optional;
+      # defaults to "dummy"'). Do not wire a secret in here expecting it to
+      # authenticate anything -- and do not set ANTHROPIC_AUTH_TOKEN, which
+      # would outrank this and send an Authorization: Bearer header the
+      # gateway isn't expecting.
+      ANTHROPIC_API_KEY: dummy
+
+      # --- Alias -> deployment mapping ---------------------------------
+      # A gateway rarely exposes Anthropic's public model ids verbatim, so
+      # `--model opus` must be told what "opus" means here. Repo Variables
+      # (not Secrets -- a deployment name isn't sensitive), with the public
+      # ids as fallbacks so the workflow is still runnable before anyone
+      # sets them.
+      ANTHROPIC_DEFAULT_OPUS_MODEL: ${{ vars.ANTHROPIC_DEFAULT_OPUS_MODEL || 'claude-opus-4-8' }}
+      ANTHROPIC_DEFAULT_SONNET_MODEL: ${{ vars.ANTHROPIC_DEFAULT_SONNET_MODEL || 'claude-sonnet-4-6' }}
+      # haiku isn't in the matrix, but Claude Code uses this tier for its own
+      # background work (title generation, etc.) -- leaving it unmapped
+      # would let those calls hit a model id the gateway doesn't serve.
+      ANTHROPIC_DEFAULT_HAIKU_MODEL: ${{ vars.ANTHROPIC_DEFAULT_HAIKU_MODEL || 'claude-haiku-4-5' }}
+
+      # Turns off version checks, auto-update attempts, and optional
+      # telemetry -- none of which a CI runner wants, and all of which would
+      # otherwise egress from a host that may only be allowed to reach the
+      # gateway.
+      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
+    steps:
+      - name: Job summary header
+        run: echo "# [ZB] Claude smoke test (${{ matrix.model }})" >> "$GITHUB_STEP_SUMMARY"
+
+      # Installed workspace-local (HOME override) rather than into the
+      # runner's real $HOME, mirroring PR #63's rationale for opencode and
+      # Copilot: nothing pollutes the shared self-hosted runner between
+      # jobs/workflows. $INSTALL_HOME/.local/bin is the installer's own
+      # default bin dir -- add it to PATH so every later step just calls
+      # `claude`. Per-model INSTALL_HOME so the two matrix jobs can never
+      # share install state.
+      - name: Install Claude Code CLI (workspace-local)
+        run: |
+          INSTALL_HOME="${{ runner.temp }}/claude-code-home-${{ matrix.model }}"
+          mkdir -p "$INSTALL_HOME"
+          HOME="$INSTALL_HOME" bash -c 'curl -fsSL https://claude.ai/install.sh | bash'
+          echo "$INSTALL_HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Claude Code version
+        run: |
+          if command -v claude >/dev/null 2>&1; then
+            CL_PATH=$(command -v claude)
+            CL_VER=$(claude --version 2>&1 | head -n1) || CL_VER="(claude --version failed)"
+          else
+            CL_PATH="-"
+            CL_VER="claude not found on PATH after install"
+          fi
+          echo "$CL_PATH"
+          echo "$CL_VER"
+
+          {
+            echo "### Claude Code CLI"
+            echo
+            echo "| Path | Version |"
+            echo "|---|---|"
+            echo "| \`$CL_PATH\` | $CL_VER |"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Prints the resolved alias mapping and endpoint (neither is
+      # sensitive) alongside a presence-only check of the one real
+      # credential, so a misconfigured gateway is visible on the Summary tab
+      # without opening a log -- and without ever echoing a secret value.
+      # ANTHROPIC_API_KEY is not checked: it's the hardcoded "dummy"
+      # placeholder above, so its presence proves nothing.
+      - name: Verify gateway config (no secret values printed)
+        run: |
+          {
+            echo "### Gateway configuration"
+            echo
+            echo "| Setting | Value |"
+            echo "|---|---|"
+            echo "| \`ANTHROPIC_BASE_URL\` | ${ANTHROPIC_BASE_URL:-:x: not set} |"
+            echo "| \`--model ${{ matrix.model }}\` resolves to | \`${{ matrix.model == 'opus' && env.ANTHROPIC_DEFAULT_OPUS_MODEL || env.ANTHROPIC_DEFAULT_SONNET_MODEL }}\` |"
+            echo
+            echo "| Credential | Present |"
+            echo "|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -n "${LLM_GATEWAY_SUBSCRIPTION_KEY:-}" ]; then
+            echo "LLM_GATEWAY_SUBSCRIPTION_KEY is set"
+            echo "| \`Ocp-Apim-Subscription-Key\` (from \`LLM_GATEWAY_SUBSCRIPTION_KEY\`) | yes |" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "LLM_GATEWAY_SUBSCRIPTION_KEY is NOT set -- add it under repo Settings > Secrets and variables > Actions"
+            echo "| \`Ocp-Apim-Subscription-Key\` (from \`LLM_GATEWAY_SUBSCRIPTION_KEY\`) | :x: no |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo >> "$GITHUB_STEP_SUMMARY"
+        env:
+          # Only needed for the presence check above -- the value itself
+          # reaches the CLI via ANTHROPIC_CUSTOM_HEADERS, not as its own var.
+          LLM_GATEWAY_SUBSCRIPTION_KEY: ${{ secrets.LLM_GATEWAY_SUBSCRIPTION_KEY }}
+
+      # Deliberately not run yet -- flip SKILL_TEST_CLAUDE_SMOKE_TEST once
+      # the gateway secrets/variables above are confirmed added to this
+      # repo. This is the only step in the workflow that actually calls the
+      # gateway.
+      #
+      # `-p` is Claude Code's non-interactive print mode (the same flag
+      # cli_backends/claude_code.py's build_command uses); in that mode a
+      # credential in the environment is used without any approval prompt,
+      # so there's no interactive login to suppress. --model takes the short
+      # alias, which ANTHROPIC_DEFAULT_<TIER>_MODEL maps to a real
+      # deployment. An explicit --model outranks ANTHROPIC_MODEL, so the
+      # matrix value is authoritative here and ANTHROPIC_MODEL is left unset
+      # rather than set to something this flag would silently override.
+      #
+      # --output-format json is what makes this a real assertion rather than
+      # a liveness check. A plain-text run only proves *something* answered:
+      # both matrix legs previously returned the identical "Hi there,
+      # friend!", which would look just as green if --model were ignored and
+      # every leg silently hit one default model. The envelope's
+      # .modelUsage[].canonicalModel is the model that actually served the
+      # request, reported by the CLI rather than self-claimed by the model
+      # in prose (asking a model its own identity is unreliable).
+      #
+      # Field names verified against Claude Code 2.1.220 output, not docs:
+      # the key is camelCase `modelUsage` (the headless docs say
+      # `model_usage`, which does not exist in the envelope and would make
+      # every assertion below silently vacuous).
+      - name: Smoke test - claude run via gateway (${{ matrix.model }}, gated)
+        if: ${{ vars.SKILL_TEST_CLAUDE_SMOKE_TEST == '1' }}
+        run: |
+          set -o pipefail
+
+          claude -p "say hi in exactly three words" \
+            --model ${{ matrix.model }} \
+            --output-format json > response.json
+
+          cat response.json
+
+          # canonicalModel spells the tier with dots (claude-haiku-4.5) while
+          # ANTHROPIC_DEFAULT_<TIER>_MODEL uses dashes (claude-haiku-4-5), so
+          # match the tier substring rather than the full id -- that is
+          # precisely the claim being tested (did --model <alias> route to
+          # the right *tier*), and it survives the gateway serving a
+          # different point release than the fallback pins.
+          SERVED=$(jq -r '.modelUsage | to_entries[0].value.canonicalModel // empty' response.json)
+          RESULT=$(jq -r '.result // empty' response.json)
+          IS_ERROR=$(jq -r '.is_error' response.json)
+
+          echo "served model: ${SERVED:-<none>}"
+
+          if [ "$IS_ERROR" != "false" ]; then
+            echo "::error::claude reported is_error=$IS_ERROR"
+            exit 1
+          fi
+          # An empty modelUsage means the call never reached a model, which a
+          # zero exit code alone would not reveal.
+          if [ -z "$SERVED" ]; then
+            echo "::error::no .modelUsage[].canonicalModel in response -- request did not reach a model"
+            exit 1
+          fi
+          if ! echo "$SERVED" | grep -qi -- "${{ matrix.model }}"; then
+            echo "::error::--model ${{ matrix.model }} was served by '$SERVED' -- alias resolved to the wrong tier"
+            exit 1
+          fi
+
+          {
+            echo "### Smoke test"
+            echo
+            echo "| Requested alias | Served model | Reply |"
+            echo "|---|---|---|"
+            echo "| \`${{ matrix.model }}\` | \`$SERVED\` | $RESULT |"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Smoke test skipped
+        if: ${{ vars.SKILL_TEST_CLAUDE_SMOKE_TEST != '1' }}
+        run: |
+          echo "Smoke test skipped (set repo variable SKILL_TEST_CLAUDE_SMOKE_TEST=1 to enable once the gateway secrets/variables are confirmed working)." \
+            >> "$GITHUB_STEP_SUMMARY"

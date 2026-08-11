@@ -1,0 +1,90 @@
+{
+    "description": "HLS coding style skills test",
+    "queries": [
+        {
+            "id": "hls_skill_test_hls_array2stream_01",
+            "category": "hls-array-to-stream",
+            "query": "/hls-array-to-stream  Does the code follow the recommended coding style for array-to-stream conversion? TOP_FUNCTION = dut",
+            "input_file": "hls-array2stream-01.cpp",
+            "expected_answer": "The code does NOT follow the recommended coding style for array-to-stream conversion.It violates Rule 6.2 and 6.3: the write side accesses the array in ascending order while the read side accesses it in descending order. For a FIFO stream, both sides must use the same iteration order and range."
+        },
+        {
+            "id": "hls_skill_test_hls_array2stream_02",
+            "category": "hls-array-to-stream",
+            "query": "/hls-array-to-stream  Does the code follow the recommended coding style for array-to-stream conversion? TOP_FUNCTION = dut",
+            "input_file": "hls-array2stream-02.cpp",
+            "expected_answer": "The code FOLLOWS the recommended coding style for array-to-stream conversion"
+        },
+        {
+            "id": "hls_skill_test_hls_array2stream_03",
+            "category": "hls-array-to-stream",
+            "query": "/hls-array-to-stream  Does the code follow the recommended coding style for array-to-stream conversion? TOP_FUNCTION = dut",
+            "input_file": "hls-array2stream-03.cpp",
+            "expected_answer": "The code does NOT follow the recommended coding style for array-to-stream conversion. The violation is Rule 6.4"
+        },
+        {
+            "id": "hls_skill_test_hls_array2stream_04",
+            "category": "hls-array-to-stream",
+            "query": "/hls-array-to-stream  Does the code follow the recommended coding style for array-to-stream conversion? TOP_FUNCTION = dut",
+            "input_file": "hls-array2stream-04.cpp",
+            "expected_answer": "This code FOLLOWS the recommended coding style for array-to-stream conversion."
+        },
+        {
+            "id": "hls_skill_test_hls_array2stream_05",
+            "category": "hls-array-to-stream",
+            "query": "/hls-array-to-stream  Does the code follow the recommended coding style for array-to-stream conversion? TOP_FUNCTION = dut",
+            "input_file": "hls-array2stream-05.cpp",
+            "expected_answer": "The code does NOT follow the recommended coding style for array-to-stream conversion. fails Rule 6"
+        },
+        {
+            "id": "hls_skill_test_hls_array2stream_06",
+            "category": "hls-array-to-stream",
+            "query": "/hls-array-to-stream  Does the code follow the recommended coding style for array-to-stream conversion? TOP_FUNCTION = dut",
+            "input_file": "hls-array2stream-06.cpp",
+            "expected_answer": "NOT, The violation is Rule 4"
+        },
+        {
+            "id": "hls_skill_test_hls_array2stream_07",
+            "category": "hls-array-to-stream",
+            "query": "/hls-array-to-stream  Does the code follow the recommended coding style for array-to-stream conversion? TOP_FUNCTION = dut",
+            "input_file": "hls-array2stream-07.cpp",
+            "expected_answer": "The code FOLLOWS the recommended coding style for array-to-stream conversion."
+        },
+        {
+            "id": "hls_skill_test_hls_array2stream_08",
+            "category": "hls-array-to-stream",
+            "query": "/hls-array-to-stream  Does the code follow the recommended coding style for array-to-stream conversion? TOP_FUNCTION = dut",
+            "input_file": "hls-array2stream-08.cpp",
+            "expected_answer": "NOT, violation is Rule 5"
+        },
+        {
+            "id": "hls_skill_test_hls_array2stream_09",
+            "category": "hls-array-to-stream",
+            "query": "/hls-array-to-stream  Does the code follow the recommended coding style for array-to-stream conversion? TOP_FUNCTION = dut",
+            "input_file": "hls-array2stream-09.cpp",
+            "expected_answer": "follows the recommended coding style"
+        },
+        {
+            "id": "hls_skill_test_hls_array2stream_10",
+            "category": "hls-array-to-stream",
+            "query": "/hls-array-to-stream  Does the code follow the recommended coding style for array-to-stream conversion? TOP_FUNCTION = dut",
+            "input_file": "hls-array2stream-10.cpp",
+            "expected_answer": "The code does NOT follow the recommended coding style for array-to-stream conversion.  Rule 4"
+        },
+        {
+            "id": "hls_skill_test_hls_array2stream_11",
+            "category": "hls-array-to-stream",
+            "query": "/hls-array-to-stream  Does the code follow the recommended coding style for array-to-stream conversion? TOP_FUNCTION = dut",
+            "input_file": "hls-array2stream-11.cpp",
+            "expected_answer": "The code does NOT follow the recommended coding style for array-to-stream conversion. Rule 5"
+        },
+        {
+            "id": "hls_skill_test_hls_array2stream_11_mod",
+            "category": "hls-array-to-stream",
+            "query": "/hls-array-to-stream This code does not follow the recommended array-to-stream coding style. Fix it:",
+            "input_file": "hls-array2stream-11.cpp",
+            "cfg_file": "modification/hls_config.cfg",
+            "expected_answer": "FIXED_FOLLOWS_STYLE. Custom operator= violates Rule 5 (no custom copy assignment allowed for streamed structs). Fix: change to operator=(const A& a) = default, or remove it entirely."
+        }
+    ]
+}

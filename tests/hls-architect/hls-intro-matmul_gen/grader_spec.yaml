@@ -1,0 +1,508 @@
+# ── Suite grader spec: hls-intro-matmul_gen ──────────────────────────────
+# Rich output_schema format (field -> grader). Per-case expected values from
+# test_cases.yaml are substituted into {tokens} before grading.
+#
+# Approach (same as edge-detection_gen): correctness + speedup are read from
+# the agent's pinned results.json (SELF-REPORTED — the grader extracts, it does
+# not recompute). Independent evidence is limited to skill_triggered +
+# ran_csynth (transcript/tool).
+#
+# output_contract (output_contract_match) replaces the old separate verdict/
+# reasoning llm_judge graders: it diffs the agent's final {"verdict",
+# "explanation"} JSON against expected_output — verdict by literal/tolerant
+# equality (no partial credit), explanation via an LLM judge guided by
+# semantic_fields' intent. The contract itself is declared once in
+# runner_spec.yaml's `output_contract:` and appended to every case's prompt.
+#
+#   MANDATORY gates (all must pass):
+#     - skill_triggered    : the C++->HLS chain was invoked
+#     - ran_csynth         : an HLS flow actually ran (matches '--mode hls', so
+#                            both `v++ --mode hls` and `vitis-run --mode hls`
+#                            invocations count — not tied to one command form)
+#     - results_json       : the agent wrote the pinned results.json
+#     - correctness_recompiled: grader recompiles agent kernel + frozen testbench
+#                               and re-runs it — PASS required (FULLY INDEPENDENT)
+#     - csim_log_pass        : pinned FINAL csim.log contains testbench PASS (INDEPENDENT)
+#     - csim_log_no_failure  : pinned FINAL csim.log has no FAIL (INDEPENDENT)
+#     - speedup_independent  : grader parses the Interval (II) from the two REAL
+#                              synth reports and computes the THROUGHPUT speedup
+#                              (baseline_II / optimized_II) >= {target_speedup}
+#                              itself — does NOT read results.json (INDEPENDENT)
+#     - output_contract    : final-response {verdict, explanation} JSON matches the
+#                            golden — chain completed AND 8x throughput met AND correct
+#   SOFT self-report cross-checks (NOT load-bearing; flag agent over-claiming):
+#     - csim_verified (results.json), speedup_met (results.json)
+#   MANDATORY architect-specific gates (evaluate hls-architect's OWN job):
+#     - architect_output_exists : architect stage output was pinned
+#     - architect_has_dataflow  : one #pragma HLS DATAFLOW present (G1)
+#     - architect_has_stages    : load_input/compute/store_output present (G1)
+#     - architect_has_interface : >=1 #pragma HLS INTERFACE present (G1) — the
+#                                 architect must COMMIT the top-level interface.
+#                                 g++/architect_correct is BLIND to pragmas (g++
+#                                 drops unknown pragmas), so this is the only gate
+#                                 that observes the interface decision at all.
+#     - architect_pragma_audit  : NO PIPELINE/UNROLL/ARRAY_* in architect output (G4)
+#     - architect_correct       : architect stage kernel recompiles+PASSes (G6)
+#     - dataflow_triggered      : /hls-dataflow specifically fired — evidences the
+#                                 architect ran its dataflow validation (Steps 2b/2c/3a)
+#   SOFT self-report / cross-checks (NOT load-bearing):
+#     - architect_interface_ports : m_axi on an array port (A|B|C) AND s_axilite
+#                                   both present — proves the RIGHT ports got the
+#                                   RIGHT mode, not just that some INTERFACE exists
+#   SOFT/weighted:
+#     - final_report_valid, baseline_report_valid (no_tool_errors is weight 0 —
+#       informational only, see its own note below)
+output_schema:
+  skill_triggered:
+    grader: trigger
+    always: true
+    mandatory: true
+    grader_args: '{skills}'
+
+  # Confirms an HLS tool flow was actually invoked. Matches on the shared
+  # '--mode hls' tokens so it accepts BOTH `v++ --compile --mode hls` (csynth)
+  # and `vitis-run --mode hls ...` (tcl/csim/etc.) — the command form is not
+  # load-bearing. Real proof that C-SYNTHESIS specifically ran is enforced by
+  # speedup_independent, which parses the actual Interval/II from the csynth reports.
+  ran_csynth:
+    grader: tool_call_observed
+    always: true
+    mandatory: true
+    grader_args:
+      command: '{tool_call_observed}'
+      min_calls: 1
+
+  no_tool_errors:
+    # weight: 0 -- purely informational: still runs and is recorded per-case
+    # (visible in the dashboard), but contributes nothing to the aggregate
+    # score, matching every other suite in this repo. A bare 'ERROR:' scan of
+    # stderr false-positives easily over an hour-long optimize loop (the
+    # agent's own grep pattern, a tolerated v++ diagnostic it then fixes), so
+    # it must never be able to move pass/fail on its own.
+    grader: content_contains
+    always: true
+    mandatory: false
+    weight: 0
+    grader_args:
+      source: stderr
+      substring: 'ERROR:'
+      must_not_contain: true
+
+  # The final-response contract: the agent's {"verdict", "explanation"} JSON is
+  # diffed against this case's expected_output. verdict is compared
+  # literally/tolerantly (YES/NO, no partial credit); explanation is LLM-judged
+  # for substance against the intent in semantic_fields below.
+  # The final-response contract: the agent's {"verdict", "explanation"} JSON is
+  # diffed against this case's expected_output. verdict is compared
+  # literally/tolerantly (YES/NO, no partial credit); explanation is LLM-judged
+  # against the intent below.
+  #
+  # The golden explanation in test_cases.yaml deliberately describes only
+  # OUTCOMES, not the process: the restructuring details (dataflow / tiling /
+  # array partitioning / pipelining to II=1) and the "iterate, re-running C
+  # synthesis" step were removed from it. Those are HOW the skill works, and they
+  # are already proven deterministically by other gates here
+  # (architect_has_dataflow, architect_has_stages, optimize_changed_kernel,
+  # optimize_added_pragmas, speedup_independent, cosim_impl_conformance) — so
+  # asking an LLM judge to also find them narrated in prose added noise, not
+  # coverage. It hard-failed run 8c6d64c1 at score 58 against a 60 bar with every
+  # other gate green and a 29x measured speedup, on the rationale that the reply
+  # "omits most of the required flow details about restructuring and iterative
+  # re-synthesis" — exactly the steps now dropped from the golden.
+  output_contract:
+    grader: output_contract_match
+    always: false
+    mandatory: true
+    grader_args:
+      expected: '{expected_output}'
+      source: final_response
+      semantic_threshold: 60
+      semantic_fields:
+        explanation: >
+          Judge whether the agent's explanation is CONSISTENT with the golden's
+          OUTCOMES. Ignore wording, length, ordering and directory names, and
+          ignore the exact Interval/speedup figures (graded deterministically by
+          speedup_independent). Judge ONLY the outcomes the golden states: a
+          measured baseline Interval, an optimized Interval giving
+          >= {target_speedup}x throughput, confirmation on real RTL via
+          co-simulation, and a passing testbench. Do NOT require the explanation
+          to narrate HOW the design was restructured (dataflow / tiling / array
+          partitioning / pipelining) or that C synthesis was re-run iteratively —
+          those are graded elsewhere and their absence from the prose is NOT a
+          defect. Score low ONLY for a positive error: inventing work that did
+          not happen, misstating the design target, claiming success with no
+          synthesis evidence, or contradicting the golden's outcome.
+
+  results_json:
+    grader: artifact_exists
+    always: true
+    mandatory: true
+    grader_args:
+      path: '{artifact_path}'
+      min_size_bytes: 2
+
+  # SOFT cross-check only — this reads the SELF-REPORTED results.json. Kept to
+  # flag disagreement between what the agent claims and reality, but it is NOT
+  # load-bearing: correctness is proven independently by correctness_recompiled.
+  csim_verified:
+    grader: content_contains
+    always: true
+    mandatory: false
+    weight: 0.5
+    grader_args:
+      source: file
+      path: '{artifact_path}'
+      regex: '(?i)"csim_verification"\s*:\s*"\s*pass'
+
+  # STRONGEST correctness gate — fully independent of the agent. The grader
+  # itself recompiles the agent's pinned kernel_final.cpp against the FROZEN
+  # inputs/main.cpp testbench (the suite's own oracle) and re-runs it; passes
+  # only if the testbench prints PASS. Nothing here reads results.json, so the
+  # agent cannot fake correctness. Deterministic: fixed 64x64x64, seed=42 in
+  # the testbench.
+  correctness_recompiled:
+    grader: program
+    always: true
+    mandatory: true
+    grader_args:
+      command: graders/check_correctness.sh
+      timeout: 300
+
+  # INDEPENDENT correctness: grade the agent's pinned FINAL csim console log
+  # (main.cpp's real testbench output), NOT results.json. The log is the final
+  # run only, so intermediate FAILs during the optimize loop don't false-fail.
+  csim_log_pass:
+    grader: content_contains
+    always: true
+    mandatory: true
+    grader_args:
+      source: file
+      path: '{csim_log_path}'
+      substring: 'PASS'
+
+  csim_log_no_failure:
+    grader: content_contains
+    always: true
+    mandatory: true
+    grader_args:
+      source: file
+      path: '{csim_log_path}'
+      substring: 'FAIL'
+      must_not_contain: true
+
+  # INDEPENDENT throughput gate — the grader parses the ACTUAL "Interval" (II)
+  # numbers out of the two REAL synth reports (baseline_synth.rpt,
+  # final_synth.rpt), computes the throughput speedup (baseline_II /
+  # optimized_II) itself, and requires >= target_speedup. Throughput = 1/II is
+  # the README's stated goal ("8x baseline throughput"), NOT 1/latency — they
+  # differ for the DATAFLOW design the skill builds. Does NOT read results.json.
+  # If a report shows "?" (unbounded trip counts) the gate fails with guidance.
+  speedup_independent:
+    grader: program
+    always: true
+    mandatory: true
+    grader_args:
+      command: graders/check_speedup.sh
+      args: ['{target_speedup}']
+      timeout: 60
+
+  # SKILL-CONFORMANCE gate — proves the hls-optimize skill FOLLOWED ITS OWN
+  # DESIGNED WORKFLOW, not just that the final numbers look good. Emits a
+  # per-step PASS/VIOLATION/N-A report and HARD-FAILS on any violation:
+  #   * inner-loop csynth  — baseline_synth.rpt + final_synth.rpt present/valid.
+  #   * Step 7 cosim       — PER-ATTEMPT rule from qor_history.csv: if any attempt
+  #     improved Latency >= 10% OR reduced II >= 10%, cosim MUST have run (evidence:
+  #     pinned cosim.rpt, a real .../hls/sim dir, or a results.json cosim_* key).
+  #     Falls back to end-to-end baseline-vs-final reports if qor_history.csv is
+  #     absent. This is what catches the skill stopping at the csynth ESTIMATE.
+  #   * impl gating        — once cosim has run, impl is expected (SKILL.md).
+  #     impl is detected from EITHER the unified component-flow export dir
+  #     (hls/impl/{ip,verilog,vhdl}) OR the classic solution-flow hls/impl/report.
+  # Does NOT trust results.json for the improvement numbers. Subsumes the older
+  # standalone cosim gate.
+  cosim_impl_conformance:
+    grader: program
+    always: true
+    mandatory: true
+    grader_args:
+      command: graders/check_skill_conformance.sh
+      args: ['10']
+      timeout: 120
+
+  # SOFT cross-check only — this reads the SELF-REPORTED throughput_speedup from
+  # results.json. Kept to flag agent over/under-reporting vs the independent
+  # measurement above; NOT load-bearing.
+  speedup_met:
+    grader: metric_threshold
+    always: true
+    mandatory: false
+    weight: 0.5
+    grader_args:
+      metric: throughput_speedup
+      op: '>='
+      threshold: '{target_speedup}'
+      extract:
+        source: file
+        path: '{artifact_path}'
+        regex: '"throughput_speedup"\s*:\s*"?([0-9]+(?:\.[0-9]+)?)'
+
+  # Corroborate the SELF-REPORTED throughput_speedup with real synthesis reports:
+  # both the baseline and optimized C-synth reports must exist and actually look
+  # like synth reports (contain the Interval/II column the throughput gate
+  # parses), so the speedup in results.json can't be a pure fabrication with no
+  # report behind it.
+  final_report_valid:
+    grader: content_contains
+    always: true
+    mandatory: false
+    weight: 1.0
+    grader_args:
+      source: file
+      path: '{final_report_path}'
+      regex: '(?i)interval'
+
+  baseline_report_valid:
+    grader: content_contains
+    always: true
+    mandatory: false
+    weight: 1.0
+    grader_args:
+      source: file
+      path: '{baseline_report_path}'
+      regex: '(?i)interval'
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # ARCHITECT-SPECIFIC GATES — evaluate that hls-architect DID ITS OWN JOB, not
+  # just that the chain outcome was fast+correct. These grade the pinned
+  # architect STAGE output (architect_kernel_hls.cpp), which is BEFORE
+  # /hls-optimize adds fine-grained pragmas — so the forbidden-pragma audit is
+  # meaningful here (it would NOT be on the final optimized kernel).
+  # ══════════════════════════════════════════════════════════════════════════
+
+  # G9 — architect actually produced its stage output
+  architect_output_exists:
+    grader: artifact_exists
+    always: true
+    mandatory: true
+    grader_args:
+      path: '{architect_output_path}'
+      min_size_bytes: 50
+
+  # G1 — canonical top-level: exactly the load->compute->store dataflow region
+  architect_has_dataflow:
+    grader: content_contains
+    always: true
+    mandatory: true
+    grader_args:
+      source: file
+      path: '{architect_output_path}'
+      regex: '(?i)#pragma\s+HLS\s+DATAFLOW'
+
+  # Requires the three canonical dataflow stages to exist as FUNCTIONS (name
+  # followed by '(' — a call or a definition), so a bare mention in a comment or
+  # a same-named variable does not satisfy the gate.
+  #
+  # Names are matched by PREFIX (load*/compute*/store*), not exactly. SKILL.md
+  # prescribes load_input/compute/store_output, but a suffixed stage name is a
+  # naming choice, not a structural defect, and the skill itself blesses
+  # `compute_stage1..N` for the hierarchical decomposition. The old exact-match
+  # regex used '\bcompute\b', and since '_' is a WORD character that does not
+  # match 'compute_tiles' — so run 8587fe3d (azure/gpt-5.4) hard-failed with a
+  # textbook load_input -> compute_tiles -> store_output dataflow, every other
+  # architect gate green. Structure is what this gate is for; architect_correct
+  # and architect_has_dataflow already cover behaviour and the DATAFLOW region.
+  architect_has_stages:
+    grader: content_contains
+    always: true
+    mandatory: true
+    grader_args:
+      source: file
+      path: '{architect_output_path}'
+      regex: '(?s)(?=.*\bload\w*\s*\()(?=.*\bcompute\w*\s*\()(?=.*\bstore\w*\s*\()'
+
+  # G1 — the architect must COMMIT the top-level interface. The kernel signature
+  # is kernel(float C[], const float A[], const float B[], int M, int N, int K):
+  # array ports -> m_axi (burst DDR/HBM), scalar dims + return -> s_axilite. If
+  # the architect emits NO #pragma HLS INTERFACE, HLS silently falls back to
+  # default port inference and the interface was never actually designed.
+  # CRITICAL: architect_correct (G6) CANNOT catch this — it builds with g++, which
+  # drops unknown pragmas, so a kernel with zero INTERFACE pragmas still PASSes the
+  # functional recompile. This regex is the ONLY gate that observes the decision.
+  # Loose on purpose (presence, any port/mode) so a valid design is not false-failed;
+  # architect_interface_ports below adds the soft "right port, right mode" check.
+  architect_has_interface:
+    grader: content_contains
+    always: true
+    mandatory: true
+    grader_args:
+      source: file
+      path: '{architect_output_path}'
+      regex: '(?i)#pragma\s+HLS\s+INTERFACE'
+
+  # G4 — pragma self-audit: architect output must NOT contain the fine-grained
+  # optimization pragmas (those belong to /hls-optimize). This is the single
+  # most architect-specific invariant.
+  architect_pragma_audit:
+    grader: content_contains
+    always: true
+    mandatory: true
+    grader_args:
+      source: file
+      path: '{architect_output_path}'
+      regex: '(?i)#pragma\s+HLS\s+(PIPELINE|UNROLL|ARRAY_PARTITION|ARRAY_RESHAPE|INLINE|FLATTEN)'
+      must_not_contain: true
+
+  # G6 — architect output is FUNCTIONALLY correct on its own (independent
+  # recompile of the architect stage kernel against the frozen testbench).
+  architect_correct:
+    grader: program
+    always: true
+    mandatory: true
+    grader_args:
+      command: graders/check_correctness.sh
+      args: ['architect_kernel_hls.cpp']
+      timeout: 300
+
+  # SOFT self-report cross-check — reads the agent's SELF-REPORTED
+  # architect_verification from results.json. NOT load-bearing; kept only to
+  # measure architect-stage hallucination: compare against the INDEPENDENT
+  # architect_correct above (agent claims "pass" but architect_correct fails =
+  # the agent over-claimed its architect output).
+  architect_verified:
+    grader: content_contains
+    always: true
+    mandatory: false
+    weight: 0.5
+    grader_args:
+      source: file
+      path: '{artifact_path}'
+      regex: '(?i)"architect_verification"\s*:\s*"\s*pass'
+
+  # SOFT strengthening of architect_has_interface — not just "an INTERFACE pragma
+  # exists" but "the RIGHT ports got the RIGHT mode": an m_axi bound to one of the
+  # array ports (A|B|C) AND at least one s_axilite (for the M/N/K scalars / return).
+  # Soft/weighted because it is brittle to legitimate variation (port renaming in a
+  # wrapper, packing A/B/C into one bundle) and would false-fail an otherwise valid
+  # design; kept to flag designs that satisfy the loose gate with only a token
+  # s_axilite while leaving the arrays on default interfaces.
+  architect_interface_ports:
+    grader: content_contains
+    always: true
+    mandatory: false
+    weight: 1.0
+    grader_args:
+      source: file
+      path: '{architect_output_path}'
+      regex: '(?is)(?=.*#pragma\s+HLS\s+INTERFACE\s+m_axi\s+port\s*=\s*(A|B|C))(?=.*#pragma\s+HLS\s+INTERFACE\s+s_axilite)'
+
+  # The architect invokes /hls-dataflow to confirm the load->compute->store region
+  # is canonical (Step 2b), to test the compute() decomposition (Step 2c), and as
+  # part of the Step 3a validation battery. skill_triggered only proves SOME skill
+  # in the chain fired; this proves the architect's dataflow validation specifically
+  # ran. Arm-aware: positive in the with-skill arm, negative in the no-skill arm.
+  dataflow_triggered:
+    grader: trigger
+    always: true
+    mandatory: true
+    grader_args:
+      skill: hls-dataflow
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # OPTIMIZE-SPECIFIC GATES — evaluate that /hls-optimize was ACTUALLY USED and
+  # FOLLOWED ITS APPROACH, distinct from the chain outcome (fast+correct) and
+  # from hls-architect's own gates above.
+  #
+  # Goal 1 (MANDATORY, independent): prove /hls-optimize ran and transformed the
+  #   design — optimize_triggered (transcript) + optimize_changed_kernel
+  #   (pinned-artifact diff, cannot be faked via results.json).
+  # Goal 2 (SOFT/weighted): prove it followed its process discipline — the
+  #   fine-grained pragmas it kept (optimize_added_pragmas), per-attempt git
+  #   commits (Step 6b), the .memory/optimize_outcomes.md table (Step 6a) and
+  #   .memory/qor_history.csv (Step 0d/5f). Soft so a correct run is not hard-failed
+  #   on bookkeeping alone; promote to mandatory once proven reliable.
+  # ══════════════════════════════════════════════════════════════════════════
+
+  # G-1 — /hls-optimize SPECIFICALLY activated (not just "some skill in the
+  # chain"; skill_triggered above passes if ANY of the three fired). Arm-aware:
+  # positive in the with-skill arm, negative in the no-skill arm.
+  optimize_triggered:
+    grader: trigger
+    always: true
+    mandatory: true
+    grader_args:
+      skill: hls-optimize
+
+  # G-2 (SOFT) — the FINAL kernel carries the fine-grained optimization pragmas
+  # that the architect stage output is FORBIDDEN (see architect_pragma_audit).
+  # Reads only the pinned artifact.
+  #
+  # SOFT, not mandatory: "applied its technique catalogue" and "kept the
+  # pragmas" are different claims, and this grader can only see the second.
+  # Rejecting a technique after measuring it is correct /hls-optimize
+  # behaviour, so a run that tries PIPELINE/UNROLL/ARRAY_PARTITION, observes a
+  # regression and reverts lands here with present:false. Observed on
+  # hls-intro-matmul_gen_01 (run ff8f024d, azure/gpt-5.4): every other gate
+  # green and a 63.8x throughput speedup, hard-failed solely because attempt 1
+  # in optimize_outcomes.md read "Rejected — interval unchanged at 4109 cycles,
+  # estimated clock regressed 2.409 ns -> 7.300 ns". Goal 1's real evidence is
+  # optimize_triggered + optimize_changed_kernel, which both passed there.
+  optimize_added_pragmas:
+    grader: content_contains
+    always: true
+    mandatory: false
+    weight: 1.0
+    grader_args:
+      source: file
+      path: '{final_kernel_path}'
+      regex: '(?i)#pragma\s+HLS\s+(PIPELINE|UNROLL|ARRAY_PARTITION|ARRAY_RESHAPE)'
+
+  # G-3 — the final kernel actually DIFFERS from the architect stage output, so
+  # /hls-optimize did real work (byte-identical => it was skipped/no-op).
+  # Fully independent (diffs the two pinned kernels).
+  optimize_changed_kernel:
+    grader: program
+    always: true
+    mandatory: true
+    grader_args:
+      command: graders/check_optimize_changed.sh
+      timeout: 60
+
+  # G-4 (SOFT) — per-attempt git commit protocol (Step 6b): baseline commit plus
+  # >= 1 per-attempt commit carrying Hypothesis/Observed (or experiment(...)).
+  # Reads the pinned optimize_git_log.txt.
+  optimize_git_history:
+    grader: program
+    always: true
+    mandatory: false
+    weight: 1.0
+    grader_args:
+      command: graders/check_optimize_git.sh
+      args: ['2']
+      timeout: 60
+
+  # G-5 (SOFT) — the outcomes log (Step 6a) exists and has >= 1 table row.
+  optimize_outcomes_log:
+    grader: content_contains
+    always: true
+    mandatory: false
+    weight: 0.5
+    grader_args:
+      source: file
+      path: '{outcomes_log_path}'
+      regex: '(?im)^\s*\|.*\|.*\|'
+
+  # G-6 (SOFT) — the QoR history CSV (Step 0d/5f) exists with >= 1 logged row
+  # (a numeric lat_max_cyc in the 4th column), not just an empty header.
+  optimize_qor_history:
+    grader: content_contains
+    always: true
+    mandatory: false
+    weight: 0.5
+    grader_args:
+      source: file
+      path: '{qor_history_path}'
+      regex: '(?m)^[^,\n]+,[^,]*,[^,]*,\d+'
+
+scoring:
+  aggregation: weighted_sum
+  pass_threshold: 70.0

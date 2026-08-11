@@ -1,0 +1,7 @@
+work/
+reports/*.rpt
+reports/*.log
+reports/*.jou
+reports/*.str
+reports/*.pb
+.vivado-ai/

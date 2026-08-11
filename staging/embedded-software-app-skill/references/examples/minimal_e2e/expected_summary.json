@@ -1,0 +1,155 @@
+{
+  "run": {
+    "id": "minimal-e2e-001",
+    "timestamp_utc": "2026-03-20T00:00:00Z",
+    "execution_mode": "plan-only",
+    "tool_version": "Vitis 2026.1"
+  },
+  "inputs": {
+    "xsa_path": "C:/designs/zcu102/gpio_app/system_wrapper.xsa",
+    "srs_path": "skills/references/examples/minimal_e2e/sample_srs.md",
+    "vitis_reference_doc": "skills/references/api/vitis_cli_client.md"
+  },
+  "selection": {
+    "os": "baremetal",
+    "cpu_family": "apu",
+    "core_index": 0,
+    "domain_name": "standalone_psu_cortexa53_0",
+    "rationale": "Target context in SRS explicitly requests ZCU102 Cortex-A53 core 0 with standalone bare-metal domain."
+  },
+  "hardware_facts": {
+    "processors": ["psu_cortexa53_0"],
+    "memory_regions": ["DDR_0", "OCM_0"],
+    "peripherals": ["GPIO0", "GIC", "TTC0"]
+  },
+  "artifacts": {
+    "hardware_model": "hardware_model.json",
+    "normalized_requirements": "normalized_requirements.json",
+    "feasibility_report": "feasibility_report.md",
+    "implementation_plan": "implementation_plan.md",
+    "command_plan": "vitis_command_plan.json",
+    "generate_workspace_script": "generate_workspace.py",
+    "validation_report": "report/validation_report.md",
+    "summary_json": "report/summary.json",
+    "execution_feedback_report": "report/execution_feedback.md"
+  },
+  "requirements_traceability": [
+    {
+      "id": "FR-001",
+      "type": "FR",
+      "status": "pass",
+      "source_anchor": "Functional Requirements:L11",
+      "artifacts": ["implementation_plan.md", "report/validation_report.md"]
+    },
+    {
+      "id": "FR-002",
+      "type": "FR",
+      "status": "pass",
+      "source_anchor": "Functional Requirements:L12",
+      "artifacts": ["implementation_plan.md", "report/validation_report.md"]
+    },
+    {
+      "id": "FR-003",
+      "type": "FR",
+      "status": "pass",
+      "source_anchor": "Functional Requirements:L13",
+      "artifacts": ["implementation_plan.md", "report/validation_report.md"],
+      "notes": "ID auto-generated from deterministic policy."
+    },
+    {
+      "id": "FR-004",
+      "type": "FR",
+      "status": "pass",
+      "source_anchor": "Functional Requirements:L14",
+      "artifacts": ["implementation_plan.md", "report/validation_report.md"],
+      "notes": "ID auto-generated from deterministic policy."
+    },
+    {
+      "id": "NFR-001",
+      "type": "NFR",
+      "status": "pass",
+      "source_anchor": "Non-Functional Requirements:L17",
+      "artifacts": ["feasibility_report.md", "report/validation_report.md"]
+    },
+    {
+      "id": "NFR-002",
+      "type": "NFR",
+      "status": "pass",
+      "source_anchor": "Non-Functional Requirements:L18",
+      "artifacts": ["feasibility_report.md", "report/validation_report.md"],
+      "notes": "ID auto-generated from deterministic policy."
+    },
+    {
+      "id": "NFR-003",
+      "type": "NFR",
+      "status": "pass",
+      "source_anchor": "Non-Functional Requirements:L19",
+      "artifacts": ["feasibility_report.md", "report/validation_report.md"],
+      "notes": "ID auto-generated from deterministic policy."
+    },
+    {
+      "id": "AC-001",
+      "type": "AC",
+      "status": "pass",
+      "source_anchor": "Acceptance Criteria:L22",
+      "artifacts": ["report/validation_report.md"]
+    },
+    {
+      "id": "AC-002",
+      "type": "AC",
+      "status": "pass",
+      "source_anchor": "Acceptance Criteria:L23",
+      "artifacts": ["report/validation_report.md"],
+      "notes": "ID auto-generated from deterministic policy."
+    },
+    {
+      "id": "AC-003",
+      "type": "AC",
+      "status": "pass",
+      "source_anchor": "Acceptance Criteria:L24",
+      "artifacts": ["report/validation_report.md"],
+      "notes": "Explicit ID from SRS."
+    },
+    {
+      "id": "AC-004",
+      "type": "AC",
+      "status": "pass",
+      "source_anchor": "Acceptance Criteria:L25",
+      "artifacts": ["report/validation_report.md"],
+      "notes": "ID auto-generated from deterministic policy."
+    }
+  ],
+  "checks": {
+    "prereq": {
+      "passed": true,
+      "details": [
+        "Vitis version supported",
+        "Python version supported",
+        "Environment checks passed"
+      ]
+    },
+    "feasibility": {
+      "passed": true,
+      "details": [
+        "Required peripherals found",
+        "Driver feasibility passed"
+      ]
+    },
+    "build": {
+      "attempted": false,
+      "passed": false,
+      "retries_used": 0
+    },
+    "os_validation": {
+      "os": "baremetal",
+      "checklist_passed": true,
+      "items": [
+        "BSP generation planned for standalone_psu_cortexa53_0",
+        "Runtime sanity artifact specified (GPIO toggle counter log)"
+      ]
+    }
+  },
+  "result": {
+    "status": "success"
+  }
+}

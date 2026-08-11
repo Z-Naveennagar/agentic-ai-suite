@@ -1,0 +1,93 @@
+# ── Suite: hls-intro-matmul_gen ───────────────────────────────
+# C++ -> HLS acceleration test (NO MATLAB). Take the naive triple-nested
+# matrix-multiply kernel and accelerate it to 8x the baseline throughput via the
+# HLS architecture + optimization flow, keeping the result correct against the
+# built-in testbench (main.cpp does an ULP self-check and prints PASS/FAIL).
+#
+# Chain under test: hls-architect -> hls-optimize -> hls-run-flow.
+#
+# Design targets: the example README states an "8x baseline" throughput goal
+# and a 64x64x64 matrix; it does NOT specify an FPGA part or clock, so this
+# eval fixes part=xczu9eg-ffvb1156-2-e and clock=3.3 ns so the design is
+# synthesizable and the speedup is measured at a fixed clock. (Documented in
+# inputs/README.md; change here + in the prompt if you want a different part.)
+#
+# Per-case `expected` tokens are substituted into grader_spec.yaml.
+
+suite_id: hls-intro-matmul_gen
+description: >
+  Accelerate the baseline float matrix-multiply kernel (kernel.cpp, a plain
+  triple-nested loop) into an optimized HLS design that achieves >= 8x the
+  baseline throughput (top-function Interval/II reduced >= 8x) on
+  xczu9eg-ffvb1156-2-e at a 3.3 ns clock,
+  staying correct against main.cpp's ULP testbench. Chain:
+  hls-architect -> hls-optimize -> hls-run-flow.
+
+test_cases:
+  - id: hls-intro-matmul_gen_01
+    input_files:
+      - kernel.cpp
+      - kernel.hpp
+      - main.cpp
+    prompt: |-
+      generate a dataflow architecture for this matrix multiplication, targeting 8x baseline throughput.
+      Targets: part xczu9eg-ffvb1156-2-e, clock 3.3 ns,
+      matrix 64x64x64.
+
+      The 3.3 ns clock is the SYNTHESIS CONSTRAINT to build both the baseline
+      and the optimized design at, so the speedup is measured at a fixed clock.
+      It is NOT a timing-closure goal you must beat: the success criteria are
+      the >= 8x throughput improvement and correctness. Report the achieved
+      estimated clock, but do not call the run a failure because the estimate
+      came out slightly above 3.3 ns at the same constraint.
+
+      Non-interactive run: never wait for confirmation; use any auto-confirm
+      option and sensible defaults.
+
+
+    expected:
+      skills:
+        - hls-architect
+        - hls-optimize
+        - hls-run-flow
+        - hls-dataflow
+      tool_sequence:
+        - Read
+        - bash
+      tool_call_observed: "bash: --mode hls"
+      target_speedup: "8"
+      artifact_path: outputs/hls-intro-matmul_gen_01/results.json
+      csim_log_path: outputs/hls-intro-matmul_gen_01/csim.log
+      baseline_report_path: outputs/hls-intro-matmul_gen_01/baseline_synth.rpt
+      final_report_path: outputs/hls-intro-matmul_gen_01/final_synth.rpt
+      architect_output_path: outputs/hls-intro-matmul_gen_01/architect_kernel_hls.cpp
+      final_kernel_path: outputs/hls-intro-matmul_gen_01/kernel_final.cpp
+      git_log_path: outputs/hls-intro-matmul_gen_01/optimize_git_log.txt
+      qor_history_path: outputs/hls-intro-matmul_gen_01/qor_history.csv
+      outcomes_log_path: outputs/hls-intro-matmul_gen_01/optimize_outcomes.md
+      # NOTE: this golden states OUTCOMES only, on purpose. The process steps it
+      # used to require — "restructure into an HLS-friendly architecture (load ->
+      # compute -> store dataflow, loop tiling, array partitioning for parallel
+      # MAC, pipelining the inner loop to II=1)" and "iterate, re-running C
+      # synthesis" — were removed, because those are HOW the skill works and are
+      # already graded deterministically (architect_has_dataflow,
+      # architect_has_stages, optimize_changed_kernel, optimize_added_pragmas,
+      # speedup_independent, cosim_impl_conformance). Requiring an LLM judge to
+      # also find them narrated in the reply cost a passing run: 8c6d64c1 scored
+      # 58 vs a 60 bar for omitting exactly those details, with 29x measured
+      # speedup and every other gate green.
+      expected_output:
+        verdict: "YES"
+        explanation: >
+          A successful run (judge the outcomes, not the process or exact
+          directory names): (1) synthesize the baseline triple-nested kernel to
+          record its C-synthesis throughput (top-function Interval/II);
+          (2) reach an optimized design whose Interval is <= 1/8 of the baseline
+          Interval at the 3.3 ns clock on xczu9eg-ffvb1156-2-e (i.e. >= 8x
+          throughput); (3) because csynth shows a meaningful improvement,
+          CONFIRM it on real RTL with C/RTL co-simulation rather than on the
+          csynth estimate alone, and pin cosim.rpt; (4) keep the design correct —
+          main.cpp's ULP testbench must still print PASS. The reply reports
+          baseline vs optimized Interval (II), the achieved throughput speedup
+          (>= 8x) confirmed by cosim, and writes results.json + final_synth.rpt +
+          cosim.rpt under outputs/hls-intro-matmul_gen_01/.

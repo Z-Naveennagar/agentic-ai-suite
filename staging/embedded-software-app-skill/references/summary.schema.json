@@ -1,0 +1,194 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://amd.example/vitis-embedded-app-generator/summary.schema.json",
+  "title": "Vitis Embedded App Generator Summary",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "run",
+    "inputs",
+    "selection",
+    "hardware_facts",
+    "artifacts",
+    "requirements_traceability",
+    "checks",
+    "result"
+  ],
+  "properties": {
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "timestamp_utc", "execution_mode", "tool_version"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "timestamp_utc": {"type": "string", "minLength": 1},
+        "execution_mode": {"type": "string", "enum": ["plan-only", "apply"]},
+        "tool_version": {"type": "string", "minLength": 1}
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["xsa_path", "srs_path"],
+      "properties": {
+        "xsa_path": {"type": "string", "minLength": 1},
+        "srs_path": {"type": "string", "minLength": 1},
+        "vitis_reference_doc": {"type": "string"}
+      }
+    },
+    "selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["os", "cpu_family", "domain_name", "rationale"],
+      "properties": {
+        "os": {"type": "string", "enum": ["baremetal", "freertos", "linux"]},
+        "cpu_family": {"type": "string", "enum": ["apu", "rpu", "microblaze"]},
+        "core_index": {"type": "integer", "minimum": 0},
+        "domain_name": {"type": "string", "minLength": 1},
+        "rationale": {"type": "string", "minLength": 1}
+      }
+    },
+    "hardware_facts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["processors", "memory_regions", "peripherals"],
+      "properties": {
+        "processors": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string"}
+        },
+        "memory_regions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string"}
+        },
+        "peripherals": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hardware_model",
+        "normalized_requirements",
+        "feasibility_report",
+        "implementation_plan",
+        "command_plan",
+        "generate_workspace_script",
+        "validation_report",
+        "summary_json",
+        "execution_feedback_report"
+      ],
+      "properties": {
+        "hardware_model": {"type": "string", "minLength": 1},
+        "normalized_requirements": {"type": "string", "minLength": 1},
+        "feasibility_report": {"type": "string", "minLength": 1},
+        "implementation_plan": {"type": "string", "minLength": 1},
+        "command_plan": {"type": "string", "minLength": 1},
+        "generate_workspace_script": {"type": "string", "minLength": 1},
+        "validation_report": {"type": "string", "minLength": 1},
+        "summary_json": {"type": "string", "minLength": 1},
+        "execution_feedback_report": {"type": "string", "minLength": 1},
+        "workspace_root": {"type": "string"},
+        "build_log": {"type": "string"},
+        "remediation_log": {"type": "string"},
+        "runtime_sanity_artifact": {"type": "string"}
+      }
+    },
+    "requirements_traceability": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "type", "status", "source_anchor", "artifacts"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "type": {"type": "string", "enum": ["FR", "NFR", "AC"]},
+          "status": {"type": "string", "enum": ["pass", "fail", "partial", "blocked"]},
+          "source_anchor": {"type": "string", "minLength": 1},
+          "artifacts": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "notes": {"type": "string"}
+        }
+      }
+    },
+    "checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["prereq", "feasibility", "build", "os_validation"],
+      "properties": {
+        "prereq": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["passed"],
+          "properties": {
+            "passed": {"type": "boolean"},
+            "details": {"type": "array", "items": {"type": "string"}}
+          }
+        },
+        "feasibility": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["passed"],
+          "properties": {
+            "passed": {"type": "boolean"},
+            "details": {"type": "array", "items": {"type": "string"}}
+          }
+        },
+        "build": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["attempted", "passed"],
+          "properties": {
+            "attempted": {"type": "boolean"},
+            "passed": {"type": "boolean"},
+            "retries_used": {"type": "integer", "minimum": 0}
+          }
+        },
+        "os_validation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["os", "checklist_passed"],
+          "properties": {
+            "os": {"type": "string", "enum": ["baremetal", "freertos", "linux"]},
+            "checklist_passed": {"type": "boolean"},
+            "items": {
+              "type": "array",
+              "items": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": {"type": "string", "enum": ["success", "failure"]},
+        "failure": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["code", "class", "root_cause", "next_steps"],
+          "properties": {
+            "code": {"type": "string", "minLength": 1},
+            "class": {"type": "string", "minLength": 1},
+            "root_cause": {"type": "string", "minLength": 1},
+            "next_steps": {
+              "type": "array",
+              "minItems": 1,
+              "items": {"type": "string"}
+            }
+          }
+        }
+      }
+    }
+  }
+}

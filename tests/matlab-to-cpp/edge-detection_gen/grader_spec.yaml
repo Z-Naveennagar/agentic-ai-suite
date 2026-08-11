@@ -1,0 +1,178 @@
+# ── Suite grader spec: edge-detection_gen (full end-to-end) ──────────────
+# Rich output_schema format (field -> grader). Per-case {expected_output} /
+# {skills} / {tool_call_observed} / {target_fps} / {clock_ns} values from
+# test_cases.yaml `expected` are substituted into the grader_args before
+# grading, so one schema grades every case in the suite.
+#
+# output_contract (output_contract_match) replaces the old separate verdict/
+# reasoning llm_judge graders: it diffs the agent's final {"verdict",
+# "explanation"} JSON against expected_output — verdict by literal/tolerant
+# equality (no partial credit), explanation via an LLM judge guided by
+# semantic_fields' intent. The contract itself is declared once in
+# runner_spec.yaml's `output_contract:` and appended to every case's prompt.
+#
+# What this test asserts (full acceleration, NOT a port-only check):
+#   MANDATORY gates (all must pass):
+#     - skill_triggered   : the full chain was invoked
+#     - ran_csynth        : HLS C-synthesis actually ran (v++ ... --mode hls,
+#                           matches --compile or -c) — deterministic evidence
+#     - results_json      : the agent wrote the pinned results.json manifest
+#     - matlab_verified   : results.json says "matlab_verification": "pass"
+#     - achieved_fps      : results.json achieved_fps >= {target_fps}
+#     - achieved_clock    : results.json achieved_clock_ns <= {clock_ns}
+#     - output_contract   : final-response {verdict, explanation} JSON matches the
+#                           golden — chain completed AND MATLAB actually used
+#   SOFT/weighted (drive the numeric score):
+#     - the two artifact_exists copies (no_tool_errors is weight 0 —
+#       informational only, see its own note below)
+#
+# GRADING APPROACH — results.json-based (earliest approach, restored):
+#   Correctness/performance are taken from the agent's pinned results.json:
+#   matlab_verified (content_contains) + achieved_fps/achieved_clock
+#   (metric_threshold) regex the values out of the manifest. The overall
+#   conclusion is judged by output_contract over the final response.
+#   TRADE-OFF: these are the agent's
+#   SELF-REPORTED numbers/status — the grader extracts, it does not recompute
+#   or independently verify them (an agent can write a false "pass"/number).
+#   Only skill_triggered + ran_csynth are independent (transcript/tool)
+#   evidence. (The deterministic file/report parsers and the tiered LLM judges
+#   explored earlier were removed in favour of this approach.)
+#
+# The PROMPT pins output paths under outputs/edge-detection_gen_01/
+# (results.json + copies) so results.json exists at a known path for the
+# regex reads, and the copies survive for manual inspection.
+#
+# No tool_sequence/action_sequence gate: expected.tool_sequence uses generic
+# tool names (Read, bash), not MCP calls — not reliably comparable across CLI
+# backends. ran_csynth (tool_call_observed) covers the real synthesis evidence.
+output_schema:
+  skill_triggered:
+    grader: trigger
+    always: true
+    mandatory: true
+    grader_args: '{skills}'   # whole-value passthrough of expected.skills; threshold defaults to 0.5
+
+  ran_csynth:
+    grader: tool_call_observed
+    always: true
+    mandatory: true
+    grader_args:
+      command: '{tool_call_observed}'
+      min_calls: 1
+
+  no_tool_errors:
+    # weight: 0 -- purely informational: still runs and is recorded per-case
+    # (visible in the dashboard), but contributes nothing to the aggregate
+    # score, matching every other suite in this repo. A bare 'ERROR:' scan of
+    # stderr false-positives easily over an hour-long end-to-end run (the
+    # agent's own grep pattern, a tolerated diagnostic it then fixes), so it
+    # must never be able to move pass/fail on its own.
+    grader: content_contains
+    always: true
+    mandatory: false
+    weight: 0
+    grader_args:
+      source: stderr
+      substring: 'ERROR:'
+      must_not_contain: true
+
+  # The final-response contract: the agent's {"verdict", "explanation"} JSON is
+  # diffed against this case's expected_output. verdict is compared
+  # literally/tolerantly (YES/NO, no partial credit); explanation is LLM-judged
+  # for substance against the intent in semantic_fields below.
+  output_contract:
+    grader: output_contract_match
+    always: false
+    mandatory: true
+    grader_args:
+      expected: '{expected_output}'
+      source: final_response
+      semantic_threshold: 60
+      semantic_fields:
+        explanation: >
+          Judge whether the agent's explanation describes substantially the same
+          end-to-end FLOW as the golden — NOT exact directory names, and NOT the
+          exact FPS/clock figures (those are graded deterministically by
+          achieved_fps/achieved_clock). It should cover: capturing the MATLAB
+          golden reference by actually running MATLAB, porting the algorithm to
+          C++ with HLS-compatible types justified from the measured value ranges,
+          verifying the C++ output against that golden, restructuring into a
+          streaming / dataflow (line-buffer stencil) HLS architecture,
+          iteratively optimizing, and a final C-synthesis result reporting an
+          achieved throughput and clock. Different wording is fine. Fail (low
+          score) if it invents steps that did not happen, misstates the design
+          targets (wrong part, clock, or FPS), claims success with no synthesis
+          evidence, or shows the MATLAB golden was never genuinely captured
+          (e.g. MATLAB unavailable, or a non-MATLAB reference substituted).
+
+  # ── results.json EXISTENCE only — its contents are NOT read anymore.
+  # (Performance/correctness are judged by the LLM from stdout, not parsed from
+  # this file.) This just confirms the agent wrote the pinned manifest.
+  results_json:
+    grader: artifact_exists
+    always: true
+    mandatory: true
+    grader_args:
+      path: '{artifact_path}'
+      min_size_bytes: 2
+
+  # ── Values read from the pinned results.json the agent writes (earliest
+  # approach). These are the agent's SELF-REPORTED numbers/status; the grader
+  # only regex-extracts them from the manifest, it does not recompute them.
+  matlab_verified:
+    grader: content_contains
+    always: true
+    mandatory: true
+    grader_args:
+      source: file
+      path: '{artifact_path}'
+      regex: '"matlab_verification"\s*:\s*"pass"'
+
+  achieved_fps:
+    grader: metric_threshold
+    always: true
+    mandatory: true
+    grader_args:
+      metric: achieved_fps
+      op: '>='
+      threshold: '{target_fps}'
+      extract:
+        source: file
+        path: '{artifact_path}'
+        regex: '"achieved_fps"\s*:\s*"?([0-9]+(?:\.[0-9]+)?)'
+
+  achieved_clock:
+    grader: metric_threshold
+    always: true
+    mandatory: true
+    grader_args:
+      metric: achieved_clock_ns
+      op: '<='
+      threshold: '{clock_ns}'
+      extract:
+        source: file
+        path: '{artifact_path}'
+        regex: '"achieved_clock_ns"\s*:\s*"?([0-9]+(?:\.[0-9]+)?)'
+
+  # ── On-disk artifact copies (weighted; pinned by the prompt) ──
+  golden_copy_exists:
+    grader: artifact_exists
+    always: true
+    mandatory: false
+    weight: 1.0
+    grader_args:
+      path: 'outputs/edge-detection_gen_01/matlab_golden.bin'
+      min_size_bytes: 1024
+
+  synth_report_copy_exists:
+    grader: artifact_exists
+    always: true
+    mandatory: false
+    weight: 1.0
+    grader_args:
+      path: 'outputs/edge-detection_gen_01/final_synth.rpt'
+      min_size_bytes: 1
+
+scoring:
+  aggregation: weighted_sum
+  pass_threshold: 70.0

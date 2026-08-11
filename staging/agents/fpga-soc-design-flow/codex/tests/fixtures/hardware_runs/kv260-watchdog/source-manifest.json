@@ -1,0 +1,419 @@
+{
+  "schema_version": 1,
+  "request_id": "kv260-watchdog-ipcfg-v01-20260730",
+  "spec_revision": 1,
+  "architecture_revision": 1,
+  "revision": 2,
+  "manifest_kind": "aggregate",
+  "component_id": null,
+  "status": "READY",
+  "top": "kv260_watchdog_system_wrapper",
+  "files": [
+    {
+      "path": "design/rtl/kv260_watchdog_ctrl_adapter.sv",
+      "kind": "rtl",
+      "language": "SystemVerilog",
+      "owner": "vivado_rtl_engineer",
+      "architecture_element": "MOD-CONTROL-ADAPTER",
+      "sha256": "32e2ce38711c81a29c29e818581f6aafe025adc6d0fe06a6ead96e61ba1ec72e",
+      "generated": false
+    },
+    {
+      "path": "design/rtl/kv260_watchdog_irq.sv",
+      "kind": "rtl",
+      "language": "SystemVerilog",
+      "owner": "vivado_rtl_engineer",
+      "architecture_element": "MOD-WATCHDOG",
+      "sha256": "fb66a2704eebcc751211a456e1713961dc40b32c0618c7cd9f5b2278ea181274",
+      "generated": false
+    },
+    {
+      "path": "design/vivado/rtl/kv260_watchdog_bd_shim.v",
+      "kind": "rtl",
+      "language": "Verilog",
+      "owner": "amd_soc_platform_integrator",
+      "architecture_element": "MOD-WATCHDOG-BD-SHIM",
+      "sha256": "bf7faca61e3bd01d6e78662de8faf3116f0cf71f29b4b3c87159e5bc5670373b",
+      "generated": false
+    },
+    {
+      "path": "design/vivado/rtl/kv260_watchdog_hw_test_shell.v",
+      "kind": "rtl",
+      "language": "Verilog",
+      "owner": "amd_soc_platform_integrator",
+      "architecture_element": "MOD-WATCHDOG-BD-SHIM",
+      "sha256": "16eb745aecd75bc07e7d65ae664c4ad38cb552b1e7f660e8027679ec799ad562",
+      "generated": false
+    },
+    {
+      "path": "design/vivado/create_project.tcl",
+      "kind": "tcl",
+      "language": "Tcl",
+      "owner": "amd_soc_platform_integrator",
+      "architecture_element": "MOD-ZYNQ-PS",
+      "sha256": "ea1dac8071ef1c4babc6cd6691aba8fb0925aba2251635183d4dbea7c89ebc9a",
+      "generated": false
+    },
+    {
+      "path": "design/vivado/create_bd.tcl",
+      "kind": "tcl",
+      "language": "Tcl",
+      "owner": "amd_soc_platform_integrator",
+      "architecture_element": "MOD-ZYNQ-PS",
+      "sha256": "159d6adefb6f812c9ee1d31be137c19d8913b86d08335fbf94d479b103f88c32",
+      "generated": true
+    },
+    {
+      "path": "design/vivado/project/kv260_watchdog.xpr",
+      "kind": "other",
+      "language": "Vivado project",
+      "owner": "amd_soc_platform_integrator",
+      "architecture_element": "MOD-ZYNQ-PS",
+      "sha256": "11acb6c75d24d27246c52f031d54aec45a3b49bad51d366003271c3d97010e59",
+      "generated": true
+    },
+    {
+      "path": "design/vivado/kv260_watchdog_system.bd",
+      "kind": "block_design",
+      "language": "Vivado IP Integrator",
+      "owner": "amd_soc_platform_integrator",
+      "architecture_element": "MOD-ZYNQ-PS",
+      "sha256": "4724c0002af16e64e637ee86211ea3d71b8b9cd764d0da97513c2655c6878be7",
+      "generated": true
+    },
+    {
+      "path": "design/vivado/hdl/kv260_watchdog_system_wrapper.v",
+      "kind": "rtl",
+      "language": "Verilog",
+      "owner": "amd_soc_platform_integrator",
+      "architecture_element": "MOD-WATCHDOG-BD-SHIM",
+      "sha256": "2e6518ed48e68123682f4503c16f64885e9d3cabad20bf6d95cab24e525c141c",
+      "generated": true
+    },
+    {
+      "path": "design/vivado/kv260_watchdog_system.hwh",
+      "kind": "other",
+      "language": "HWH",
+      "owner": "amd_soc_platform_integrator",
+      "architecture_element": "MOD-ZYNQ-PS",
+      "sha256": "19784ed3164371938ecbb8ba7c726b18d188d3ef11c3588741e169b76a9493ef",
+      "generated": true
+    },
+    {
+      "path": "design/vivado/kv260_watchdog.xsa",
+      "kind": "package",
+      "language": "XSA",
+      "owner": "amd_soc_platform_integrator",
+      "architecture_element": "MOD-ZYNQ-PS",
+      "sha256": "94147250d8759a4a461047d4b05eb6f6be57b025b46dbd2712de73ba3566d254",
+      "generated": true
+    },
+    {
+      "path": "design/vivado/address-map.json",
+      "kind": "other",
+      "language": "JSON",
+      "owner": "amd_soc_platform_integrator",
+      "architecture_element": "IF-PS-AXI-CONTROL",
+      "sha256": "9779bfcc0264804c03c15283a366fe9884c58a9d3c65d13fdc869400cadd9e44",
+      "generated": true
+    },
+    {
+      "path": "design/vivado/platform-metadata.json",
+      "kind": "other",
+      "language": "JSON",
+      "owner": "amd_soc_platform_integrator",
+      "architecture_element": "MOD-ZYNQ-PS",
+      "sha256": "8969e1324da8b63eedc8dd391ed9569d6c0a1997d21a861b586c4a6e52e1451c",
+      "generated": true
+    },
+    {
+      "path": "design/evidence/ip-configuration-evidence.json",
+      "kind": "other",
+      "language": "JSON",
+      "owner": "amd_soc_platform_integrator",
+      "architecture_element": "MOD-ZYNQ-PS",
+      "sha256": "77b9565c4e1f7f2da7adac3f5909d7f2b1b380afaf25899367676b75504c217f",
+      "generated": true
+    },
+    {
+      "path": "design/evidence/realized-clock-reset-topology.json",
+      "kind": "other",
+      "language": "JSON",
+      "owner": "amd_soc_platform_integrator",
+      "architecture_element": "IF-PS-PL-CLOCK",
+      "sha256": "6a73d054a599414800091ab28d063efa03078db9b6243e11048f5698aa5f8680",
+      "generated": true
+    },
+    {
+      "path": "design/reports/platform/bd-validation.rpt",
+      "kind": "other",
+      "language": "text",
+      "owner": "amd_soc_platform_integrator",
+      "architecture_element": "MOD-ZYNQ-PS",
+      "sha256": "7856b96a09d85af18760c7ad2772136607d56d512f27ee59e78f24239debe374",
+      "generated": true
+    },
+    {
+      "path": "design/reports/platform/kv260_watchdog_bd_shim-elaboration.rpt",
+      "kind": "other",
+      "language": "text",
+      "owner": "amd_soc_platform_integrator",
+      "architecture_element": "MOD-WATCHDOG-BD-SHIM",
+      "sha256": "b9315ad9bb3d60e630150bac8f35d2a1295d3e530d5be0deede942bbfd151b4d",
+      "generated": true
+    },
+    {
+      "path": "design/reports/platform/hardware-instrumentation-validation.rpt",
+      "kind": "other",
+      "language": "text",
+      "owner": "amd_soc_platform_integrator",
+      "architecture_element": "MOD-WATCHDOG-BD-SHIM",
+      "sha256": "4b9fbbef0c2bf39a10d7967d03fdc7cc828e13de8e8eb079eeafb82f3ec68f06",
+      "generated": true
+    },
+    {
+      "path": "hardware-test.json",
+      "kind": "other",
+      "language": "JSON",
+      "owner": "amd_soc_hardware_validator",
+      "architecture_element": "MOD-WATCHDOG-BD-SHIM",
+      "sha256": "0ad597b45182288be9be04b7a8b22acd373d39bf6c8297d07aa9bcd369f571ac",
+      "generated": false
+    },
+    {
+      "path": "debug-map.json",
+      "kind": "other",
+      "language": "JSON",
+      "owner": "amd_soc_platform_integrator",
+      "architecture_element": "MOD-WATCHDOG-BD-SHIM",
+      "sha256": "316d59b12fbc272af6d97a1a7f019b3c0ef17c63a53573457411e9c1e1aaad40",
+      "generated": true
+    },
+    {
+      "path": "vivado_agentic_ai_reports/bd-vio-insertion/bd_vio_summary.rpt",
+      "kind": "other",
+      "language": "text",
+      "owner": "amd_soc_platform_integrator",
+      "architecture_element": "MOD-WATCHDOG-BD-SHIM",
+      "sha256": "a735afec9b905d31621c21f538d73ab1ebb58aff7984b82a6839a22834f1d233",
+      "generated": true
+    },
+    {
+      "path": "vivado_agentic_ai_reports/bd-vio-insertion/REPORT.md",
+      "kind": "other",
+      "language": "Markdown",
+      "owner": "amd_soc_platform_integrator",
+      "architecture_element": "MOD-WATCHDOG-BD-SHIM",
+      "sha256": "4aea32bf766279acca2b90b0d52b32d87e00e63a214245ac33d779cade42c98e",
+      "generated": true
+    },
+    {
+      "path": "vivado_agentic_ai_reports/bd-ila-insertion/bd_debug_summary.rpt",
+      "kind": "other",
+      "language": "text",
+      "owner": "amd_soc_platform_integrator",
+      "architecture_element": "MOD-WATCHDOG-BD-SHIM",
+      "sha256": "5934f87a1b623c922fc6d3bafea343c93c7cf74d8d5be53fa434f0bc0b9a91e3",
+      "generated": true
+    },
+    {
+      "path": "vivado_agentic_ai_reports/bd-ila-insertion/REPORT.md",
+      "kind": "other",
+      "language": "Markdown",
+      "owner": "amd_soc_platform_integrator",
+      "architecture_element": "MOD-WATCHDOG-BD-SHIM",
+      "sha256": "7fee9732e020c12e8495b76bb6bce1884f2e3a7d8d374f340d9abd4e87606f48",
+      "generated": true
+    }
+  ],
+  "compile_order": [
+    "design/rtl/kv260_watchdog_ctrl_adapter.sv",
+    "design/rtl/kv260_watchdog_irq.sv",
+    "design/vivado/rtl/kv260_watchdog_bd_shim.v",
+    "design/vivado/rtl/kv260_watchdog_hw_test_shell.v",
+    "design/vivado/kv260_watchdog_system.bd",
+    "design/vivado/hdl/kv260_watchdog_system_wrapper.v"
+  ],
+  "elaboration": {
+    "status": "PASS",
+    "tool": "Vivado 2025.2",
+    "artifacts": [
+      "design/reports/rtl-elaboration/kv260_watchdog_ctrl_adapter-elaboration.rpt",
+      "design/reports/rtl-elaboration/kv260_watchdog_irq-elaboration.rpt",
+      "design/reports/platform/kv260_watchdog_bd_shim-elaboration.rpt",
+      "design/reports/platform/bd-validation.rpt"
+    ],
+    "logs": [
+      "design/reports/rtl-elaboration/elaboration-summary.log",
+      ".vivado-ai/vivado_36574713_37da006e.log"
+    ]
+  },
+  "component_evidence": [
+    {
+      "id": "EVIDENCE-RTL-ELABORATION",
+      "kind": "elaboration",
+      "status": "PASS",
+      "artifacts": [
+        "design/reports/rtl-elaboration/kv260_watchdog_ctrl_adapter-elaboration.rpt",
+        "design/reports/rtl-elaboration/kv260_watchdog_irq-elaboration.rpt"
+      ],
+      "metrics": [
+        {
+          "name": "rtl_owned_modules",
+          "value": 2,
+          "units": "count"
+        },
+        {
+          "name": "errors",
+          "value": 0,
+          "units": "count"
+        }
+      ]
+    },
+    {
+      "id": "EVIDENCE-MODULE-REFERENCE-ELABORATION",
+      "kind": "elaboration",
+      "status": "PASS",
+      "artifacts": [
+        "design/reports/platform/kv260_watchdog_bd_shim-elaboration.rpt"
+      ],
+      "metrics": [
+        {
+          "name": "modules_bound",
+          "value": 3,
+          "units": "count"
+        },
+        {
+          "name": "warnings",
+          "value": 0,
+          "units": "count"
+        },
+        {
+          "name": "errors",
+          "value": 0,
+          "units": "count"
+        }
+      ]
+    },
+    {
+      "id": "EVIDENCE-BLOCK-DESIGN-VALIDATION",
+      "kind": "block_design_validation",
+      "status": "PASS",
+      "artifacts": [
+        "design/vivado/kv260_watchdog_system.bd",
+        "design/reports/platform/bd-validation.rpt",
+        "design/vivado/address-map.json"
+      ],
+      "metrics": [
+        {
+          "name": "cells",
+          "value": 10,
+          "units": "count"
+        },
+        {
+          "name": "errors",
+          "value": 0,
+          "units": "count"
+        },
+        {
+          "name": "critical_warnings",
+          "value": 0,
+          "units": "count"
+        },
+        {
+          "name": "address_segments",
+          "value": 2,
+          "units": "count"
+        }
+      ]
+    },
+    {
+      "id": "EVIDENCE-IP-CONFIGURATION",
+      "kind": "other",
+      "status": "PASS",
+      "artifacts": [
+        "design/evidence/ip-configuration-evidence.json",
+        "design/evidence/realized-clock-reset-topology.json"
+      ],
+      "metrics": [
+        {
+          "name": "coverage",
+          "value": "FULL",
+          "units": null
+        },
+        {
+          "name": "fidelity_grade",
+          "value": "full",
+          "units": null
+        },
+        {
+          "name": "unapplied_requirements",
+          "value": 0,
+          "units": "count"
+        }
+      ]
+    },
+    {
+      "id": "EVIDENCE-PLATFORM-EXPORT",
+      "kind": "other",
+      "status": "PASS",
+      "artifacts": [
+        "design/vivado/kv260_watchdog_system.hwh",
+        "design/vivado/kv260_watchdog.xsa",
+        "design/vivado/platform-metadata.json"
+      ],
+      "metrics": [
+        {
+          "name": "hwh_bytes",
+          "value": 452616,
+          "units": "bytes"
+        },
+        {
+          "name": "xsa_bytes",
+          "value": 1130423,
+          "units": "bytes"
+        },
+        {
+          "name": "bitstream_included",
+          "value": false,
+          "units": null
+        }
+      ]
+    },
+    {
+      "id": "EVIDENCE-HARDWARE-INSTRUMENTATION",
+      "kind": "block_design_validation",
+      "status": "PASS",
+      "artifacts": [
+        "hardware-test.json",
+        "debug-map.json",
+        "design/reports/platform/hardware-instrumentation-validation.rpt",
+        "vivado_agentic_ai_reports/bd-vio-insertion/REPORT.md",
+        "vivado_agentic_ai_reports/bd-ila-insertion/REPORT.md"
+      ],
+      "metrics": [
+        {
+          "name": "vio_safe_reset_start_enable",
+          "value": "1/0/0",
+          "units": null
+        },
+        {
+          "name": "ila_depth",
+          "value": 1024,
+          "units": "samples"
+        },
+        {
+          "name": "ila_probe_widths",
+          "value": "1/1/1/1/16",
+          "units": "bits"
+        },
+        {
+          "name": "replay_errors",
+          "value": 0,
+          "units": "count"
+        }
+      ]
+    }
+  ],
+  "unresolved": []
+}

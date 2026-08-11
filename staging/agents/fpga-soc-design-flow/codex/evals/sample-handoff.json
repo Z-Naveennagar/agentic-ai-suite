@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "request_id": "example-001",
+  "from_agent": "amd_soc_orchestrator",
+  "to_agent": "amd_soc_intent_to_spec",
+  "reason": "Translate the user request into a measurable hardware specification.",
+  "status": "READY",
+  "iteration": 0,
+  "input_artifacts": [
+    {
+      "kind": "user-request",
+      "path": "runs/example-001/user-request.md",
+      "revision": null
+    }
+  ],
+  "required_output": "runs/example-001/hardware-spec.json",
+  "evidence": [],
+  "requires_user_approval": false
+}

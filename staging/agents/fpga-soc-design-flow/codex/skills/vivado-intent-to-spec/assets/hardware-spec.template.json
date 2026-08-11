@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "request_id": "replace-me",
+  "status": "NEEDS_USER_INPUT",
+  "entry_type": "greenfield",
+  "intent": {"original_request": "", "goal": "", "deliverables": []},
+  "target": {"part": null, "board": null, "vivado_version": null},
+  "requirements": {},
+  "acceptance": {},
+  "provenance": {},
+  "assumptions": [],
+  "unresolved_questions": []
+}

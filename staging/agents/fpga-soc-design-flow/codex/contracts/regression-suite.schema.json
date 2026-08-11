@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "regression-suite.schema.json",
+  "title": "Ordered Regression Suite v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "title",
+    "model_policy",
+    "target",
+    "acceptance",
+    "cases"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_-]*$"},
+    "title": {"type": "string", "minLength": 1},
+    "model_policy": {"const": "frontier-inherited"},
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["board", "board_part", "part", "vivado_version"],
+      "properties": {
+        "board": {"type": "string", "minLength": 1},
+        "board_part": {"type": "string", "minLength": 1},
+        "part": {"type": "string", "minLength": 1},
+        "vivado_version": {"type": "string", "minLength": 1}
+      }
+    },
+    "acceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "require_contracts",
+        "require_independent_simulation",
+        "require_vivado_signoff",
+        "require_programming_image"
+      ],
+      "properties": {
+        "require_contracts": {"const": true},
+        "require_independent_simulation": {"const": true},
+        "require_vivado_signoff": {"const": true},
+        "require_programming_image": {"const": true}
+      }
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 50,
+      "items": {"$ref": "#/$defs/case"}
+    }
+  },
+  "$defs": {
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rank", "case_id", "level", "focus"],
+      "properties": {
+        "rank": {"type": "integer", "minimum": 1, "maximum": 50},
+        "case_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_-]*$"},
+        "level": {"enum": ["foundation", "intermediate", "advanced", "system"]},
+        "focus": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

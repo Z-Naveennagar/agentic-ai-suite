@@ -1,0 +1,121 @@
+{
+  "cdc_crossings": [],
+  "clock_domains": [
+    {
+      "constraint_name": "sys_clk",
+      "frequency_hz": 100000000,
+      "id": "CLK-SYS",
+      "name": "clk",
+      "source": "board oscillator"
+    }
+  ],
+  "decisions": [
+    {
+      "alternatives": [
+        "HLS"
+      ],
+      "changes_observable_behavior": false,
+      "confidence": "HIGH",
+      "evidence_source": "USER",
+      "id": "DEC-DIRECT-RTL",
+      "rationale": "The function is small and the user requested direct RTL.",
+      "requirement_ids": [
+        "REQ-COUNTER"
+      ],
+      "selected": "SystemVerilog RTL"
+    }
+  ],
+  "interfaces": [],
+  "modules": [
+    {
+      "clock_domains": [
+        "CLK-SYS"
+      ],
+      "function": "Count rising event edges.",
+      "id": "MOD-COUNTER",
+      "implementation": "rtl",
+      "name": "event_counter",
+      "owner": "vivado_rtl_engineer",
+      "parameters": [
+        {
+          "name": "COUNTER_WIDTH",
+          "units": "bits",
+          "value": 8
+        }
+      ],
+      "performance": {
+        "initiation_interval_max": 1,
+        "latency_cycles_max": 1,
+        "throughput_min": 100000000,
+        "throughput_units": "clock cycles per second"
+      },
+      "requirement_ids": [
+        "REQ-COUNTER"
+      ],
+      "reset_domains": [
+        "RST-SYS"
+      ]
+    }
+  ],
+  "request_id": "example-direct-rtl",
+  "reset_domains": [
+    {
+      "assertion": "synchronous",
+      "clock_domain": "CLK-SYS",
+      "deassertion": "synchronous",
+      "id": "RST-SYS",
+      "name": "rst",
+      "polarity": "active_high"
+    }
+  ],
+  "revision": 1,
+  "risks": [],
+  "schema_version": 1,
+  "source_plan": [
+    {
+      "id": "SRC-COUNTER",
+      "implements": [
+        "MOD-COUNTER"
+      ],
+      "kind": "rtl",
+      "language": "SystemVerilog",
+      "name": "event_counter",
+      "owner": "vivado_rtl_engineer",
+      "path": "design/rtl/event_counter.sv"
+    }
+  ],
+  "spec_revision": 1,
+  "status": "READY",
+  "verification_obligations": [
+    {
+      "id": "VER-COUNTER",
+      "method": "cocotb simulation",
+      "name": "Counter behavior",
+      "owner": "amd_soc_verifier",
+      "pass_condition": "All directed and randomized edge-counting tests pass.",
+      "requirement_ids": [
+        "REQ-COUNTER"
+      ]
+    }
+  ],
+  "work_packages": [
+    {
+      "acceptance_ids": [
+        "ACC-COUNTER-SIM"
+      ],
+      "agent": "vivado_rtl_engineer",
+      "architecture_elements": [
+        "MOD-COUNTER"
+      ],
+      "depends_on": [],
+      "id": "WP-COUNTER-RTL",
+      "inputs": [
+        "hardware-spec.json"
+      ],
+      "outputs": [
+        "design/rtl/event_counter.sv",
+        "source-manifest.json"
+      ]
+    }
+  ]
+}

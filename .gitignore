@@ -1,0 +1,19 @@
+.tmp/
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+node_modules/
+deploy/pdf/output/
+
+# Skill evaluation runtime and generated signoff packages
+skill_eval/_runtime/
+skill_eval/_workspace/
+skill_eval/.claude/
+skill_eval/.opencode/
+skill_eval/src/*.egg-info/
+skill-signoffs/*
+!skill-signoffs/.gitkeep
+!skill-signoffs/_example/
+!skill-signoffs/_example/**
+.claude/worktrees/

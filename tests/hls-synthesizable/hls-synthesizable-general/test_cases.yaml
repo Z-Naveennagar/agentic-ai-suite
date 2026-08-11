@@ -1,0 +1,100 @@
+# ── Suite: hls-synthesizable ─────────────────────
+# HLS coding style skills test — synthesizability analysis on 5 code
+# snippets covering guarded vs unguarded system calls, unguarded dynamic
+# memory (malloc/free), and recursion.
+#
+# Sourced from: inputs/vitis-hls-skills-test.JSON (queries manifest).
+#
+# Placeholders substituted into any prompt:
+#   {input_file}  -> the first entry of a case's input_files
+# {skill_name} / {flow_skill} are internal bookkeeping only (used in
+# expected.skills and in SKILL.md lookups) — they never appear inside
+# a prompt's literal text. No test case, of any shape, ever names a
+# skill in its customer-facing prompt.
+#
+# Per-case fields:
+#   id           unique case id
+#   input_files  files staged into the workspace from ./inputs
+#   prompt       the case's instruction — analysis-only one-liner, always
+#                skill-agnostic, informed by reading the relevant SKILL.md.
+#                The mandated {"verdict", "explanation"} JSON contract is NOT
+#                repeated per case: it's appended once via runner_spec.yaml's
+#                `output_contract:` (shared_prompt_prefix + output_contract +
+#                this prompt, per core/case_loader.py).
+#   expected     values substituted into grader_spec {tokens}:
+#                  expected_output -> golden {verdict, explanation} dict,
+#                                     graded whole by output_contract_match:
+#                                     verdict is literal/tolerant-compared
+#                                     (YES/NO, no partial credit), explanation
+#                                     is LLM-judged for substance via
+#                                     grader_spec's semantic_fields intent
+#                  skills          -> every skill this case is expected to invoke
+#                  tool_sequence   -> always present: expected tool calls in order
+
+suite_id: hls-synthesizable
+description: >
+  Static synthesizability analysis across 5 C/C++ snippets. Each case asks
+  whether the code is synthesizable for Vitis HLS, covering system calls
+  (guarded vs unguarded), unguarded dynamic memory, and recursion. Sourced
+  from inputs/vitis-hls-skills-test.JSON.
+
+test_cases:
+  - id: hls-synthesizable_01
+    input_files: [hls-synthesizable_01.cpp]
+    prompt: |-
+      Analyze `{input_file}`: is this C++ code synthesizable for Vitis
+      HLS? Give a static analysis without running HLS. Explain your answer.
+    expected:
+      skills: [hls-synthesizable]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "YES"
+        explanation: "Synthesizable — the system calls (`std::fopen`, `std::fprintf`, `std::fclose`, `std::snprintf`) in `hier_func4` are correctly guarded with `#ifndef __SYNTHESIS__` … `#endif`, and no dynamic memory, recursion, virtual function, forbidden STL or unsupported type is present."
+
+  - id: hls-synthesizable_02
+    input_files: [hls-synthesizable_02.cpp]
+    prompt: |-
+      Analyze `{input_file}`: is this C++ code synthesizable for Vitis
+      HLS? Give a static analysis without running HLS. Explain your answer.
+    expected:
+      skills: [hls-synthesizable]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Not synthesizable — the system calls (`std::sprintf`, `std::fopen`, `std::fprintf`, `std::fclose`) in the top function `hier_func4` are NOT guarded by `#ifndef __SYNTHESIS__`; a code comment alone is not a valid guard."
+
+  - id: hls-synthesizable_03
+    input_files: [hls-synthesizable_03.cpp]
+    prompt: |-
+      Analyze `{input_file}`: is this C++ code synthesizable for Vitis
+      HLS? Give a static analysis without running HLS. Explain your answer.
+    expected:
+      skills: [hls-synthesizable]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Not synthesizable — the top function `malloc_removed` uses dynamic memory (`malloc`/`free`) with no `#ifndef __SYNTHESIS__` guard; dynamic memory allocation is unsupported for synthesis."
+
+  - id: hls-synthesizable_04
+    input_files: [hls-synthesizable_04.cpp]
+    prompt: |-
+      Analyze `{input_file}`: is this C++ code synthesizable for Vitis
+      HLS? Give a static analysis without running HLS. Explain your answer.
+    expected:
+      skills: [hls-synthesizable]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Not synthesizable — the function `foo` is recursive (it calls itself as `foo(n - 2) + foo(n - 1)` to compute a Fibonacci sequence), and recursive functions are not supported for HLS synthesis."
+
+  - id: hls-synthesizable_05
+    input_files: [hls-synthesizable_05.cpp]
+    prompt: |-
+      Analyze `{input_file}`: is this C++ code synthesizable for Vitis
+      HLS? Give a static analysis without running HLS. Explain your answer.
+    expected:
+      skills: [hls-synthesizable]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Not synthesizable — the function `foo` is recursive (it calls itself as `foo(n, m % n)` to compute a GCD via the Euclidean algorithm), and recursive functions are not supported for HLS synthesis."

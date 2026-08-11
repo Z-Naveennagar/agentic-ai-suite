@@ -1,0 +1,169 @@
+name: "[ZB] opencode setup"
+
+# Installs opencode and generates its Azure OpenAI config
+# (~/.config/opencode/opencode.json) from repo-level credentials, so the
+# runner ends up in the same state as a dev box following
+# skill_eval/README.md's Azure OpenAI section by hand -- see
+# ~/.bashrc / ~/.config/opencode/opencode.jsonc on xsjhalo06 for the
+# hand-authored version this mirrors.
+#
+# AZURE_API_KEY is expected as a repo Secret and AZURE_RESOURCE_NAME as a
+# repo Variable (the resource name, e.g. "vivado-ai", isn't sensitive on
+# its own). Both need to be added to this repo's Settings before this
+# workflow can do anything beyond the install step.
+#
+# The smoke-test call (an actual `opencode run` against Azure) is not
+# wired up yet -- flip SKILL_TEST_OPENCODE_SMOKE_TEST enable once the repo
+# secret/variable are confirmed present.
+
+on:
+  workflow_dispatch:
+  # Same workflow_dispatch caveat as runner-diagnostics.yml: GitHub only
+  # allows dispatching a workflow that has existed on the default branch at
+  # least once, and this file hasn't been merged there yet. push has no
+  # such restriction, so it's the only way to exercise this before it
+  # lands on main -- scoped to this feature branch only so it doesn't fire
+  # on every push once merged.
+  push:
+    branches:
+      - zettabolt/test-infra-github-actions
+
+permissions:
+  contents: read
+
+jobs:
+  opencode-setup:
+    # See runner-diagnostics.yml for what ZB_ONLY_WORKFLOW does; unset means
+    # this workflow runs as before.
+    if: ${{ vars.ZB_ONLY_WORKFLOW == '' || vars.ZB_ONLY_WORKFLOW == 'opencode-setup' }}
+    runs-on: [xsjhalo06]
+    timeout-minutes: 15
+    env:
+      AZURE_API_KEY: ${{ secrets.AZURE_API_KEY }}
+      AZURE_RESOURCE_NAME: ${{ vars.AZURE_RESOURCE_NAME }}
+    steps:
+      - name: Job summary header
+        run: echo "# [ZB] opencode setup" >> "$GITHUB_STEP_SUMMARY"
+
+      # Same installer skill_eval/README.md documents for a dev box.
+      # $HOME/.opencode/bin is the installer's own default -- add it to
+      # PATH so every later step just calls `opencode`.
+      - name: Install opencode
+        run: |
+          curl -fsSL https://opencode.ai/install | bash
+          echo "$HOME/.opencode/bin" >> "$GITHUB_PATH"
+
+      - name: opencode version
+        run: |
+          export PATH="$HOME/.opencode/bin:$PATH"
+          if command -v opencode >/dev/null 2>&1; then
+            OC_PATH=$(command -v opencode)
+            OC_VER=$(opencode --version 2>&1 | head -n1) || OC_VER="(opencode --version failed)"
+          else
+            OC_PATH="-"
+            OC_VER="opencode not found on PATH after install"
+          fi
+          echo "$OC_PATH"
+          echo "$OC_VER"
+
+          {
+            echo "### opencode"
+            echo
+            echo "| Path | Version |"
+            echo "|---|---|"
+            echo "| \`$OC_PATH\` | $OC_VER |"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Mirrors ~/.config/opencode/opencode.jsonc from a dev box: an
+      # "azure" provider block with apiKey/resourceName pulled from the
+      # environment at *opencode-run* time via the {env:...} indirection
+      # (never inlined), plus the deployed model list. Written fresh every
+      # run so this workflow is the source of truth for CI's config, not a
+      # runner-local file that could drift.
+      - name: Generate opencode config (Azure OpenAI)
+        run: |
+          mkdir -p "$HOME/.config/opencode"
+          cat > "$HOME/.config/opencode/opencode.json" <<'JSON'
+          {
+            "$schema": "https://opencode.ai/config.json",
+
+            "provider": {
+              "azure": {
+                "options": {
+                  "apiKey": "{env:AZURE_API_KEY}",
+                  "resourceName": "{env:AZURE_RESOURCE_NAME}",
+                  "baseURL": "https://${AZURE_RESOURCE_NAME}.openai.azure.com/openai",
+                  "timeout": 600000
+                },
+                "models": {
+                  "gpt-5.4-nano": {
+                    "name": "Azure GPT-5.4 Nano",
+                    "modalities": { "input": ["text"], "output": ["text"] }
+                  },
+                  "gpt-5.4-mini": {
+                    "name": "Azure GPT-5.4 Mini",
+                    "modalities": { "input": ["text"], "output": ["text"] }
+                  },
+                  "gpt-5.4": {
+                    "name": "Azure GPT-5.4",
+                    "modalities": { "input": ["text"], "output": ["text"] }
+                  },
+                  "gpt-5.4-pro": {
+                    "name": "Azure GPT-5.4 Pro",
+                    "modalities": { "input": ["text"], "output": ["text"] }
+                  }
+                }
+              }
+            },
+
+            "model": "azure/gpt-5.4",
+            "small_model": "azure/gpt-5.4-nano"
+          }
+          JSON
+          # baseURL above is a literal ${AZURE_RESOURCE_NAME} placeholder --
+          # substitute it now since opencode's {env:...} indirection only
+          # covers whole-field values, not interpolation inside a string.
+          envsubst '${AZURE_RESOURCE_NAME}' < "$HOME/.config/opencode/opencode.json" > /tmp/opencode.json \
+            && mv /tmp/opencode.json "$HOME/.config/opencode/opencode.json"
+
+          echo "wrote $HOME/.config/opencode/opencode.json"
+          cat "$HOME/.config/opencode/opencode.json"
+
+      - name: Verify credentials are present (no secret values printed)
+        run: |
+          {
+            echo "### Azure OpenAI credentials"
+            echo
+            echo "| Variable | Present |"
+            echo "|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          for var in AZURE_API_KEY AZURE_RESOURCE_NAME; do
+            if [ -n "${!var:-}" ]; then
+              echo "$var is set"
+              echo "| \`$var\` | yes |" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "$var is NOT set -- add it under repo Settings > Secrets and variables > Actions"
+              echo "| \`$var\` | :x: no |" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+          echo >> "$GITHUB_STEP_SUMMARY"
+
+      # Deliberately not run yet -- flip SKILL_TEST_OPENCODE_SMOKE_TEST once
+      # AZURE_API_KEY (secret) and AZURE_RESOURCE_NAME (variable) are
+      # confirmed added to this repo. This is the only step in the
+      # workflow that actually calls Azure.
+      - name: Smoke test - opencode run against Azure (gated)
+        if: ${{ vars.SKILL_TEST_OPENCODE_SMOKE_TEST == '1' }}
+        run: |
+          export PATH="$HOME/.opencode/bin:$PATH"
+          opencode run "say hi in exactly three words" \
+            --model azure/gpt-5.4-nano \
+            --print-logs
+
+      - name: Smoke test skipped
+        if: ${{ vars.SKILL_TEST_OPENCODE_SMOKE_TEST != '1' }}
+        run: |
+          echo "Smoke test skipped (set repo variable SKILL_TEST_OPENCODE_SMOKE_TEST=1 to enable once AZURE_API_KEY/AZURE_RESOURCE_NAME are added)." \
+            >> "$GITHUB_STEP_SUMMARY"

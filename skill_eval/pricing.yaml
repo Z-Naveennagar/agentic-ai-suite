@@ -1,0 +1,240 @@
+# ==============================================================================
+# amd-skills-test — model & hardware pricing
+#
+# Split out of config.yaml because this data (vendor $/Mtok rates, capex/
+# power for self-hosted machines) is maintained on a different cadence and by
+# a different concern than harness behavior config: it's a spreadsheet of
+# externally-sourced numbers, not a settings file. Validated against
+# schemas/pricing_schema.json (same guarantee config.yaml gets against
+# config_schema.json). Loaded by core/cost_model.py, which merges this file's
+# `model_pricing:` block into the config dict under that same key — nothing
+# downstream of cost_model.py (compute_cost, is_self_hosted, describe_machines,
+# ...) needed to change for the split.
+#
+# Lives at the repo root alongside config.yaml (core/paths.py:
+# DEFAULT_PRICING_CONFIG). A missing file degrades to "no pricing data"
+# (costs come back as None/unknown) rather than a hard error, matching how a
+# missing config.yaml behaves.
+# ==============================================================================
+
+model_pricing:
+  default_currency: usd
+  estimation_chars_per_token: 3.5
+
+  # Legacy "cloud-equivalent" flat rate. Used only by self-hosted models that
+  # do NOT reference a machine below, or by models where the rule lookup
+  # fails. Kept for backward compatibility and for modeling
+  # "what would this cost on rented hardware?"
+  hosted_gpu_hourly_usd: 1.50
+  hosted_gpu_tok_per_sec: 40
+
+  # Hardware cost models for self-hosted boxes. Per-query cost is computed as:
+  #   hourly_rate     = capex_usd / (useful_life_years * 8760)        # capex amortized across CALENDAR hours
+  #                   + avg_power_watts / 1000 * electricity_usd_per_kwh
+  #   query_cost_usd  = elapsed_s / 3600 * hourly_rate
+  #
+  # Calendar-hour amortization is the right model for hardware you OWN: the
+  # box depreciates 24/7 whether or not you are running queries, so the
+  # per-query cost should be stable regardless of utilization.  Each query
+  # is billed only for the wall-clock seconds it actually consumed.
+  #
+  # `avg_power_watts` is the FALLBACK estimate used only when a row has no
+  # measured power.  When the runner can sample the SoC PPT sensor (Strix
+  # Halo / Phoenix iGPU), each self-hosted row is billed at its actual
+  # measured average watts (skills_testing/power_meter.py) and the
+  # `power_metrics` column on the result row records the active mean,
+  # peak, and post-test idle baseline.  The cost_method tag flips from
+  # `local_calendar_amortized:<machine>` to `local_measured:<machine>`
+  # so the dashboard can disclose the real numbers.
+  machines:
+    strix_halo:
+      description: "AMD Ryzen AI Max+ 395 (Strix Halo) mini-PC / dev kit"
+      # Updated 2026-05: average street price for 128 GB consumer mini-PCs
+      # (GMKtec EVO-X2 $1999, PELAND YO1 $1850, Nimo $2499, Framework
+      # Desktop ~$2500). Excludes Corsair AI WS 300 ($3399) which is a
+      # workstation-class outlier.
+      capex_usd: 2200
+      useful_life_years: 3
+      # MEASURED on this Strix Halo box, 2026-05-05, via skills_testing/power_meter.py
+      # while Gemma-4-26B-A4B-it-GGUF generated 1100 completion tokens through the
+      # Lemonade OpenAI endpoint:
+      #   avg_active_w = 89.6 W   peak_w = 98.0 W   idle baseline_w = 17.1 W
+      # Rounded to the nearest watt.  Still acts as the FALLBACK when a row has
+      # no per-row sampled PPT metric.
+      avg_power_watts: 90
+      electricity_usd_per_kwh: 0.12  # US commercial average
+    # Examples for other accounting choices:
+    # cloud_a100_spot:
+    #   description: "AWS p4d.24xlarge spot proxy"
+    #   override_hourly_usd: 1.50    # rented; bypass capex/electricity
+    # workstation_4090:
+    #   capex_usd: 3500
+    #   useful_life_years: 4
+    #   avg_power_watts: 200
+    #   electricity_usd_per_kwh: 0.16
+
+  models:
+    # ─── Anthropic Claude on Google Cloud Vertex AI (Global region) ───
+    # Source: https://cloud.google.com/vertex-ai/generative-ai/pricing
+    #         "Anthropic's Claude models" → Global tier
+    # Verified: 2026-04-23.  US/EU regional tiers add ~10% (e.g. $5.50/$27.50
+    # for Opus); switch to those if you bill against a regional endpoint.
+    # Sonnet 4.5 has a >200K-context tier ($6.00/$22.50) — not modeled here
+    # because every query in this benchmark fits well under 200K input tokens.
+    "claude-opus-4.7":                    { input_per_mtok:  5.00, output_per_mtok: 25.00, cache_read_per_mtok: 0.50, cache_write_per_mtok: 6.25 }
+    "claude-opus-4.6":                    { input_per_mtok:  5.00, output_per_mtok: 25.00 }
+    "claude-opus-4-6":                    { input_per_mtok:  5.00, output_per_mtok: 25.00 }
+    "claude-opus-4.5":                    { input_per_mtok:  5.00, output_per_mtok: 25.00 }
+    "claude-sonnet-4.6":                  { input_per_mtok:  3.00, output_per_mtok: 15.00 }
+    "claude-sonnet-4.5":                  { input_per_mtok:  3.00, output_per_mtok: 15.00 }
+    "claude-sonnet-4-5":                  { input_per_mtok:  3.00, output_per_mtok: 15.00 }
+    "claude-4.6-sonnet-medium-thinking":  { input_per_mtok:  3.00, output_per_mtok: 15.00 }
+    "claude-4.6-opus-high-thinking":      { input_per_mtok:  5.00, output_per_mtok: 25.00 }
+    "claude-haiku-4.5":                   { input_per_mtok:  1.00, output_per_mtok:  5.00 }
+    "sonnet":                             { input_per_mtok:  3.00, output_per_mtok: 15.00 }   # Claude Code default → Sonnet 4.x
+    "opus":                               { input_per_mtok:  5.00, output_per_mtok: 25.00 }   # Claude Code default → Opus 4.x
+
+    # ─── Claude 5 family (verified 2026-07-29 against
+    # https://cursor.com/docs/models-and-pricing — same source as the Cursor
+    # block below, but these ids also surface bare/gateway-qualified from
+    # Claude Code and opencode, hence living up here too). Glob keys are used
+    # because every reasoning-effort suffix (-thinking-high, -xhigh, ...)
+    # bills identically.
+    "claude-opus-5*":                     { input_per_mtok:  5.00, output_per_mtok: 25.00, cache_read_per_mtok: 0.50, cache_write_per_mtok: 6.25 }
+    "claude-opus-4-8*":                   { input_per_mtok:  5.00, output_per_mtok: 25.00, cache_read_per_mtok: 0.50, cache_write_per_mtok: 6.25 }
+    "claude-opus-4.8*":                   { input_per_mtok:  5.00, output_per_mtok: 25.00, cache_read_per_mtok: 0.50, cache_write_per_mtok: 6.25 }
+    "claude-sonnet-5*":                   { input_per_mtok:  3.00, output_per_mtok: 15.00, cache_read_per_mtok: 0.30, cache_write_per_mtok: 3.75 }
+    # ~2x Opus cost per the Cursor pricing page.
+    "claude-fable-5*":                    { input_per_mtok: 10.00, output_per_mtok: 50.00, cache_read_per_mtok: 1.00, cache_write_per_mtok: 12.50 }
+
+    # ─── Cursor `agent` CLI model IDs ───
+    # Source: https://cursor.com/docs/models-and-pricing
+    # Verified: 2026-05-27.  CLI model IDs come from `agent --list-models`.
+    # Cursor bills at each provider's API rate from the API usage pool.
+    # cache_read/write rates are from the official pricing table.
+    #
+    # -- Anthropic Claude (via Cursor API pool) --
+    # Claude 4.7 Opus (all reasoning-effort variants share the same rate)
+    "claude-opus-4-7-low":                { input_per_mtok:  5.00, output_per_mtok: 25.00, cache_read_per_mtok: 0.50, cache_write_per_mtok: 6.25 }
+    "claude-opus-4-7-medium":             { input_per_mtok:  5.00, output_per_mtok: 25.00, cache_read_per_mtok: 0.50, cache_write_per_mtok: 6.25 }
+    "claude-opus-4-7-high":               { input_per_mtok:  5.00, output_per_mtok: 25.00, cache_read_per_mtok: 0.50, cache_write_per_mtok: 6.25 }
+    "claude-opus-4-7-xhigh":              { input_per_mtok:  5.00, output_per_mtok: 25.00, cache_read_per_mtok: 0.50, cache_write_per_mtok: 6.25 }
+    "claude-opus-4-7-max":                { input_per_mtok:  5.00, output_per_mtok: 25.00, cache_read_per_mtok: 0.50, cache_write_per_mtok: 6.25 }
+    "claude-opus-4-7-thinking-low":       { input_per_mtok:  5.00, output_per_mtok: 25.00, cache_read_per_mtok: 0.50, cache_write_per_mtok: 6.25 }
+    "claude-opus-4-7-thinking-medium":    { input_per_mtok:  5.00, output_per_mtok: 25.00, cache_read_per_mtok: 0.50, cache_write_per_mtok: 6.25 }
+    "claude-opus-4-7-thinking-high":      { input_per_mtok:  5.00, output_per_mtok: 25.00, cache_read_per_mtok: 0.50, cache_write_per_mtok: 6.25 }
+    "claude-opus-4-7-thinking-xhigh":     { input_per_mtok:  5.00, output_per_mtok: 25.00, cache_read_per_mtok: 0.50, cache_write_per_mtok: 6.25 }
+    "claude-opus-4-7-thinking-max":       { input_per_mtok:  5.00, output_per_mtok: 25.00, cache_read_per_mtok: 0.50, cache_write_per_mtok: 6.25 }
+    # Claude 4.6 Opus
+    "claude-4.6-opus-high":               { input_per_mtok:  5.00, output_per_mtok: 25.00, cache_read_per_mtok: 0.50, cache_write_per_mtok: 6.25 }
+    "claude-4.6-opus-max":                { input_per_mtok:  5.00, output_per_mtok: 25.00, cache_read_per_mtok: 0.50, cache_write_per_mtok: 6.25 }
+    "claude-4.6-opus-high-thinking":      { input_per_mtok:  5.00, output_per_mtok: 25.00, cache_read_per_mtok: 0.50, cache_write_per_mtok: 6.25 }
+    "claude-4.6-opus-max-thinking":       { input_per_mtok:  5.00, output_per_mtok: 25.00, cache_read_per_mtok: 0.50, cache_write_per_mtok: 6.25 }
+    # Claude 4.5 Opus
+    "claude-4.5-opus-high":               { input_per_mtok:  5.00, output_per_mtok: 25.00, cache_read_per_mtok: 0.50, cache_write_per_mtok: 6.25 }
+    "claude-4.5-opus-high-thinking":      { input_per_mtok:  5.00, output_per_mtok: 25.00, cache_read_per_mtok: 0.50, cache_write_per_mtok: 6.25 }
+    # Claude 4.5 Haiku (hidden from --list-models but usable with --model)
+    "claude-4.5-haiku":                   { input_per_mtok:  1.00, output_per_mtok:  5.00, cache_read_per_mtok: 0.10, cache_write_per_mtok: 1.25 }
+    "claude-4.5-haiku-thinking":          { input_per_mtok:  1.00, output_per_mtok:  5.00, cache_read_per_mtok: 0.10, cache_write_per_mtok: 1.25 }
+    # Claude 4.5 Sonnet
+    "claude-4.5-sonnet":                  { input_per_mtok:  3.00, output_per_mtok: 15.00, cache_read_per_mtok: 0.30, cache_write_per_mtok: 3.75 }
+    "claude-4.5-sonnet-thinking":         { input_per_mtok:  3.00, output_per_mtok: 15.00, cache_read_per_mtok: 0.30, cache_write_per_mtok: 3.75 }
+    # Claude 4 Sonnet
+    "claude-4-sonnet":                    { input_per_mtok:  3.00, output_per_mtok: 15.00, cache_read_per_mtok: 0.30, cache_write_per_mtok: 3.75 }
+    "claude-4-sonnet-thinking":           { input_per_mtok:  3.00, output_per_mtok: 15.00, cache_read_per_mtok: 0.30, cache_write_per_mtok: 3.75 }
+    #
+    # -- Cursor in-house models (Auto + Composer pool) --
+    # Source: https://cursor.com/docs/models-and-pricing "Auto + Composer pool"
+    "auto":                               { input_per_mtok:  1.25, output_per_mtok:  6.00, cache_read_per_mtok: 0.25 }
+    "composer-2.5":                       { input_per_mtok:  0.50, output_per_mtok:  2.50, cache_read_per_mtok: 0.20, cache_write_per_mtok: 0.0 }
+    # Fast mode is 6x standard Composer 2.5 ($0.50/$2.50 -> $3/$15), verified
+    # 2026-07-29 against the rendered pricing page (the page's Composer
+    # tables don't survive markdown extraction, so re-verify visually, not
+    # via a scrape, if this ever needs rechecking). cache_read scaled by the
+    # same 6x pending an official per-token cache figure for Fast mode.
+    "composer-2.5-fast":                  { input_per_mtok:  3.00, output_per_mtok: 15.00, cache_read_per_mtok: 1.20, cache_write_per_mtok: 0.0 }
+    "composer-2":                         { input_per_mtok:  0.50, output_per_mtok:  2.50, cache_read_per_mtok: 0.20, cache_write_per_mtok: 0.0 }
+    "composer-2-fast":                    { input_per_mtok:  0.50, output_per_mtok:  2.50, cache_read_per_mtok: 0.20, cache_write_per_mtok: 0.0 }
+    #
+    # -- OpenAI (via Cursor API pool) --
+    "gpt-5.5-none":                       { input_per_mtok:  5.00, output_per_mtok: 30.00, cache_read_per_mtok: 0.50 }
+    "gpt-5.5-low":                        { input_per_mtok:  5.00, output_per_mtok: 30.00, cache_read_per_mtok: 0.50 }
+    "gpt-5.5-medium":                     { input_per_mtok:  5.00, output_per_mtok: 30.00, cache_read_per_mtok: 0.50 }
+    "gpt-5.5-high":                       { input_per_mtok:  5.00, output_per_mtok: 30.00, cache_read_per_mtok: 0.50 }
+    "gpt-5.5-extra-high":                 { input_per_mtok:  5.00, output_per_mtok: 30.00, cache_read_per_mtok: 0.50 }
+    "gpt-5.4-low":                        { input_per_mtok:  2.50, output_per_mtok: 15.00, cache_read_per_mtok: 0.25 }
+    "gpt-5.4-medium":                     { input_per_mtok:  2.50, output_per_mtok: 15.00, cache_read_per_mtok: 0.25 }
+    "gpt-5.4-high":                       { input_per_mtok:  2.50, output_per_mtok: 15.00, cache_read_per_mtok: 0.25 }
+    "gpt-5.4-xhigh":                      { input_per_mtok:  2.50, output_per_mtok: 15.00, cache_read_per_mtok: 0.25 }
+    "gpt-5.4-mini-none":                  { input_per_mtok:  0.75, output_per_mtok:  4.50, cache_read_per_mtok: 0.075 }
+    "gpt-5.4-mini-low":                   { input_per_mtok:  0.75, output_per_mtok:  4.50, cache_read_per_mtok: 0.075 }
+    "gpt-5.4-mini-medium":                { input_per_mtok:  0.75, output_per_mtok:  4.50, cache_read_per_mtok: 0.075 }
+    "gpt-5.4-mini-high":                  { input_per_mtok:  0.75, output_per_mtok:  4.50, cache_read_per_mtok: 0.075 }
+    "gpt-5.4-mini-xhigh":                 { input_per_mtok:  0.75, output_per_mtok:  4.50, cache_read_per_mtok: 0.075 }
+    "gpt-5.4-nano-none":                  { input_per_mtok:  0.20, output_per_mtok:  1.25, cache_read_per_mtok: 0.02 }
+    "gpt-5.4-nano-low":                   { input_per_mtok:  0.20, output_per_mtok:  1.25, cache_read_per_mtok: 0.02 }
+    "gpt-5.4-nano-medium":                { input_per_mtok:  0.20, output_per_mtok:  1.25, cache_read_per_mtok: 0.02 }
+    "gpt-5.4-nano-high":                  { input_per_mtok:  0.20, output_per_mtok:  1.25, cache_read_per_mtok: 0.02 }
+    "gpt-5.4-nano-xhigh":                 { input_per_mtok:  0.20, output_per_mtok:  1.25, cache_read_per_mtok: 0.02 }
+    "gpt-5.3-codex-low":                  { input_per_mtok:  1.75, output_per_mtok: 14.00, cache_read_per_mtok: 0.175 }
+    "gpt-5.3-codex":                      { input_per_mtok:  1.75, output_per_mtok: 14.00, cache_read_per_mtok: 0.175 }
+    "gpt-5.3-codex-high":                 { input_per_mtok:  1.75, output_per_mtok: 14.00, cache_read_per_mtok: 0.175 }
+    "gpt-5.3-codex-xhigh":                { input_per_mtok:  1.75, output_per_mtok: 14.00, cache_read_per_mtok: 0.175 }
+    "gpt-5.2":                            { input_per_mtok:  1.75, output_per_mtok: 14.00, cache_read_per_mtok: 0.175 }
+    "gpt-5.2-low":                        { input_per_mtok:  1.75, output_per_mtok: 14.00, cache_read_per_mtok: 0.175 }
+    "gpt-5.2-high":                       { input_per_mtok:  1.75, output_per_mtok: 14.00, cache_read_per_mtok: 0.175 }
+    "gpt-5.2-xhigh":                      { input_per_mtok:  1.75, output_per_mtok: 14.00, cache_read_per_mtok: 0.175 }
+    "gpt-5.2-codex-low":                  { input_per_mtok:  1.75, output_per_mtok: 14.00, cache_read_per_mtok: 0.175 }
+    "gpt-5.2-codex":                      { input_per_mtok:  1.75, output_per_mtok: 14.00, cache_read_per_mtok: 0.175 }
+    "gpt-5.2-codex-high":                 { input_per_mtok:  1.75, output_per_mtok: 14.00, cache_read_per_mtok: 0.175 }
+    "gpt-5.2-codex-xhigh":                { input_per_mtok:  1.75, output_per_mtok: 14.00, cache_read_per_mtok: 0.175 }
+    "gpt-5.1-low":                        { input_per_mtok:  1.25, output_per_mtok: 10.00, cache_read_per_mtok: 0.125 }
+    "gpt-5.1":                            { input_per_mtok:  1.25, output_per_mtok: 10.00, cache_read_per_mtok: 0.125 }
+    "gpt-5.1-high":                       { input_per_mtok:  1.25, output_per_mtok: 10.00, cache_read_per_mtok: 0.125 }
+    "gpt-5.1-codex-max-low":              { input_per_mtok:  1.25, output_per_mtok: 10.00, cache_read_per_mtok: 0.125 }
+    "gpt-5.1-codex-max-medium":           { input_per_mtok:  1.25, output_per_mtok: 10.00, cache_read_per_mtok: 0.125 }
+    "gpt-5.1-codex-max-high":             { input_per_mtok:  1.25, output_per_mtok: 10.00, cache_read_per_mtok: 0.125 }
+    "gpt-5.1-codex-max-xhigh":            { input_per_mtok:  1.25, output_per_mtok: 10.00, cache_read_per_mtok: 0.125 }
+    "gpt-5.1-codex-mini-low":             { input_per_mtok:  0.25, output_per_mtok:  2.00, cache_read_per_mtok: 0.025 }
+    "gpt-5.1-codex-mini":                 { input_per_mtok:  0.25, output_per_mtok:  2.00, cache_read_per_mtok: 0.025 }
+    "gpt-5.1-codex-mini-high":            { input_per_mtok:  0.25, output_per_mtok:  2.00, cache_read_per_mtok: 0.025 }
+    "gpt-5-mini":                         { input_per_mtok:  0.25, output_per_mtok:  2.00, cache_read_per_mtok: 0.025 }
+    # GPT-5.6 family, verified 2026-07-29 against the Cursor pricing page.
+    "gpt-5.6-sol*":                       { input_per_mtok:  5.00, output_per_mtok: 30.00, cache_read_per_mtok: 0.50, cache_write_per_mtok: 6.25 }
+    "gpt-5.6-terra*":                     { input_per_mtok:  2.50, output_per_mtok: 15.00, cache_read_per_mtok: 0.25, cache_write_per_mtok: 3.125 }
+    "gpt-5.6-luna*":                      { input_per_mtok:  1.00, output_per_mtok:  6.00, cache_read_per_mtok: 0.10, cache_write_per_mtok: 1.25 }
+
+    # ─── OpenAI / Codex on Microsoft Azure AI Foundry ───
+    # Source: https://azure.microsoft.com/en-us/pricing/details/ai-foundry/
+    #         and the per-model entries at https://ai.azure.com/catalog/
+    # Verified: 2026-04-23.  Foundry pricing is ~10% above raw Azure OpenAI
+    # (e.g. gpt-5-mini is $0.25/$2.00 on Azure OpenAI vs $0.275/$2.20 on
+    # Foundry).  We bill against Foundry rates because that is the SKU these
+    # benchmark runs use.  Add a `pricing_tier:` field if you need to model
+    # multiple deployment SKUs side-by-side.
+    "gpt-5.2-codex":                      { input_per_mtok:  1.75, output_per_mtok: 14.00 }
+    "gpt-5.5":                            { input_per_mtok:  5.00, output_per_mtok: 30.00, cache_read_per_mtok: 0.50 }
+    "gpt-5.4":                            { input_per_mtok:  2.50, output_per_mtok: 15.00, cache_read_per_mtok: 0.25 }
+    "gpt-5.4-pro":                        { input_per_mtok: 30.00, output_per_mtok: 180.00 }
+    "gpt-5.4-mini":                       { input_per_mtok:  0.75, output_per_mtok:  4.50, cache_read_per_mtok: 0.075 }
+    "gpt-5-mini":                         { input_per_mtok:  0.25, output_per_mtok:  2.00, cache_read_per_mtok: 0.025 }
+
+    # ─── Google Gemini (via Cursor API pool) ───
+    # Verified 2026-07-29 against https://cursor.com/docs/models-and-pricing.
+    # Supersedes the earlier Vertex-AI-sourced figures below: gemini-3-flash
+    # was $0.25/$1.50 (Vertex Standard tier) where Cursor actually charges
+    # $0.50/$3.00 — a real rate, not a rounding difference. Gemini has no
+    # cache-write fee, so cache_write_per_mtok is pinned to 0.0 rather than
+    # left to default to 125% of input (that default is an Anthropic-shaped
+    # assumption that doesn't hold here).
+    "gemini-3-pro":                       { input_per_mtok:  2.00, output_per_mtok: 12.00, cache_read_per_mtok: 0.20, cache_write_per_mtok: 0.0 }
+    "gemini-3-flash":                     { input_per_mtok:  0.50, output_per_mtok:  3.00, cache_read_per_mtok: 0.05, cache_write_per_mtok: 0.0 }
+    "gemini-3.1-pro":                     { input_per_mtok:  2.00, output_per_mtok: 12.00, cache_read_per_mtok: 0.20, cache_write_per_mtok: 0.0 }
+    "gemini-3.6-flash":                   { input_per_mtok:  1.50, output_per_mtok:  7.50, cache_read_per_mtok: 0.15, cache_write_per_mtok: 0.0 }
+
+    # ─── Self-hosted SLMs — priced via the referenced machine's amortization ───
+    "lemonade/*":                         { self_hosted: true, machine: "strix_halo" }
+    "Qwen3.5-35B-A3B-GGUF":               { self_hosted: true, machine: "strix_halo" }
+    "Qwen3-Coder-30B-A3B-Instruct-GGUF":  { self_hosted: true, machine: "strix_halo" }
+    "Qwen3-4B-GGUF":                      { self_hosted: true, machine: "strix_halo" }
+    "Qwen3-Next-80B-A3B-Instruct-GGUF":   { self_hosted: true, machine: "strix_halo" }

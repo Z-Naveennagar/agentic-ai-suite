@@ -1,0 +1,197 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "skills_testing config.yaml",
+  "description": "Configuration for the AMD Agent Skills Testing Infrastructure",
+  "type": "object",
+  "required": ["cli_backends", "database", "skill_testing"],
+  "properties": {
+    "vivado_mcp": {
+      "type": "object",
+      "description": "Vivado MCP server binary (the tool-execution server skill runs talk to, distinct from the doc-search server in `server`)",
+      "properties": {
+        "bin_path": {
+          "type": "string",
+          "description": "Explicit path to vivado-mcp-server. Checked ahead of VIVADO_MCP_BIN and the ~/MCPs/* well-known-dir guesses."
+        }
+      },
+      "additionalProperties": false
+    },
+    "grading": {
+      "type": "object",
+      "description": "Grader behaviour shared across cases",
+      "properties": {
+        "mcp_server_aliases": {
+          "type": "object",
+          "description": "Map of MCP server key -> server family. Tool-call graders (action_sequence, tool_call_observed) match on mcp__<family>__<tool>, so the same logical tool matches regardless of which backend named it or which server exposed it. Merged over the built-in defaults.",
+          "additionalProperties": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "cli_backends": {
+      "type": "object",
+      "description": "CLI backend configuration per agent",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "lemonade_base_url": { "type": "string", "format": "uri" },
+          "default_models": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "settings_path": { "type": "string" },
+          "config_path": { "type": "string" },
+          "keep_byok": { "type": "boolean" },
+          "bin_path": {
+            "type": "string",
+            "description": "Explicit path to this backend's CLI binary. Checked ahead of the backend's env var override and PATH/well-known-dir search."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+
+    "database": {
+      "type": "object",
+      "required": ["path"],
+      "properties": {
+        "path": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+
+    "results_dir": { "type": "string" },
+
+    "skill_testing": {
+      "type": "object",
+      "description": "Agent skill testing (skills 2.0) configuration",
+      "required": [
+        "test_cases_root", "workspace_root", "parallel_default",
+        "memory_budget_pct", "vivado_session_timeout_s",
+        "cleanup_orphaned_sessions", "keep_tmp_on_failure",
+        "llm_judge", "consistency_lifecycle", "allowlist", "denylist"
+      ],
+      "properties": {
+        "test_cases_root": { "type": "string" },
+        "test_suites": {
+          "type": "string",
+          "description": "Source repo for test suites (grouped by skill: tests/<skill_name>/<suite_name>/runner_spec.yaml), relative to PROJECT_ROOT. Read by `skills-test install`."
+        },
+        "staging_root": {
+          "type": "string",
+          "description": "Source for skill content (flat, one subdirectory per skill: staging/<skill_name>/SKILL.md), relative to PROJECT_ROOT. Read by `skills-test install`, matched against tests/ suites by name."
+        },
+        "skill_signoffs_root": {
+          "type": "string",
+          "description": "Per-skill signoff snapshots (report.html + versioned report_vN.html, the installed skill content, README.md run history), relative to PROJECT_ROOT. Written after `skills-test run` unless --no-skill-signoffs."
+        },
+        "workspace_root": { "type": "string" },
+        "parallel_default": { "type": "integer", "minimum": 1 },
+        "vivado_mcp_session_cap": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Hard ceiling on concurrent live Vivado MCP sessions, server-wide. Shared-workspace suites (setup:/reset:/teardown: in runner_spec.yaml) shard their cases across min(--parallel, this value) concurrent sessions. Optional -- omit to leave sharding uncapped (bounded only by --parallel)."
+        },
+        "pre_invoke_memory_headroom_gb": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Minimum free memory (GB) required immediately before each case's agent invocation; below it, the case waits (polling, capped at 5 min) instead of piling onto a host already under memory pressure from other concurrent shards. 0 (default) disables the check."
+        },
+        "memory_budget_pct": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "vivado_session_timeout_s": { "type": "integer", "minimum": 1 },
+        "cleanup_orphaned_sessions": { "type": "boolean" },
+        "keep_tmp_on_failure": { "type": "boolean" },
+        "llm_judge": {
+          "type": "object",
+          "description": "Per-case LLM-judge grading (graders/judge.py:make_llm_caller): feeds the semantic_fields comparison in output_contract_match.py. Not the whole-run judge -- that diagnostic dashboard feature was removed.",
+          "required": ["enabled", "timeout_seconds", "model", "gateway"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "timeout_seconds": { "type": "integer", "minimum": 1 },
+            "max_concurrency": { "type": "integer", "minimum": 1 },
+            "max_retries": { "type": "integer", "minimum": 0 },
+            "retry_backoff_seconds": { "type": "number", "minimum": 0 },
+            "model": { "type": "string" },
+            "fallback_model": {
+              "type": "string",
+              "description": "Not currently read by make_llm_caller/_dispatch_raw (no self-evaluation-bias-avoidance logic on this path today) -- accepted for forward compatibility/documentation."
+            },
+            "gateway": {
+              "type": "object",
+              "required": ["enabled", "model", "max_tokens"],
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "model": { "type": "string" },
+                "fallback_model": { "type": "string" },
+                "max_tokens": { "type": "integer", "minimum": 1 }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "session_log": {
+          "type": "object",
+          "description": "Per-session JSON monitoring logs (logs/<run_id>/)",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "dir": { "type": "string" },
+            "max_output_chars": { "type": "integer", "minimum": 0 },
+            "artifact_size_cap_bytes": { "type": "integer", "minimum": 0 },
+            "copy_artifacts": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        },
+        "consistency_lifecycle": {
+          "type": "object",
+          "required": [
+            "min_reps", "min_coverage_rate", "min_pass_rate",
+            "max_failed_case_rate", "max_error_rate", "max_skip_rate",
+            "max_case_score_stddev", "max_flaky_case_rate",
+            "max_mandatory_grader_fail_rate", "max_weighted_grader_fail_rate",
+            "consecutive_fails_to_deprecate", "releases_in_deprecate_to_remove"
+          ],
+          "properties": {
+            "min_reps": { "type": "integer", "minimum": 1 },
+            "min_coverage_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+            "min_pass_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+            "max_failed_case_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+            "max_error_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+            "max_skip_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+            "max_case_score_stddev": { "type": "number", "minimum": 0 },
+            "max_flaky_case_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+            "max_mandatory_grader_fail_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+            "max_weighted_grader_fail_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+            "consecutive_fails_to_deprecate": { "type": "integer", "minimum": 1 },
+            "releases_in_deprecate_to_remove": { "type": "integer", "minimum": 1 }
+          },
+          "additionalProperties": false
+        },
+        "allowlist": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "denylist": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "coding_agents": {
+          "type": "array",
+          "description": "Signoff fleet override. When non-empty, replaces invocation.clients / invocation.coding_agent for every case, for every skill -- no per-case opt-out.",
+          "items": {
+            "type": "object",
+            "required": ["name", "model"],
+            "properties": {
+              "name": { "type": "string" },
+              "model": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

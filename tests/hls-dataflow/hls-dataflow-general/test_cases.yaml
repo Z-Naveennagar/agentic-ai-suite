@@ -1,0 +1,93 @@
+# ── Suite: hls-dataflow ─────────────────────────────────────────────
+# Queries-manifest-derived cases for Vitis HLS canonical dataflow-style
+# analysis. Sourced from inputs/vitis-hls-skills-test.json — each entry
+# asks whether a C++ snippet follows the recommended coding style for
+# canonical dataflow pragma.
+#
+# Placeholders substituted into any prompt:
+#   {input_file}  -> the first entry of a case's input_files
+# {skill_name} / {flow_skill} are internal bookkeeping only (used in
+# expected.skills and in SKILL.md lookups) — they never appear inside
+# a prompt's literal text. No test case, of any shape, ever names a
+# skill in its customer-facing prompt.
+#
+# Per-case fields:
+#   id           unique case id
+#   input_files  files staged into the workspace from ./inputs
+#   prompt       the case's instruction — always skill-agnostic. The mandated
+#                {"verdict", "explanation"} JSON contract is NOT repeated per
+#                case: it's appended once via runner_spec.yaml's
+#                `output_contract:` (shared_prompt_prefix + output_contract +
+#                this prompt, per core/case_loader.py).
+#   expected     values substituted into grader_spec {tokens}:
+#                  expected_output -> golden {verdict, explanation} dict,
+#                                     graded whole by output_contract_match:
+#                                     verdict is literal/tolerant-compared
+#                                     (YES/NO, no partial credit), explanation
+#                                     is LLM-judged for substance via
+#                                     grader_spec's semantic_fields intent
+#                  skills          -> every skill this case is expected to invoke
+#                                     (bookkeeping — never shown in the prompt)
+#                  tool_sequence   -> always present: expected tool calls in order
+
+suite_id: hls-dataflow
+description: >
+  Queries-manifest-derived cases for analyzing whether Vitis HLS C/C++ snippets
+  follow the recommended canonical dataflow pragma coding style. Each case
+  targets one rule from the canonical-dataflow check.
+
+test_cases:
+  - id: hls-dataflow_01
+    input_files: [hls-dataflowcanonical-001.cpp]
+    prompt: |-
+      Analyze `{input_file}`: does the code follow the canonical dataflow coding style for Vitis HLS? TOP_FUNCTION = dut. Give a static analysis without running HLS.
+    expected:
+      skills: [hls-dataflow]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "NOT canonical — violates Rule 4.1 (the dataflow region contains a non-permitted statement type)."
+
+  - id: hls-dataflow_02
+    input_files: [hls-dataflowcanonical-002.cpp]
+    prompt: |-
+      Analyze `{input_file}`: does the code follow the canonical dataflow coding style for Vitis HLS? TOP_FUNCTION = dut. Give a static analysis without running any HLS.
+    expected:
+      skills: [hls-dataflow]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "NOT canonical — violates Rule 6.3 (dataflow function parameter of array type is both read and written by different processes)."
+
+  - id: hls-dataflow_03
+    input_files: [hls-dataflowcanonical-003.cpp]
+    prompt: |-
+      Analyze `{input_file}`: does the code follow the canonical dataflow coding style for Vitis HLS? TOP_FUNCTION = dut. Give a static analysis without running any HLS.
+    expected:
+      skills: [hls-dataflow]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "YES"
+        explanation: "CANONICAL — the dataflow region follows all canonical rules."
+
+  - id: hls-dataflow_04
+    input_files: [hls-dataflowcanonical-004.cpp]
+    prompt: |-
+      Analyze `{input_file}`: does the code follow the canonical dataflow coding style for Vitis HLS? TOP_FUNCTION = dut. Give a static analysis without running any HLS.
+    expected:
+      skills: [hls-dataflow]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "YES"
+        explanation: "CANONICAL — the dataflow region follows all canonical rules."
+
+  - id: hls-dataflow_05
+    input_files: [hls-dataflowcanonical-005.cpp]
+    prompt: |-
+      Analyze `{input_file}`: does the code follow the canonical dataflow coding style for Vitis HLS? TOP_FUNCTION = dut. Give a static analysis without running any HLS.
+    expected:
+      skills: [hls-dataflow]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "YES"
+        explanation: "CANONICAL — the dataflow region follows all canonical rules."

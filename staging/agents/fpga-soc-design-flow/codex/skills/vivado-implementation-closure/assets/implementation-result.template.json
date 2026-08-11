@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "request_id": "replace-me",
+  "status": "ERROR",
+  "vivado": {"version": null, "part": null, "board": null, "session_id": null},
+  "runs": {},
+  "metrics": {},
+  "checks": {},
+  "findings": [],
+  "artifacts": {},
+  "feedback": null
+}

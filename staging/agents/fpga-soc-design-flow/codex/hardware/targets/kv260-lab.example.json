@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "id": "kv260-lab-example",
+  "board": {
+    "name": "Kria KV260 Vision AI Starter Kit",
+    "part": "xck26-sfvc784-2LV-c",
+    "board_part": "xilinx.com:kv260_som:part0:1.4",
+    "carrier": "KV260 carrier"
+  },
+  "capabilities": {
+    "transports": ["ssh", "jtag"],
+    "programming": ["vivado_hw_manager", "linux_fpga_manager"],
+    "debug": ["ila", "vio", "jtag_axi", "sysmon"],
+    "stimulus": ["vio_native", "jtag_axi", "ps_software", "dma", "onchip_generator"],
+    "peripherals": []
+  },
+  "peripheral_instances": [],
+  "endpoints": {
+    "ssh": {
+      "host_env": "KV260_SSH_HOST",
+      "user_env": "KV260_SSH_USER",
+      "port": 22
+    },
+    "hw_server": {
+      "url_env": "KV260_HW_SERVER_URL",
+      "default_url": "localhost:3121"
+    },
+    "uart": null
+  },
+  "policy": {
+    "require_programming_authorization": true,
+    "require_probe_drive_authorization": true,
+    "allow_power_cycle": false,
+    "cleanup_required": true
+  },
+  "identity_checks": ["part", "jtag_chain", "device_dna", "linux_machine_id"]
+}

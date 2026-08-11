@@ -1,0 +1,219 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "architecture-plan.schema.json",
+  "title": "Architecture Plan v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "request_id",
+    "spec_revision",
+    "revision",
+    "status",
+    "modules",
+    "interfaces",
+    "clock_domains",
+    "reset_domains",
+    "cdc_crossings",
+    "work_packages",
+    "source_plan",
+    "verification_obligations",
+    "decisions",
+    "risks"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "request_id": {"type": "string", "minLength": 1},
+    "spec_revision": {"type": "integer", "minimum": 1},
+    "revision": {"type": "integer", "minimum": 1},
+    "status": {"enum": ["READY", "NEEDS_SPEC_REVISION", "INFEASIBLE", "ERROR"]},
+    "modules": {"type": "array", "items": {"$ref": "#/$defs/module"}, "minItems": 1},
+    "interfaces": {"type": "array", "items": {"$ref": "#/$defs/interface"}},
+    "clock_domains": {"type": "array", "items": {"$ref": "#/$defs/clock"}},
+    "reset_domains": {"type": "array", "items": {"$ref": "#/$defs/reset"}},
+    "cdc_crossings": {"type": "array", "items": {"$ref": "#/$defs/cdc"}},
+    "work_packages": {"type": "array", "items": {"$ref": "#/$defs/workPackage"}, "minItems": 1},
+    "source_plan": {"type": "array", "items": {"$ref": "#/$defs/source"}, "minItems": 1},
+    "verification_obligations": {"type": "array", "items": {"$ref": "#/$defs/verification"}, "minItems": 1},
+    "decisions": {"type": "array", "items": {"$ref": "#/$defs/decision"}, "minItems": 1},
+    "risks": {"type": "array", "items": {"$ref": "#/$defs/risk"}}
+  },
+  "$defs": {
+    "agent": {
+      "enum": [
+        "amd_soc_architect",
+        "vivado_rtl_engineer",
+        "amd_soc_platform_integrator",
+        "vitis_hls_engineer",
+        "vitis_aie_engineer",
+        "vitis_sw_engineer",
+        "amd_soc_verifier",
+        "vivado_impl_closure",
+        "amd_soc_hardware_validator"
+      ]
+    },
+    "module": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "function", "implementation", "owner", "requirement_ids", "clock_domains", "reset_domains", "parameters", "performance"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^MOD-[A-Z0-9_-]+$"},
+        "name": {"type": "string", "minLength": 1},
+        "function": {"type": "string", "minLength": 1},
+        "implementation": {"enum": ["rtl", "existing_ip", "hls", "aie", "ps_software", "platform"]},
+        "owner": {"$ref": "#/$defs/agent"},
+        "requirement_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true},
+        "clock_domains": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "reset_domains": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "parameters": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/parameter"}
+        },
+        "performance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["latency_cycles_max", "initiation_interval_max", "throughput_min", "throughput_units"],
+          "properties": {
+            "latency_cycles_max": {"type": ["integer", "null"], "minimum": 0},
+            "initiation_interval_max": {"type": ["integer", "null"], "minimum": 1},
+            "throughput_min": {"type": ["number", "null"], "minimum": 0},
+            "throughput_units": {"type": ["string", "null"]}
+          }
+        }
+      }
+    },
+    "parameter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "value", "units"],
+      "properties": {
+        "name": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
+        "value": {"type": ["string", "number", "boolean"]},
+        "units": {"type": ["string", "null"]}
+      }
+    },
+    "interface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "scope", "protocol", "source_module", "destination_module", "direction", "data_width", "clock_domain", "signals", "requirement_ids"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^IF-[A-Z0-9_-]+$"},
+        "name": {"type": "string", "minLength": 1},
+        "scope": {"enum": ["external", "internal"]},
+        "protocol": {"type": "string", "minLength": 1},
+        "source_module": {"type": ["string", "null"]},
+        "destination_module": {"type": ["string", "null"]},
+        "direction": {"enum": ["input", "output", "bidirectional", "source_to_destination"]},
+        "data_width": {"type": ["integer", "null"], "minimum": 1},
+        "clock_domain": {"type": ["string", "null"]},
+        "signals": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "requirement_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      }
+    },
+    "clock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "frequency_hz", "source", "constraint_name"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^CLK-[A-Z0-9_-]+$"},
+        "name": {"type": "string", "minLength": 1},
+        "frequency_hz": {"type": "integer", "minimum": 1},
+        "source": {"type": "string", "minLength": 1},
+        "constraint_name": {"type": "string", "minLength": 1}
+      }
+    },
+    "reset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "clock_domain", "polarity", "assertion", "deassertion"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^RST-[A-Z0-9_-]+$"},
+        "name": {"type": "string", "minLength": 1},
+        "clock_domain": {"type": "string", "minLength": 1},
+        "polarity": {"enum": ["active_high", "active_low"]},
+        "assertion": {"enum": ["synchronous", "asynchronous"]},
+        "deassertion": {"enum": ["synchronous", "asynchronous"]}
+      }
+    },
+    "cdc": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "source_clock", "destination_clock", "strategy", "signals", "owner"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^CDC-[A-Z0-9_-]+$"},
+        "source_clock": {"type": "string", "minLength": 1},
+        "destination_clock": {"type": "string", "minLength": 1},
+        "strategy": {"type": "string", "minLength": 1},
+        "signals": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true},
+        "owner": {"$ref": "#/$defs/agent"}
+      }
+    },
+    "workPackage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "agent", "architecture_elements", "inputs", "outputs", "acceptance_ids", "depends_on"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^WP-[A-Z0-9_-]+$"},
+        "agent": {"$ref": "#/$defs/agent"},
+        "architecture_elements": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true},
+        "inputs": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "outputs": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true},
+        "acceptance_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true},
+        "depends_on": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "path", "kind", "language", "owner", "implements"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^SRC-[A-Z0-9_-]+$"},
+        "name": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["rtl", "constraint", "tcl", "ip", "block_design", "hls", "aie", "software", "package", "other"]},
+        "language": {"type": ["string", "null"]},
+        "owner": {"$ref": "#/$defs/agent"},
+        "implements": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true}
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "requirement_ids", "method", "pass_condition", "owner"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^VER-[A-Z0-9_-]+$"},
+        "name": {"type": "string", "minLength": 1},
+        "requirement_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true},
+        "method": {"type": "string", "minLength": 1},
+        "pass_condition": {"type": "string", "minLength": 1},
+        "owner": {"const": "amd_soc_verifier"}
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "requirement_ids", "selected", "alternatives", "rationale", "evidence_source", "confidence", "changes_observable_behavior"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^DEC-[A-Z0-9_-]+$"},
+        "requirement_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true},
+        "selected": {"type": "string", "minLength": 1},
+        "alternatives": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "rationale": {"type": "string", "minLength": 1},
+        "evidence_source": {"enum": ["USER", "VIVADO_OBSERVED", "AMD_DOC", "DERIVED"]},
+        "confidence": {"enum": ["HIGH", "MEDIUM", "LOW"]},
+        "changes_observable_behavior": {"type": "boolean"}
+      }
+    },
+    "risk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "severity", "statement", "mitigation"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^RISK-[A-Z0-9_-]+$"},
+        "severity": {"enum": ["low", "medium", "high"]},
+        "statement": {"type": "string", "minLength": 1},
+        "mitigation": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

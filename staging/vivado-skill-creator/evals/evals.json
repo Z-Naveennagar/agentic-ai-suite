@@ -1,0 +1,86 @@
+{
+  "skill_name": "vivado-skill-creator",
+  "evals": [
+    {
+      "id": 1,
+      "name": "create-timing-analysis-skill",
+      "prompt": "I want to create a new Vivado skill for analyzing setup/hold violations after route_design. It should parse report_timing_summary, identify the worst paths, and generate a REPORT.md with fix recommendations. Help me create the SKILL.md.",
+      "expected_output": "Agent interviews for intent, uses the Vivado skill template, produces a SKILL.md with all required sections (Prerequisites, Workflow, Tcl Commands, Report Template, etc.), and validates against the checklist.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "template_followed",
+          "type": "content_check",
+          "description": "Generated SKILL.md follows the Vivado skill template structure",
+          "check": "Output SKILL.md has frontmatter (name, description), Prerequisites, Workflow steps, Discovery/Analysis/Fix phases, Report Template, and Efficiency Guidelines"
+        },
+        {
+          "name": "tcl_commands_specified",
+          "type": "content_check",
+          "description": "Specific Vivado Tcl commands are listed in the skill",
+          "check": "SKILL.md references report_timing_summary, get_timing_paths, and related Tcl commands"
+        },
+        {
+          "name": "checklist_validated",
+          "type": "execution_check",
+          "description": "Skill was validated against CHECKLIST.md",
+          "check": "Agent ran through the 12-point checklist and confirmed compliance"
+        },
+        {
+          "name": "actual_names_mandate",
+          "type": "content_check",
+          "description": "Skill includes the actual-names-not-placeholders mandate",
+          "check": "SKILL.md contains Design-Specific Fix Rules or equivalent section mandating actual cell/net/clock names"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "review-existing-skill",
+      "prompt": "Can you review my existing clock-domain-crossing-review skill against best practices? Here's the SKILL.md — tell me what's missing or needs improvement.",
+      "expected_output": "Agent reads the skill, runs it through the 12-point checklist, identifies gaps (missing sections, pattern violations), and provides specific improvement recommendations.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "checklist_applied",
+          "type": "execution_check",
+          "description": "All 12 checklist items were evaluated",
+          "check": "Agent checked: efficiency guidelines, session_id, sequential execution, actual names, action-before-narration, workspace detection, report template, Tcl correctness, error handling, edge cases, description trigger words, file organization"
+        },
+        {
+          "name": "specific_feedback",
+          "type": "content_check",
+          "description": "Feedback is specific with line references",
+          "check": "Review output references specific sections or lines in the SKILL.md that need changes"
+        },
+        {
+          "name": "improvements_actionable",
+          "type": "content_check",
+          "description": "Improvement suggestions are actionable, not vague",
+          "check": "Each suggestion includes what to change and example text or structure"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "improve-skill-description",
+      "prompt": "My custom-drc-ep skill isn't triggering when users say 'run DRC checks on my emulation design'. Can you optimize the description for better trigger accuracy?",
+      "expected_output": "Agent analyzes the current description, identifies missing trigger phrases, tests against example prompts, and generates an improved description with better keyword coverage.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "trigger_phrases_expanded",
+          "type": "content_check",
+          "description": "Description was expanded with more trigger phrases",
+          "check": "New description includes additional trigger phrases like 'DRC', 'design rule', 'emulation', 'prototyping', 'EP checks'"
+        },
+        {
+          "name": "description_format_correct",
+          "type": "content_check",
+          "description": "Description follows the recommended format",
+          "check": "Description uses 'Use when...' pattern with multiple trigger phrase variants"
+        }
+      ]
+    }
+  ]
+}

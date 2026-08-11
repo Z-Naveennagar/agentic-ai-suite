@@ -1,0 +1,212 @@
+name: "[ZB] Vivado session validator"
+
+# Finds whether this runner can sustain 30 concurrent Vivado MCP sessions.
+# Launch tasks are submitted together, but vivado_start calls are staggered by
+# five seconds so timestamp-based session IDs stay distinct.
+#
+# Why this exists: vivado-mcp-server 0.6.9 removed the hard cap of 7
+# concurrent sessions ("Unlimited concurrent sessions", release notes), but
+# that is a statement about the *server*, not about whether a given host has
+# the memory, file descriptors and licence seats to keep N Vivado processes
+# alive at once. Measured locally at 18 sessions: 17 started but only 8 were
+# usable -- the rest died with "Vivado process has terminated" / "command
+# discarded (queue cleared)". A session that registers and then dies is
+# worse than one that never starts: it looks alive to the harness's
+# semaphore while being useless to a case, which is exactly what produced
+# the 34 cascading ERRORs in the last full ip-configurator run.
+#
+# So the number that matters is *executed*, not *started*, and it has to be
+# measured per host. Host size alone does not predict the answer because MCP
+# startup behavior and available Vivado licence capacity also constrain it.
+#
+# All 30 launch workers begin together. Worker N waits N*5 seconds before its
+# vivado_start call, so startup work overlaps while IDs cannot share a timestamp
+# second. After the launch barrier, all distinct sessions execute concurrently.
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_sessions:
+        description: "Number of staggered concurrent launch tasks"
+        required: false
+        default: "30"
+      launch_gap_seconds:
+        description: "Seconds between consecutive vivado_start calls"
+        required: false
+        default: "5"
+      settle_seconds:
+        description: "Seconds to settle after all launch calls finish"
+        required: false
+        default: "20"
+  push:
+    branches:
+      - zettabolt/test-infra-github-actions
+
+permissions:
+  contents: read
+
+jobs:
+  vivado-session-validator:
+    # See runner-diagnostics.yml for what ZB_ONLY_WORKFLOW does.
+    if: ${{ vars.ZB_ONLY_WORKFLOW == '' || vars.ZB_ONLY_WORKFLOW == 'vivado-session-validator' }}
+    runs-on: [xsjhalo06]
+    # The final launch starts after 145 seconds. Leave room for all overlapping
+    # Vivado starts, the post-launch settle, concurrent probes, and cleanup.
+    timeout-minutes: 90
+    env:
+      VIVADO_PATH: /proj/xbuilds/2026.1_released/installs/lin64/2026.1/Vivado/bin/vivado
+      PYTHONPATH: ${{ github.workspace }}/skill_eval/src
+      XILINXD_LICENSE_FILE: "2001@xsjlicsvr1:2001@xhdlicsvr1:2001@xcolicsvr1"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Add Vivado to PATH
+        run: echo "$(dirname "$VIVADO_PATH")" >> "$GITHUB_PATH"
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+
+      - name: Install skill_eval harness package
+        working-directory: skill_eval
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      # Capacity context for reading the result: if the ceiling turns out to
+      # be memory-bound this is the number that explains it, and it is the
+      # main thing that differs between this runner and the dev box.
+      - name: Host capacity
+        run: |
+          CPUS=$(nproc)
+          MEM=$(free -g | awk 'NR==2{print $2}')
+          AVAIL=$(free -g | awk 'NR==2{print $7}')
+          ULIMIT=$(ulimit -n)
+          echo "cpus=$CPUS mem_total=${MEM}G mem_available=${AVAIL}G nofile=$ULIMIT"
+          {
+            echo "### Host capacity"
+            echo
+            echo "| CPUs | RAM total | RAM available | open-file limit |"
+            echo "|---:|---:|---:|---:|"
+            echo "| $CPUS | ${MEM} GB | ${AVAIL} GB | $ULIMIT |"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Generate GitHub App token (cross-repo access)
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: AMD-aecg-cue-ai
+          repositories: vivado-ai-extensions
+
+      - name: Find latest successful build-vsix.yml run
+        id: find-run
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          RUN_ID=$(gh api "repos/AMD-aecg-cue-ai/vivado-ai-extensions/actions/workflows/build-vsix.yml/runs?branch=main&status=success&per_page=1" \
+            --jq '.workflow_runs[0].id')
+          if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+            echo "::error::No successful build-vsix.yml run found on main"
+            exit 1
+          fi
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Download vivado-mcp-server artifact
+        uses: actions/download-artifact@v8
+        with:
+          repository: AMD-aecg-cue-ai/vivado-ai-extensions
+          run-id: ${{ steps.find-run.outputs.run_id }}
+          github-token: ${{ steps.app-token.outputs.token }}
+          pattern: vivado-ai-extension-*
+          path: vivado-mcp-artifact
+
+      - name: Locate and prepare vivado-mcp-server binary
+        run: |
+          BIN=$(find vivado-mcp-artifact -name 'vivado-mcp-server-linux-amd64-*' -type f | head -1)
+          if [ -z "$BIN" ]; then
+            echo "::error::vivado-mcp-server binary not found in downloaded artifact"
+            exit 1
+          fi
+          chmod +x "$BIN"
+          echo "VIVADO_MCP_BIN=$PWD/$BIN" >> "$GITHUB_ENV"
+          # The cap removal landed in 0.6.9 -- record which build was
+          # actually measured, so a future regression is attributable.
+          echo "server binary: $(basename "$BIN")"
+          {
+            echo "### Server build"
+            echo
+            echo "\`$(basename "$BIN")\`"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Start Vivado MCP server
+        run: |
+          export VIVADO_STATE_DIR="$PWD/.vivado-mcp-state"
+          mkdir -p "$VIVADO_STATE_DIR"
+          echo "VIVADO_STATE_DIR=$VIVADO_STATE_DIR" >> "$GITHUB_ENV"
+          "$VIVADO_MCP_BIN" --background --port 18090 --force \
+            --state-dir "$VIVADO_STATE_DIR"
+          for i in $(seq 1 30); do
+            # The background process may need a moment to bind the port. Keep
+            # expected connection-refused retries quiet; emit our own error if
+            # none of the probes succeeds.
+            if curl -s -f -o /dev/null --max-time 2 http://127.0.0.1:18090/health; then
+              echo "MCP server healthy after ${i}s"; exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::vivado-mcp-server did not become healthy within 30s"
+          exit 1
+
+      # Submit every worker immediately. Each worker delays its vivado_start by
+      # index*gap, then all successful sessions are probed concurrently.
+      - name: Validate 30 staggered concurrent sessions
+        working-directory: skill_eval
+        run: |
+          mkdir -p /tmp/val
+          MAX_SESSIONS="${{ github.event.inputs.max_sessions || '30' }}"
+          LAUNCH_GAP="${{ github.event.inputs.launch_gap_seconds || '5' }}"
+          SETTLE_SECONDS="${{ github.event.inputs.settle_seconds || '20' }}"
+
+          # Degradation is the measurement, not workflow infrastructure failure;
+          # preserve JSON and the generated summary for inspection.
+          python3 tools/vivado_session_validator.py \
+            --sessions "$MAX_SESSIONS" \
+            --launch-gap-seconds "$LAUNCH_GAP" \
+            --settle-seconds "$SETTLE_SECONDS" \
+            --json-out /tmp/val/staggered.json || true
+
+          STARTED=$(python3 -c "import json;print(json.load(open('/tmp/val/staggered.json'))['started'])" 2>/dev/null || echo 0)
+          UNIQUE=$(python3 -c "import json;print(json.load(open('/tmp/val/staggered.json'))['unique_ids'])" 2>/dev/null || echo 0)
+          USABLE=$(python3 -c "import json;print(json.load(open('/tmp/val/staggered.json'))['executed'])" 2>/dev/null || echo 0)
+          echo "Staggered result: started=$STARTED unique=$UNIQUE usable=$USABLE/$MAX_SESSIONS"
+          {
+            echo
+            echo "All launch workers were submitted together. Their vivado_start calls"
+            echo "were staggered by ${LAUNCH_GAP}s, followed by a ${SETTLE_SECONDS}s settle."
+            echo
+            echo "Set \`skill_testing.vivado_mcp_session_cap\` no higher than the usable count."
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload validator results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: vivado-session-validator
+          path: /tmp/val/
+          if-no-files-found: warn
+
+      - name: Stop Vivado MCP server
+        if: always()
+        continue-on-error: true
+        run: |
+          curl -sS -X POST --max-time 5 http://127.0.0.1:18090/shutdown || true
+          sleep 5
+          pkill -f 'vivado-mcp-server' 2>/dev/null || true
+          pkill -f '[v]ivado.*-mode batch' 2>/dev/null || true

@@ -1,0 +1,93 @@
+# ── Suite grader spec: hls-burst-inference_08 ────────────────────────────
+# Rich output_schema format (field -> grader). Per-case {expected_output} /
+# {tool_call_observed} values from test_cases.yaml `expected` are substituted
+# into the grader_args before grading, so one schema grades every case in
+# the suite.
+#
+# Hallucination contract:
+#   - No run/verify step (case 01): skill_triggered + output_contract are the
+#     only mandatory (no-weight) gates; no_tool_errors is soft/weighted.
+#   - Run/verify step present (case 02: csynth via v++): skill_triggered,
+#     ran_csynth (tool_call_observed), log_contains, csynth_log_exists, and
+#     output_contract are ALL mandatory (no-weight) gates; only no_tool_errors
+#     stays soft/weighted and drives the numeric score.
+#
+# output_contract (output_contract_match) replaces the old separate verdict/
+# reasoning llm_judge graders: it diffs the agent's final {"verdict",
+# "explanation"} JSON against expected_output — verdict by literal/tolerant
+# equality (no partial credit), explanation via an LLM judge guided by
+# semantic_fields' intent. Because it's one grader with mandatory: true, an
+# explanation that misses the golden's cause now fails the whole contract
+# instead of just denting a soft-weighted score.
+#
+# No tool_sequence/action_sequence gate — generic tool names (Read, bash:)
+# aren't reliably comparable across agent CLI backends, and tool_call_observed
+# already covers verification precisely.
+output_schema:
+  skill_triggered:
+    grader: trigger
+    always: true
+    mandatory: true
+    grader_args:
+      threshold: 0.5
+      skill: hls-burst-inference
+  ran_csynth:
+    grader: tool_call_observed
+    always: true
+    mandatory: true
+    grader_args:
+      command: '{tool_call_observed}'
+      min_calls: 1
+  no_tool_errors:
+    # weight: 0 -- purely informational: still runs and is recorded per-case
+    # (visible in the dashboard), but contributes nothing to the aggregate
+    # score. It's the only non-mandatory grader left in this schema (every
+    # other dimension is mandatory: true), so a nonzero weight here would
+    # make it the SOLE input to weighted_sum -- a single false positive
+    # (e.g. matching "ERROR:" inside the agent's own grep search pattern,
+    # not a real error) would then singlehandedly fail an otherwise-perfect
+    # case. With weight 0, total scored weight is 0 and runner.py's
+    # weighted_sum falls back to t2=1.0, so this grader can never affect
+    # pass/fail -- exactly what "soft" is supposed to mean.
+    grader: content_contains
+    always: true
+    mandatory: false
+    weight: 0
+    grader_args:
+      source: stderr
+      substring: 'ERROR:'
+      must_not_contain: true
+  output_contract:
+    grader: output_contract_match
+    always: false
+    mandatory: true
+    grader_args:
+      expected: '{expected_output}'
+      source: final_response
+      semantic_threshold: 60
+      semantic_fields:
+        explanation: >
+          Judge whether the agent's explanation identifies substantially the
+          same cause / rule / violation as the golden (e.g. MyType 96-bit
+          width not being a power of 2, failing Precondition 3). Different
+          wording is fine. Fail (low score) if the explanation cites an
+          unrelated or incorrect cause, invents a different reason, or claims
+          the conclusion required actually running the HLS tool.
+  log_contains:
+    grader: content_contains
+    always: true
+    mandatory: true
+    grader_args:
+      source: file
+      path: '{log_path}'
+      substring: '{log_substring}'
+  csynth_log_exists:
+    grader: artifact_exists
+    always: true
+    mandatory: true
+    grader_args:
+      path: '{log_path}'
+      min_size_bytes: 1024
+scoring:
+  aggregation: weighted_sum
+  pass_threshold: 70.0

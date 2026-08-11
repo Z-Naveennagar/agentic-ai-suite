@@ -1,0 +1,136 @@
+# ── Suite: edge-detection_gen ─────────────────────────────────
+# FULL end-to-end acceleration test: take a MATLAB RGB Sobel edge
+# detector all the way to a synthesized HLS kernel that MEETS a hard
+# performance target (4400 FPS @ 3.3 ns on xczu9eg), verified against
+# the MATLAB golden reference at every stage.
+#
+# This is NOT a port-only test. It exercises the whole skill chain:
+#   matlab-to-cpp → hls-architect → hls-optimize → hls-run-flow
+# and grades whether the DESIGN TARGET was actually achieved, not just
+# whether the C++ port matched MATLAB.
+#
+# Placeholders substituted into any prompt:
+#   {input_file}  -> the first entry of a case's input_files
+# {skill_name} / skill names never appear inside a prompt's literal
+# text — the prompt states design intent + targets only, never the
+# skill's internal methodology, so skill triggering is genuinely tested.
+#
+# Per-case fields:
+#   id           unique case id
+#   input_files  files staged into the workspace from ./inputs
+#   prompt       the case's instruction — a plain acceleration request
+#                in the customer's own words (design intent + the hard
+#                performance target only)
+#                The mandated {"verdict", "explanation"} JSON contract is NOT
+#                repeated per case: it's appended once via runner_spec.yaml's
+#                `output_contract:` (shared_prompt_prefix + output_contract +
+#                this prompt, per core/case_loader.py).
+#   expected     values substituted into grader_spec {tokens}:
+#                  expected_output    -> golden {verdict, explanation} dict,
+#                                        graded whole by output_contract_match:
+#                                        verdict is literal/tolerant-compared
+#                                        (YES = full chain completed AND the
+#                                        4400 FPS @ 3.3 ns target was met,
+#                                        verified vs golden; no partial credit),
+#                                        explanation is LLM-judged for substance
+#                                        via grader_spec's semantic_fields intent
+#                  skills             -> every skill this case must invoke
+#                  tool_call_observed -> a real command that proves the flow
+#                                        reached HLS C-synthesis
+#                  target_fps         -> the hard throughput target (FPS)
+#                  clock_ns           -> the target clock period (ns)
+#                  tool_sequence      -> generic expected tool calls (not
+#                                        graded — see grader_spec.yaml note)
+
+suite_id: edge-detection_gen
+description: >
+  Full end-to-end acceleration of the MATLAB RGB Sobel edge detector
+  (rgbEdgeDetector.m) into a synthesized HLS kernel that meets
+  4400 FPS @ 3.3 ns (≈ 303 MHz) on xczu9eg-ffvb1156-2-e, verified
+  against the MATLAB golden reference. Exercises the full chain:
+  matlab-to-cpp → hls-architect → hls-optimize → hls-run-flow.
+
+test_cases:
+  - id: edge-detection_gen_01
+    input_files:
+      - rgbEdgeDetector.m
+      - testbench_edgeDetector.m
+      - edge_detection_runme.m
+    prompt: |-
+      I have a MATLAB function, `rgbEdgeDetector.m`, that does Sobel
+      edge detection on an RGB image: it converts the image to grayscale,
+      computes the horizontal and vertical Sobel gradients, and produces a
+      gradient magnitude output. I need this turned into a working FPGA
+      kernel that actually hits my performance target — not just a C++ port.
+
+      Design targets:
+      - FPGA part: xczu9eg-ffvb1156-2-e
+      - Clock period: 3.3 ns (≈ 303 MHz)
+      - Throughput target: 4400 FPS
+
+      Please take it all the way: port the algorithm to C++, restructure it
+      into a hardware-friendly architecture, and iterate on the design until
+      C synthesis confirms it meets 4400 FPS at a 3.3 ns clock on that part.
+      Use `testbench_edgeDetector.m` (invoked via
+      `edge_detection_runme.m`) as the MATLAB reference — the C++ must
+      reproduce that golden output.
+
+      When you are done, save the following so I can review, at these EXACT
+      paths (create the `outputs/edge-detection_gen_01/` directory):
+
+      - `outputs/edge-detection_gen_01/results.json` — a JSON object with
+        exactly these keys (plain numbers, no units in the numeric fields):
+          {
+            "design_dir": "<path to the design directory you generated>",
+            "matlab_verification": "pass" | "fail",
+            "achieved_fps": <number, frames per second from synthesis>,
+            "achieved_clock_ns": <number, achieved clock period in ns>,
+            "achieved_ii": <number, initiation interval in cycles>
+          }
+      - `outputs/edge-detection_gen_01/matlab_golden.bin` — a copy of the
+        MATLAB golden reference output you captured.
+      - `outputs/edge-detection_gen_01/cpp_output.bin` — the raw output your
+        C++ port produced when run on the golden input, saved in the same
+        binary format as the golden, so I can byte-compare the two myself.
+      - `outputs/edge-detection_gen_01/final_synth.rpt` — a copy of your final
+        C-synthesis report showing the achieved timing and latency.
+
+      Then also tell me, in your reply, the final directory structure, how you
+      verified correctness against MATLAB, and the achieved throughput/clock.
+    expected:
+      skills:
+        - matlab-to-cpp
+        - hls-architect
+        - hls-optimize
+        - hls-run-flow
+      tool_sequence:
+        - Read
+        - bash
+      # Match on `v++ ... --mode hls` (token-subset), NOT the exact flag form:
+      # C synthesis is `v++ --compile --mode hls` OR the equivalent `v++ -c
+      # --mode hls`, possibly with a full path to v++. Dropping the
+      # --compile/-c token matches both; `v++`+`--mode`+`hls` stays specific to
+      # synthesis (csim/cosim/impl use `vitis-run`, not `v++`).
+      tool_call_observed: "bash: v++ --mode hls"
+      target_fps: "4400"
+      clock_ns: "3.3"
+      artifact_path: outputs/edge-detection_gen_01/results.json
+      expected_output:
+        verdict: "YES"
+        explanation: >
+          A successful end-to-end run follows this flow (judge the flow, not
+          exact directory names): (1) capture the golden reference by running the
+          MATLAB testbench (matlab_input.bin + matlab_golden.bin) and measure the
+          value ranges of the intermediate variables; (2) port the algorithm to
+          C++ using HLS-compatible types justified by those ranges — ap_uint<8>
+          input pixels, ap_fixed for the [0,1] grayscale/gradient domain — and
+          verify the C++ output reproduces the MATLAB golden; (3) restructure into
+          a streaming/dataflow HLS architecture (gradient → magnitude → threshold)
+          with a line-buffer stencil so one pixel is produced per cycle, targeting
+          xczu9eg-ffvb1156-2-e at 3.3 ns; (4) iteratively optimize (PIPELINE II=1,
+          line buffers, array partitioning, fixed-point widths) and re-run C
+          synthesis until the reports confirm the target — at 3.3 ns a 256x256
+          frame must complete in roughly 68,800 cycles or fewer to reach 4400 FPS.
+          The final reply reports the achieved FPS and clock from synthesis and
+          writes the pinned deliverables under outputs/edge-detection_gen_01/
+          (results.json, cpp_output.bin, matlab_golden.bin, final_synth.rpt).

@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "id": "kv260_i2s_transmitter",
+  "title": "KV260 stereo I2S transmitter",
+  "prompt_file": "prompt.md",
+  "target": {
+    "part": "xck26-sfvc784-2LV-c",
+    "board_part": "xilinx.com:kv260_som:part0:1.4",
+    "vivado_version": "2025.2"
+  },
+  "expected_route": [
+    "amd_soc_orchestrator",
+    "amd_soc_intent_to_spec",
+    "amd_soc_architect",
+    "vivado_rtl_engineer",
+    "amd_soc_platform_integrator",
+    "amd_soc_verifier",
+    "vivado_impl_closure"
+  ],
+  "candidate": {
+    "integration_mode": "ip_integrator",
+    "top": "kv260_system_wrapper",
+    "simulation_top": "kv260_i2s_transmitter",
+    "rtl_sources": ["rtl/kv260_i2s_transmitter.sv"],
+    "constraint_sources": []
+  },
+  "public_interface": {
+    "design_root": "design",
+    "modules": [{
+      "name": "kv260_i2s_transmitter",
+      "source": "rtl/kv260_i2s_transmitter.sv",
+      "roles": ["simulation_top", "required_component"],
+      "parameters": [{"name": "CLK_DIV", "type": "integer", "default": 2}],
+      "ports": [
+        {"name": "clk", "direction": "input", "width": 1},
+        {"name": "rst_n", "direction": "input", "width": 1},
+        {"name": "enable", "direction": "input", "width": 1},
+        {"name": "sample_valid", "direction": "input", "width": 1},
+        {"name": "sample_ready", "direction": "output", "width": 1},
+        {"name": "left_sample", "direction": "input", "width": 16},
+        {"name": "right_sample", "direction": "input", "width": 16},
+        {"name": "i2s_bclk", "direction": "output", "width": 1},
+        {"name": "i2s_lrclk", "direction": "output", "width": 1},
+        {"name": "i2s_sdata", "direction": "output", "width": 1},
+        {"name": "busy", "direction": "output", "width": 1}
+      ]
+    }],
+    "constraints": []
+  },
+  "simulation": {"make_directory": "testbench", "toplevel": "kv260_i2s_transmitter"},
+  "semantic_rubric": [
+    {"id": "SEM-RTL", "weight": 10, "artifact": "architecture-plan.json", "collection": "modules", "match": {"name": "kv260_i2s_transmitter"}, "field": "implementation", "operator": "equals", "expected": "rtl"},
+    {"id": "SEM-OWNER", "weight": 10, "artifact": "architecture-plan.json", "collection": "modules", "match": {"name": "kv260_i2s_transmitter"}, "field": "owner", "operator": "equals", "expected": "vivado_rtl_engineer"},
+    {"id": "SEM-PLATFORM", "weight": 10, "artifact": "architecture-plan.json", "collection": "work_packages", "field": "agent", "operator": "contains", "expected": "amd_soc_platform_integrator"},
+    {"id": "SEM-NO-HLS", "weight": 10, "artifact": "architecture-plan.json", "collection": "work_packages", "field": "agent", "operator": "not_contains", "expected": "vitis_hls_engineer"}
+  ],
+  "score_weights": {"contracts": 10, "semantics": 40, "simulation": 30, "vivado": 20}
+}

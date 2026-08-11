@@ -1,0 +1,170 @@
+# ── Suite runner spec: IP Configuration Benchmark ──────────────────────────
+# Shared invocation + host requirements for every case in this blind
+# Vivado IP-configuration benchmark suite.
+
+skill_name: ip-configurator
+skill_version: "1.0.0"
+suite_id: ip-configurator-blind-benchmark
+
+invocation:
+  coding_agent:
+    # - name: opencode
+    #   model: azure/gpt-5.4-mini
+    # The MCP server caps concurrent sessions at 7; the harness throttles
+    # session-backed groups even when --parallel is higher.
+    # - name: opencode
+    #   model: azure/gpt-5.4
+    - name: claude_code
+      model: sonnet
+    # # This copilot account only accepts the `auto` selector; named models
+    # # (gpt-5.4, gpt-5, claude-sonnet-*) all return "model not available".
+    # - name: copilot
+    #   model: auto
+    # # Cursor CLI (`agent`). `auto` lets Cursor's server pick an available
+    # # model — avoids "model not available" the way copilot does. Pin a
+    # # named id (e.g. claude-sonnet-5-high) once the account's access is
+    # # confirmed via `agent --list-models`. Cursor reads the staged
+    # # workspace `.claude/skills/` tree and the workspace-local
+    # # `.cursor/mcp.json` the backend writes for the Vivado MCP server.
+    # - name: cursor
+    #   model: auto
+
+  # Skill-stage allowlist: ship only the skill(s) under test into the
+  # workspace `.claude/skills/` tree so triggering is measured fairly.
+  skills: [ip-configurator]
+
+  # Per-attempt wall-clock cap. Deliberately lower than the ~90min a full
+  # config run could take, so a hung provider stream (seen stalling a single
+  # azure/gpt-5.4 request for ~79min) is killed fast and retried instead of
+  # burning the whole budget on one dead attempt.
+  timeout_seconds: 1800
+  # Max re-attempts after a timeout. On timeout the harness redoes the run,
+  # reusing the same Vivado MCP session (the persistent MCP server keeps it
+  # alive across the killed CLI process), until this count is hit.
+  retries: 2
+  max_tokens_per_run: 60000
+
+  # NOTE: prompts live per-case in test_cases.yaml (prompt /
+  # prompt_without_skill), not here.
+
+requirements:
+  vivado: true
+  # min_vivado_version: '2026.1'
+  vitis: false
+  hardware: null
+  min_memory_gb: 4
+  min_disk_gb: 1
+  estimated_duration_minutes: 60
+  tags: [vivado, blind-benchmark, ip-configurator]
+
+# The shared preamble prepended to EVERY case's user prompt is authored in two
+# independent parts (see core/case_loader.py). The final per-case prompt is:
+#     shared_prompt_prefix  +  output_contract  +  <test_cases.yaml prompt>
+# {case_number}/{case_id}/{cell_name} are substituted per case. This is a
+# user-prompt prefix, NOT a system prompt -- the loader concatenates it into
+# the prompt sent on the user turn. Restated per case (not said once in setup:)
+# because each case is its own separate, stateless agent invocation with no
+# memory of a prior "said once" instruction -- see runtime/suite_lifecycle.py.
+
+# Part 1 -- basic requirement + instructions.
+shared_prompt_prefix: |
+  On the Versal AI Edge Gen2 part `xc2ve3558-sfva1440-2MP-e-S` (the shared
+  block design from setup), add a block-design cell named `{cell_name}`
+  configured for the intent below.
+
+# Part 2 -- the mandated JSON output contract. Graded by the
+# `output_contract_match` grader against the golden result in test_cases.yaml.
+output_contract: |
+  <Result_format>
+  ```json
+  {"identified_ip": "<bare IP name>", "vlnv": "<vlnv you used in format vendor:library:name:version>",
+   "as_configured": {"CONFIG.X": "val", ...},
+   "tier1_success": bool, "tier2_success": bool|null, "self_fidelity": "full|partial|negative|creation_only", 
+   "notes": "..."}
+  ```
+  </Result_format>
+  - `as_configured` is what you actually set and read back from the cell,
+    NOT what you guess the answer is. `self_fidelity` is your own
+    confidence vs the INTENT, with zero reference to any answer key.
+ 
+
+# Runs once per (suite, coding_agent, model) -- not once per case -- in a
+# workspace that's then kept alive and reused by every one of this suite's
+# 31 test prompts for that agent (see runtime/suite_lifecycle.py).
+#
+# Deliberately NOT `kind: prompt`. Environment prep is deterministic work, so
+# the harness does it directly (no agent, no tokens, no timeout risk, no
+# run-to-run variance) -- which matters now that same-skill consistency is the
+# signoff bar. A prompt-based setup made one LLM turn the gate on all 31 cases:
+# if it improvised, every case inherited the damage and the failures looked
+# like skill failures.
+#
+# The helper starts ONE Vivado MCP session, sets the part, creates the shared
+# block design, sources the skill's ipcfg.tcl once, and leaves the session
+# running. It prints VIVADO_SESSION_ID:<id>, which the runner parses into
+# group.session_ids -- so every case's prompt is told to reuse this session
+# rather than starting its own Vivado.
+setup:
+  kind: python
+  module: skills_testing.runtime.vivado_session_setup
+  args:
+    - --part=xc2ve3558-sfva1440-2MP-e-S
+    - --bd-name=benchmark_bd
+    # {skills_dir} is substituted by the runner with THIS client's staged
+    # skills dir -- opencode stages into .opencode/skills, Claude Code and
+    # Copilot into .claude/skills. Hardcoding either one breaks the others.
+    - --skills-dir={skills_dir}
+    - --source-skill-lib=ip-configurator/lib/ipcfg.tcl
+    # Shared across every client/model/shard using this MCP URL. Setup workers
+    # reserve launch slots five seconds apart, then start concurrently after
+    # releasing the short reservation lock.
+    - --launch-gap-seconds=5
+  timeout_seconds: 900
+
+# Runs after every test prompt in this suite except the last one in a group
+# (nothing follows it -- teardown wipes the workspace right after), restoring
+# the shared block design to baseline before the next prompt.
+#
+# Deliberately NOT `kind: prompt`, for the same reason as setup: above and
+# then some. This action runs once per CASE rather than once per group, so a
+# prompt-based reset multiplies LLM variance by the case count. The previous
+# version asked the agent to "confirm that ipcfg::cleanup has been run …
+# if it did not run, run it now", which a fresh stateless agent could satisfy
+# with text alone -- nothing verified it -- and told it to pass `$orig_part`,
+# a Tcl variable it could only inherit if the previous agent happened to set
+# it at global scope; unset, ipcfg::cleanup reads empty as "don't restore the
+# part" and silently leaves the design on a swapped part (cases 016/017 swap
+# to xcvc1902 for clk_wizard) for every later case in the group.
+#
+# A failed reset is now fatal to the group's remaining cases -- a dirty shared
+# design makes later, innocent cases fail and hides why.
+reset:
+  kind: python
+  module: skills_testing.runtime.vivado_session_reset
+  args:
+    # Baseline part, stated explicitly -- same value as setup's --part -- so a
+    # case that swapped it cannot leave the rest of the group elsewhere.
+    - --part=xc2ve3558-sfva1440-2MP-e-S
+    - --bd-name=benchmark_bd
+    # Matches the cell_name pattern test_cases.yaml assigns per case
+    # (bench_cell_001 … bench_cell_031), so the reset needn't be told which
+    # cell the case it follows actually created.
+    - --cell-pattern=bench_cell_*
+    # Stub ports ipcfg's helpers add to make a bare cell connectable.
+    - --port-pattern=STUB_*
+    # Substituted by the runner with this group's live session -- the one
+    # setup: handed over via VIVADO_SESSION_ID:.
+    - --session-id={session_id}
+  timeout_seconds: 300
+
+
+# Deferred to the last test prompt in the group instead of running after
+# every single one (see setup: above) -- clears the shared working
+# directory the setup step created.
+# workspace_processes is the safety net: reaps any Vivado/proxy-mode MCP
+# process still alive under this workspace path (e.g. if reset:/teardown:
+# didn't cleanly stop it) -- runs BEFORE working_dir so the process is
+# gone before its directory is wiped out from under it, not after.
+cleanup:
+  - workspace_processes
+  - working_dir

@@ -1,0 +1,61 @@
+# ── Suite runner spec: hls-burst-inference_08 — hls-burst-inference Skill Evaluation ──────────────────────────
+# Shared invocation + host requirements for EVERY test case listed in
+# test_cases.yaml. One suite = one runner_spec + one grader_spec +
+# one test_cases.yaml.
+
+skill_name: hls-burst-inference
+skill_version: "1.0.0"
+suite_id: hls-burst-inference_08
+
+invocation:
+  coding_agent:
+    - name: opencode
+      model: azure/gpt-5.4
+    # - name: claude_code
+    #   model: sonnet
+    # Cursor CLI (`agent`). `auto` lets Cursor's server pick an available
+    # model — avoids "model not available". Pin a named id (e.g.
+    # claude-sonnet-5-high) once the account's access is confirmed via
+    # `agent --list-models`.
+    # - name: cursor
+    #   model: auto
+    # copilot arm disabled: both available GitHub accounts are out of
+    # Copilot monthly quota (premium requests exhausted / no active
+    # subscription). Re-enable once quota resets or a subscribed account
+    # is used. Note: copilot only accepts the `auto` selector — named
+    # models (gpt-5.4, gpt-5, claude-sonnet-*) return "model not available".
+    # - name: copilot
+    #   model: auto
+
+  # Skill-stage allowlist: ship only the skill(s) under test into the
+  # workspace `.claude/skills/` tree so triggering is measured fairly.
+  skills: [hls-burst-inference, hls-run-flow]
+
+  timeout_seconds: 1800
+  retries: 2
+  max_tokens_per_run: 60000
+
+  # NOTE: prompts live per-case in test_cases.yaml (prompt /
+  # prompt_without_skill), not here.
+
+# The mandated JSON output contract, appended to EVERY case's prompt (final =
+# shared_prompt_prefix + output_contract + <test_cases.yaml prompt> -- see
+# core/case_loader.py). Defined once here instead of repeated inline in each
+# case's prompt, so a suite growing past 2 cases doesn't mean copy-pasting
+# this instruction N times. Graded by the `output_contract_match` grader in
+# grader_spec.yaml against each case's expected.expected_output.
+output_contract: |
+  End your response with a JSON object of the form:
+  {"verdict": "YES"|"NO", "explanation": "<your reasoning>"}
+
+requirements:
+  vivado: false
+  vitis: true
+  hardware: null
+  min_memory_gb: 2
+  min_disk_gb: 1
+  estimated_duration_minutes: 5
+  tags: [hls, static-review, hls-burst-inference]
+
+cleanup:
+  - working_dir

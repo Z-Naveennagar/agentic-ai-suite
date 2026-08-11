@@ -1,0 +1,116 @@
+<!--
+Copyright (C) 2026, Advanced Micro Devices, Inc. All rights reserved.
+SPDX-License-Identifier: MIT
+-->
+
+# Customer Guidance Standard v0.1
+
+Status: required for customer-facing workflow runs
+
+## Purpose
+
+The multi-agent flow must help a customer understand and safely continue the
+work. Passing tools and schemas is necessary, but it is not sufficient. Every
+claim must be traceable to an artifact or gate receipt, and every update must
+make the next action clear without requiring the customer to understand the
+internal agent topology.
+
+## Intake brief
+
+After the deterministic intake gate, the orchestrator reports:
+
+- what it understood the customer wants to build;
+- target board/part and requested completion profile;
+- the selected specialist route and why each conditional domain is included;
+- what the flow will do automatically;
+- actions that require explicit authorization, especially hardware actions;
+- consequential assumptions and the first unresolved uncertainty; and
+- the run directory and request ID.
+
+Sparse but sufficient input should start useful work. Ask only when the answer
+would materially change product behavior, interfaces, target hardware, safety,
+or acceptance.
+
+Guided mode is the customer default. Unattended regression is an explicit
+execution choice. Both modes persist the same evidence. In guided mode, ask no
+more than three focused questions at once. In unattended mode, stop safely and
+record the question when no safe default exists.
+
+## Durable status and recovery
+
+The deterministic runner, not a specialist, maintains `run-status.json` and
+`run-report.md`. These files remain useful after a terminal or UI closes. They
+identify the current stage and owner, why it was selected, start and update
+timestamps, last completed milestone, active task or Vivado session when
+known, iteration and retry budget, latest evidence, blocking condition, next
+action, and an exact resume command. A new session discovers non-terminal runs
+before creating another run with the same intent.
+
+Before G0, a customer-environment preflight checks package integrity, schemas,
+skills, tool and license availability, Vivado release and target support,
+resources, and active sessions. Failures include concrete remedies.
+
+## Gate update
+
+For every closed gate, derive a concise update from the authoritative receipt
+and producer artifact:
+
+1. Stage purpose and verdict.
+2. Exact input artifact revisions.
+3. Actions actually performed and material decisions with rationale.
+4. Outputs and evidence paths.
+5. Checks, measured results, and warning classifications.
+6. Side effects, assumptions, waivers, and unverified boundaries.
+7. Next owner, next action, and why transition is or is not allowed.
+
+Do not report a producer's `PASS` as transition authority. Do not summarize a
+large warning population only by the smallest tool sub-summary. Distinguish
+authored diagnostics, generated-IP advisories, exploratory query errors, and
+signoff violations.
+
+## Failure and retry update
+
+When a gate does not pass:
+
+- state that the downstream stage was not dispatched;
+- show one minimal expected-versus-observed example when available;
+- distinguish design, oracle, harness, tool, environment, and access failures;
+- identify the sole artifact owner and requested corrective action;
+- preserve and link the failed revision and its receipt; and
+- require a new independent check before reopening the forward path.
+
+Also record the failed check, expected and observed result, relevant message
+identifier, whether auto-repair is authorized and safe, current iteration and
+remaining budget, usability of partial artifacts, and the exact resume action.
+Automatic repair is allowed only when explicitly enabled and it does not alter
+requirements, interfaces, waivers, hardware actions, or artifact ownership.
+
+Never silently repair another agent's artifact or overwrite failed evidence.
+
+## Final handoff
+
+The final customer handoff includes:
+
+- completion status: design-complete, hardware-ready, or hardware-qualified;
+- completed route, gate history, and artifact revisions;
+- functional verification coverage and implementation signoff facts;
+- programming image, XSA, LTX, debug map, reports, and hashes when applicable;
+- classified blocking, resolved, and nonblocking findings;
+- explicit statements of what was not tested or authorized;
+- reproduction, resume, or qualification instructions; and
+- one recommended next step.
+
+The final handoff must stand alone, while linking JSON receipts as the audit
+source of truth and Markdown views for convenient review.
+
+## Customer-language rules
+
+- Lead with outcome and impact, then supporting tool detail.
+- Explain acronyms or domain terms the first time they affect a decision.
+- Say where data and stimulus originate: host, PS/ARM, DMA, VIO, PL logic, or
+  external equipment.
+- Say whether constraints are user-authored, agent-authored, generated by IP,
+  or absent, and whether external pins/connectors are used.
+- Never claim physical hardware testing from simulation, implementation, an
+  internal self-test, or generated debug artifacts alone.
+- Provide rationale and evidence, not hidden chain-of-thought.

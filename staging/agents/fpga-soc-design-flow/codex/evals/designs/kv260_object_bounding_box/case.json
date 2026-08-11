@@ -1,0 +1,180 @@
+{
+  "schema_version": 1,
+  "id": "kv260_object_bounding_box",
+  "title": "KV260 streaming object bounding-box reducer",
+  "prompt_file": "prompt.md",
+  "target": {
+    "part": "xck26-sfvc784-2LV-c",
+    "board_part": "xilinx.com:kv260_som:part0:1.4",
+    "vivado_version": "2025.2"
+  },
+  "expected_route": [
+    "amd_soc_orchestrator",
+    "amd_soc_intent_to_spec",
+    "amd_soc_architect",
+    "vivado_rtl_engineer",
+    "amd_soc_platform_integrator",
+    "amd_soc_verifier",
+    "vivado_impl_closure"
+  ],
+  "candidate": {
+    "integration_mode": "ip_integrator",
+    "top": "kv260_object_bounding_box",
+    "simulation_top": "kv260_object_bounding_box",
+    "rtl_sources": [
+      "rtl/kv260_object_bounding_box.sv"
+    ],
+    "constraint_sources": []
+  },
+  "public_interface": {
+    "design_root": "design",
+    "modules": [
+      {
+        "name": "kv260_object_bounding_box",
+        "source": "rtl/kv260_object_bounding_box.sv",
+        "roles": [
+          "simulation_top",
+          "required_component"
+        ],
+        "parameters": [],
+        "ports": [
+          {
+            "name": "clk",
+            "direction": "input",
+            "width": 1
+          },
+          {
+            "name": "rst_n",
+            "direction": "input",
+            "width": 1
+          },
+          {
+            "name": "s_valid",
+            "direction": "input",
+            "width": 1
+          },
+          {
+            "name": "s_ready",
+            "direction": "output",
+            "width": 1
+          },
+          {
+            "name": "s_foreground",
+            "direction": "input",
+            "width": 1
+          },
+          {
+            "name": "s_x",
+            "direction": "input",
+            "width": 16
+          },
+          {
+            "name": "s_y",
+            "direction": "input",
+            "width": 16
+          },
+          {
+            "name": "s_frame_first",
+            "direction": "input",
+            "width": 1
+          },
+          {
+            "name": "s_frame_last",
+            "direction": "input",
+            "width": 1
+          },
+          {
+            "name": "m_valid",
+            "direction": "output",
+            "width": 1
+          },
+          {
+            "name": "m_ready",
+            "direction": "input",
+            "width": 1
+          },
+          {
+            "name": "m_found",
+            "direction": "output",
+            "width": 1
+          },
+          {
+            "name": "m_x_min",
+            "direction": "output",
+            "width": 16
+          },
+          {
+            "name": "m_y_min",
+            "direction": "output",
+            "width": 16
+          },
+          {
+            "name": "m_x_max",
+            "direction": "output",
+            "width": 16
+          },
+          {
+            "name": "m_y_max",
+            "direction": "output",
+            "width": 16
+          }
+        ]
+      }
+    ],
+    "constraints": []
+  },
+  "simulation": {
+    "make_directory": "testbench",
+    "toplevel": "kv260_object_bounding_box"
+  },
+  "semantic_rubric": [
+    {
+      "id": "SEM-KERNEL-RTL",
+      "weight": 10,
+      "artifact": "architecture-plan.json",
+      "collection": "modules",
+      "match": {
+        "name": "kv260_object_bounding_box"
+      },
+      "field": "implementation",
+      "operator": "equals",
+      "expected": "rtl"
+    },
+    {
+      "id": "SEM-RTL-OWNER",
+      "weight": 10,
+      "artifact": "architecture-plan.json",
+      "collection": "modules",
+      "match": {
+        "name": "kv260_object_bounding_box"
+      },
+      "field": "owner",
+      "operator": "equals",
+      "expected": "vivado_rtl_engineer"
+    },
+    {
+      "id": "SEM-PLATFORM",
+      "weight": 10,
+      "artifact": "architecture-plan.json",
+      "collection": "work_packages",
+      "field": "agent",
+      "operator": "contains",
+      "expected": "amd_soc_platform_integrator"
+    },
+    {
+      "id": "SEM-NO-HLS",
+      "weight": 10,
+      "artifact": "architecture-plan.json",
+      "collection": "work_packages",
+      "field": "agent",
+      "operator": "not_contains",
+      "expected": "vitis_hls_engineer"
+    }
+  ],
+  "score_weights": {
+    "contracts": 10,
+    "semantics": 40,
+    "simulation": 30,
+    "vivado": 20
+  }
+}

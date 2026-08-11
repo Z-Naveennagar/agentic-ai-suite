@@ -1,0 +1,113 @@
+# ── Suite: hls-flattenable ───────────────
+# HLS coding style skills test — loop-flattenability analysis on 6 code
+# snippets covering the 9-rule framework (for-only loops with constant steps,
+# direct nesting, no control flow before/after the inner loop, inner bounds
+# independent of the outer induction variable, no break/goto in the innermost
+# body, and function-call constraints).
+#
+# Sourced from: inputs/vitis-hls-skills-test.JSON (queries manifest).
+#
+# Placeholders substituted into any prompt:
+#   {input_file}  -> the first entry of a case's input_files
+# {skill_name} / {flow_skill} are internal bookkeeping only (used in
+# expected.skills and in SKILL.md lookups) — they never appear inside
+# a prompt's literal text. No test case, of any shape, ever names a
+# skill in its customer-facing prompt.
+#
+# Per-case fields:
+#   id           unique case id
+#   input_files  files staged into the workspace from ./inputs
+#   prompt       the case's instruction — analysis-only one-liner, always
+#                skill-agnostic, informed by reading the relevant SKILL.md.
+#                The mandated {"verdict", "explanation"} JSON contract is NOT
+#                repeated per case: it's appended once via runner_spec.yaml's
+#                `output_contract:` (shared_prompt_prefix + output_contract +
+#                this prompt, per core/case_loader.py).
+#   expected     values substituted into grader_spec {tokens}:
+#                  expected_output -> golden {verdict, explanation} dict,
+#                                     graded whole by output_contract_match:
+#                                     verdict is literal/tolerant-compared
+#                                     (YES/NO, no partial credit), explanation
+#                                     is LLM-judged for substance via
+#                                     grader_spec's semantic_fields intent
+#                  skills          -> every skill this case is expected to invoke
+#                  tool_sequence   -> always present: expected tool calls in order
+
+suite_id: hls-flattenable
+description: >
+  Static loop-flattenability analysis across 6 C/C++ snippets. Each case asks
+  whether a given loop nest is flattenable for HLS, using the fixed 9-rule
+  framework. Sourced from inputs/vitis-hls-skills-test.JSON.
+
+test_cases:
+  - id: hls-flattenable_01
+    input_files: [hls-flattenable_01.cpp]
+    prompt: |-
+      Analyze `{input_file}`: does this code contain a flattenable loop
+      nest? Give a static analysis without running HLS. Explain your answer.
+    expected:
+      skills: [hls-flattenable]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Not flattenable — the `if`/`else` at lines 19-23 sits between the inner loop close and the outer loop close; control flow after the inner loop is prohibited."
+
+  - id: hls-flattenable_02
+    input_files: [hls-flattenable_02.cpp]
+    prompt: |-
+      Analyze `{input_file}`: does this code contain a flattenable loop
+      nest? Give a static analysis without running HLS. Explain your answer.
+    expected:
+      skills: [hls-flattenable]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "YES"
+        explanation: "Flattenable — all rules pass: the outer `for(i)` directly nests `for(j)` (the LOOP_J label is ignored), no control flow appears before or after the inner loop, the inner bounds are independent of i, and conditionals inside the innermost body are allowed since there is no `break` or `goto`."
+
+  - id: hls-flattenable_03
+    input_files: [hls-flattenable_03.cpp]
+    prompt: |-
+      Analyze `{input_file}`: does this code contain a flattenable loop
+      nest? Give a static analysis without running HLS. Explain your answer.
+    expected:
+      skills: [hls-flattenable]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Not flattenable — the inner loop initializer `int i=j` depends on the outer loop's induction variable `j`, so the inner bounds are not independent of the outer loop variable."
+
+  - id: hls-flattenable_04
+    input_files: [hls-flattenable_04.cpp]
+    prompt: |-
+      Analyze `{input_file}`: does this code contain a flattenable loop
+      nest? Give a static analysis without running HLS. Explain your answer.
+    expected:
+      skills: [hls-flattenable]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Not flattenable — an `if`/`else if` chain (lines 10-17) appears between the outer loop opening and the inner loop L2; control flow before the inner loop is prohibited."
+
+  - id: hls-flattenable_05
+    input_files: [hls-flattenable_05.cpp]
+    prompt: |-
+      Analyze `{input_file}`: does this code contain a flattenable loop
+      nest? Give a static analysis without running HLS. Explain your answer.
+    expected:
+      skills: [hls-flattenable]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "NO"
+        explanation: "Not flattenable — the innermost loop body contains `break` statements (lines 14, 17), which are prohibited inside the innermost loop."
+
+  - id: hls-flattenable_06
+    input_files: [hls-flattenable_06.cpp]
+    prompt: |-
+      Analyze `{input_file}`: does this code contain a flattenable loop
+      nest? Give a static analysis without running HLS. Explain your answer.
+    expected:
+      skills: [hls-flattenable]
+      tool_sequence: ["Read"]
+      expected_output:
+        verdict: "YES"
+        explanation: "Flattenable — all rules pass: every loop is a `for` with a constant step, the function call `foo(i, s)` is allowed because `foo` is defined and contains no loops, the innermost body has no `break`/`goto`, there is no control flow before or after the inner loop, the inner bounds are independent of i, and the `#pragma` directives are ignored for nesting analysis."

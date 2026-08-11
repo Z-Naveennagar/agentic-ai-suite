@@ -1,0 +1,53 @@
+{
+  "architecture_revision": 1,
+  "compile_order": [
+    "design/rtl/event_counter.sv"
+  ],
+  "component_evidence": [
+    {
+      "artifacts": [
+        "reports/elaboration.log"
+      ],
+      "id": "EVIDENCE-ELABORATION",
+      "kind": "elaboration",
+      "metrics": [
+        {
+          "name": "errors",
+          "units": "count",
+          "value": 0
+        }
+      ],
+      "status": "PASS"
+    }
+  ],
+  "component_id": null,
+  "elaboration": {
+    "artifacts": [
+      "reports/elaboration.rpt"
+    ],
+    "logs": [
+      "reports/elaboration.log"
+    ],
+    "status": "PASS",
+    "tool": "Vivado 2025.2"
+  },
+  "files": [
+    {
+      "architecture_element": "MOD-COUNTER",
+      "generated": false,
+      "kind": "rtl",
+      "language": "SystemVerilog",
+      "owner": "vivado_rtl_engineer",
+      "path": "design/rtl/event_counter.sv",
+      "sha256": null
+    }
+  ],
+  "manifest_kind": "aggregate",
+  "request_id": "example-direct-rtl",
+  "revision": 1,
+  "schema_version": 1,
+  "spec_revision": 1,
+  "status": "READY",
+  "top": "event_counter",
+  "unresolved": []
+}

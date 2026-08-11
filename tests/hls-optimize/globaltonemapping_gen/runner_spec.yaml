@@ -1,0 +1,64 @@
+# ── Suite runner spec: globaltonemapping_gen — optimize an existing HLS design ──
+# Reduce the GTM kernel's true latency by 2x with <= 1.5x resources via
+# hls-optimize -> hls-run-flow, keeping the OpenCV testbench passing. Shared
+# invocation + host requirements for every case in test_cases.yaml.
+#
+# HOST PREREQUISITE — OpenCV (not gated automatically):
+#   xf_gtm_tb.cpp uses cv::imread + xf::cv::analyzeDiff, so csim/cosim need
+#   OpenCV and gen_config.sh requires $OPENCV_INCLUDE / $OPENCV_LIB. The
+#   requirements block has no `opencv` field (the probe supports none), so
+#   `doctor` will NOT warn if OpenCV is missing — csim/cosim will fail to build.
+#   Ensure OpenCV dev headers + libs are installed and those env vars are set.
+#
+# "True latency" needs the FULL flow: csim + csynth + cosim + impl (post-route
+# clock). impl (place & route) is slow, so the time budget is large.
+
+skill_name: hls-optimize
+skill_version: "1.0.0"
+suite_id: globaltonemapping_gen
+
+invocation:
+  coding_agent:
+    - name: opencode
+      model: azure/gpt-5.4
+
+  # hls-run-flow must be present so hls-optimize can run csim/csynth/cosim/impl
+  # to measure baseline vs optimized true latency and resource usage.
+  skills: [hls-optimize, hls-run-flow]
+
+  # Baseline full-flow + an iterative optimize loop that re-runs synthesis and
+  # (to measure true latency) cosim + impl. impl P&R on a Versal part is slow —
+  # give a generous budget and raise it if legitimate runs are killed.
+  # Raised 3600 -> 7200 to match requirements.estimated_duration_minutes (120).
+  # At 3600 this suite was finishing with almost no margin — run 3f973f6e took
+  # 3520.6s of the 3600s budget (80s spare) — so normal Versal place-and-route
+  # variance would kill legitimate runs at the impl step and surface as a skill
+  # failure rather than a timeout.
+  timeout_seconds: 7200
+  retries: 1
+  max_tokens_per_run: 500000
+
+  # NOTE: prompts live per-case in test_cases.yaml (prompt /
+  # prompt_without_skill), not here.
+
+# The mandated JSON output contract, appended to EVERY case's prompt (final =
+# shared_prompt_prefix + output_contract + <test_cases.yaml prompt> -- see
+# core/case_loader.py). Defined once here instead of repeated inline in each
+# case's prompt. Graded by the `output_contract_match` grader in
+# grader_spec.yaml against each case's expected.expected_output.
+output_contract: |
+  End your response with a JSON object of the form:
+  {"verdict": "YES"|"NO", "explanation": "<your reasoning>"}
+
+requirements:
+  vivado: false            # driven through Vitis (v++ / vitis-run), not vivado directly
+  vitis: true              # csim / csynth / cosim / impl require Vitis HLS
+  hardware: null
+  min_memory_gb: 8         # Versal impl (place & route) is memory-hungry
+  min_disk_gb: 8           # Vitis HLS project + impl artifacts
+  estimated_duration_minutes: 120
+  tags: [hls, vitis-vision, optimization, impl, hls-optimize]
+
+cleanup:
+  - working_dir
+  - workspace_processes

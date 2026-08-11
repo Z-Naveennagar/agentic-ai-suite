@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "hardware-spec.schema.json",
+  "title": "Hardware Specification v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "request_id",
+    "revision",
+    "status",
+    "entry_type",
+    "intent",
+    "target",
+    "requirements",
+    "acceptance",
+    "provenance",
+    "assumptions",
+    "unresolved_questions"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "request_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"},
+    "revision": {"type": "integer", "minimum": 1},
+    "status": {"enum": ["READY", "NEEDS_USER_INPUT", "INFEASIBLE", "ERROR"]},
+    "entry_type": {"enum": ["greenfield", "existing_project", "checkpoint", "failure", "regression"]},
+    "intent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["original_request", "goal", "deliverables", "allowed_changes", "prohibited_changes"],
+      "properties": {
+        "original_request": {"type": "string", "minLength": 1},
+        "goal": {"type": "string", "minLength": 1},
+        "deliverables": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "uniqueItems": true},
+        "allowed_changes": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "prohibited_changes": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["part", "board", "vivado_version"],
+      "properties": {
+        "part": {"type": ["string", "null"]},
+        "board": {"type": ["string", "null"]},
+        "vivado_version": {"type": ["string", "null"]}
+      },
+      "anyOf": [
+        {"properties": {"part": {"type": "string", "minLength": 1}}},
+        {"properties": {"board": {"type": "string", "minLength": 1}}}
+      ]
+    },
+    "requirements": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/requirement"}
+    },
+    "acceptance": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/acceptance"}
+    },
+    "provenance": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/provenance"}
+    },
+    "assumptions": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "unresolved_questions": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "READY"}}, "required": ["status"]},
+      "then": {"properties": {"unresolved_questions": {"maxItems": 0}}}
+    },
+    {
+      "if": {"properties": {"status": {"const": "NEEDS_USER_INPUT"}}, "required": ["status"]},
+      "then": {"properties": {"unresolved_questions": {"minItems": 1}}}
+    }
+  ],
+  "$defs": {
+    "requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "category", "statement", "priority", "value", "units"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^REQ-[A-Z0-9_-]+$"},
+        "category": {"enum": ["functional", "interface", "clock", "reset", "performance", "resource", "power", "tool", "deliverable", "constraint"]},
+        "statement": {"type": "string", "minLength": 1},
+        "priority": {"enum": ["must", "should", "may"]},
+        "value": {"type": ["string", "number", "boolean", "null"]},
+        "units": {"type": ["string", "null"]}
+      }
+    },
+    "acceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "requirement_ids", "method", "pass_condition"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^ACC-[A-Z0-9_-]+$"},
+        "requirement_ids": {"type": "array", "items": {"type": "string", "pattern": "^REQ-[A-Z0-9_-]+$"}, "minItems": 1, "uniqueItems": true},
+        "method": {"enum": ["inspection", "lint", "simulation", "formal", "synthesis", "implementation", "timing", "drc", "power", "artifact"]},
+        "pass_condition": {"type": "string", "minLength": 1}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "source", "confidence", "evidence"],
+      "properties": {
+        "field": {"type": "string", "minLength": 1},
+        "source": {"enum": ["USER", "VIVADO_OBSERVED", "AMD_DOC", "DERIVED", "ASSUMED"]},
+        "confidence": {"enum": ["HIGH", "MEDIUM", "LOW"]},
+        "evidence": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1}
+      }
+    }
+  }
+}

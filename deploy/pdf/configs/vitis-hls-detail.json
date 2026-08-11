@@ -1,0 +1,15 @@
+{
+  "title": "Vitis HLS AI Assistant — Skills Reference",
+  "subtitle": "Agent skills for HLS design automation — Early Access",
+  "tab_name": "Vitis HLS",
+  "kicker": "Early Access — Vitis HLS AI Assistant",
+  "output": "deploy/pdf/output/Vitis-HLS-AI-Assistant-Guide.pdf",
+  "sources": [
+    "deploy/pdf/sources/vitis-hls-overview.md",
+    "docs/staging/vitis-hls/skills.md",
+    "docs/staging/vitis-hls/skills/matlab-to-cpp.md",
+    "docs/staging/vitis-hls/skills/hls-architect.md",
+    "docs/staging/vitis-hls/skills/hls-optimize.md",
+    "docs/staging/vitis-hls/skills/hls-run-flow.md"
+  ]
+}
